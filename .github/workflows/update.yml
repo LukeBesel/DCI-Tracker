@@ -1,0 +1,48 @@
+name: Daily update
+
+on:
+  schedule:
+    # Twice daily: after US evening shows post (~07:30 UTC) and midday UTC refresh
+    - cron: "30 7 * * *"
+    - cron: "0 15 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: scrape
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r scraper/requirements.txt
+      - name: Current season from DCI.org
+        run: python scraper/scrape_dci.py --season $(date +%Y) --force
+        env: { PYTHONPATH: scraper }
+      - name: Recent drum-corps.net entries
+        run: python scraper/scrape_dcnet.py
+        env: { PYTHONPATH: scraper }
+      - name: DCA site
+        run: python scraper/scrape_dca_site.py
+        env: { PYTHONPATH: scraper }
+      - name: News
+        run: python scraper/scrape_news.py
+        env: { PYTHONPATH: scraper }
+      - name: Build site data
+        run: python scraper/build_data.py
+        env: { PYTHONPATH: scraper }
+      - name: Commit results
+        run: |
+          git config user.name "dci-dashboard-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A data docs
+          git diff --cached --quiet || git commit -m "Daily update: $(date -u +%F)"
+          git push

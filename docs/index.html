@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Corps Central — DCI & DCA Scores, History & News</title>
+<meta name="description" content="Auto-updating dashboard for DCI and DCA drum corps: live season standings, complete score history back to 1972, caption recaps, corps histories, champions and news.">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='44' fill='%233987e5'/><circle cx='50' cy='50' r='30' fill='%230d0d0d'/><circle cx='50' cy='50' r='12' fill='%233987e5'/></svg>">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="#/">
+    <svg viewBox="0 0 100 100" width="26" height="26" aria-hidden="true"><circle cx="50" cy="50" r="44" fill="#3987e5"/><circle cx="50" cy="50" r="30" fill="#0d0d0d"/><circle cx="50" cy="50" r="12" fill="#3987e5"/></svg>
+    <span>Corps<b>Central</b></span>
+  </a>
+  <nav id="nav">
+    <a href="#/" data-route="today">Today</a>
+    <a href="#/rankings" data-route="rankings">Rankings</a>
+    <a href="#/seasons" data-route="seasons">Seasons</a>
+    <a href="#/corps" data-route="corps">Corps</a>
+    <a href="#/champions" data-route="champions">Champions</a>
+    <a href="#/history" data-route="history">Vault</a>
+    <a href="#/news" data-route="news">News</a>
+    <a href="#/about" data-route="about">About</a>
+  </nav>
+  <div class="updated" id="updated" title="Data refresh time"></div>
+</header>
+
+<main id="app" class="viz-root">
+  <div class="loading">Loading dashboard…</div>
+</main>
+
+<footer class="foot">
+  <div>Unofficial fan project. Scores © their respective owners — see <a href="#/about">data sources</a>.</div>
+  <div>Updated automatically twice daily · <a href="https://github.com/LukeBesel/dci-dashboard" rel="noopener">source on GitHub</a></div>
+</footer>
+
+<div id="tooltip" class="tooltip" hidden></div>
+<script src="charts.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
