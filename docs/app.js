@@ -499,7 +499,7 @@
       <div class="card">
         <p>Corps Central is an unofficial, fan-built dashboard for Drum Corps International (DCI) and Drum Corps Associates (DCA) scores, history and news. It rebuilds itself automatically twice a day during the season via GitHub Actions — no human in the loop.</p>
         <p><b>Coverage.</b> Event-by-event results with caption recaps for recent DCI seasons (2013–present, via DCI.org / Competition Suite), event-level results 2001–2012 (drum-corps.net archives), DCI World Championship Finals back to 1972 with repertoires and archival caption recaps (The Sound Machine), DCA results (drum-corps.net & dcacorps.org) and DCA champions to the 1960s (Wikipedia).</p>
-        <p><b>Accuracy.</b> Data is scraped from public sources and normalized automatically; typos and gaps in the sources carry through. Scores are official only as published by DCI/DCA. Found an issue? <a href="https://github.com/LukeBesel/dci-dashboard/issues" rel="noopener">Open a ticket</a>.</p>
+        <p><b>Accuracy.</b> Data is scraped from public sources and normalized automatically; typos and gaps in the sources carry through. Scores are official only as published by DCI/DCA. Found an issue? <a href="https://github.com/LukeBesel/DCI-Tracker/issues" rel="noopener">Open a ticket</a>.</p>
         <h3>Sources</h3>
         ${(meta.sources || []).map(s => `<div style="padding:4px 0">• <a href="${encodeURI(s.url)}" target="_blank" rel="noopener">${esc(s.name)}</a></div>`).join("")}
         <p style="color:var(--muted);font-size:12.5px">Last data refresh: ${esc(meta.updated)}. All trademarks belong to their owners; this site is not affiliated with DCI or DCA.</p>

@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parent.parent
 RAW = ROOT / "data" / "raw"
 OUT = ROOT / "docs" / "data"
 
-UA = "dci-dashboard-bot/1.0 (+https://github.com/LukeBesel/dci-dashboard; hobby project; contact via GitHub issues)"
+UA = "dci-dashboard-bot/1.0 (+https://github.com/LukeBesel/DCI-Tracker; hobby project; contact via GitHub issues)"
 RATE_LIMIT_SECONDS = 0.75
 
 _session = requests.Session()

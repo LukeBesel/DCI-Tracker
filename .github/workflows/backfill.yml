@@ -7,6 +7,9 @@ on:
         description: "Re-parse cached pages (after parser changes)"
         type: boolean
         default: false
+  push:
+    branches: [main]
+    paths: [".github/workflows/backfill.yml"]
 
 permissions:
   contents: write
@@ -25,29 +28,16 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r scraper/requirements.txt
-      - name: Scrape DCI.org (2013+)
-        run: python scraper/scrape_dci.py
-        working-directory: .
-        env: { PYTHONPATH: scraper }
-      - name: Scrape drum-corps.net archives (2001+)
-        run: python scraper/scrape_dcnet.py ${{ inputs.refresh_parse && '--refresh' || '' }}
-        env: { PYTHONPATH: scraper }
-      - name: Scrape historical finals + DCA champions
-        run: python scraper/scrape_history.py
-        env: { PYTHONPATH: scraper }
-      - name: Scrape DCA site
-        run: python scraper/scrape_dca_site.py
-        env: { PYTHONPATH: scraper }
-      - name: Scrape news
-        run: python scraper/scrape_news.py
-        env: { PYTHONPATH: scraper }
-      - name: Build site data
-        run: python scraper/build_data.py
-        env: { PYTHONPATH: scraper }
+      - name: Run full scrape
+        run: bash scraper/run_all.sh backfill
+        env:
+          REFRESH: ${{ (github.event_name == 'workflow_dispatch' && inputs.refresh_parse) && '1' || '' }}
       - name: Commit results
+        if: always()
         run: |
           git config user.name "dci-dashboard-bot"
           git config user.email "actions@users.noreply.github.com"
           git add -A data docs
           git diff --cached --quiet || git commit -m "Backfill: full historical scrape"
+          git pull --rebase origin main || true
           git push

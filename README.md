@@ -4,7 +4,7 @@ An automatically-updating public dashboard for Drum Corps International (DCI) an
 Drum Corps Associates (DCA): live season standings, complete score history back
 to 1972, caption recaps, corps histories, champions timelines, and news.
 
-**Live site:** https://lukebesel.github.io/dci-dashboard/
+**Live site:** https://lukebesel.github.io/DCI-Tracker/
 
 ## How it works
 
