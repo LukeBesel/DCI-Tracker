@@ -13,6 +13,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 concurrency:
   group: scrape
@@ -41,3 +43,11 @@ jobs:
           git diff --cached --quiet || git commit -m "Backfill: full historical scrape"
           git pull --rebase origin main || true
           git push
+
+  deploy:
+    needs: backfill
+    uses: ./.github/workflows/pages.yml
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
