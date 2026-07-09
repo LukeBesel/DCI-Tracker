@@ -173,4 +173,6 @@ pre.vault {
   .updated { display: none; }
   main { padding: 14px 12px 50px; }
   .tile .value { font-size: 24px; }
+  .standings .col-trend { display: none; }
+  .t td, .t th { padding: 6px 5px; }
 }

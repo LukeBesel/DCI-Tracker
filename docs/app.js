@@ -111,10 +111,10 @@
         <td>${corpsLink(r.corps)}<div style="font-size:11.5px;color:var(--muted)">${esc(r.event)} · ${esc(r.date || "")}</div></td>
         <td class="num score">${score3(r.score)}</td>
         <td class="num">${deltaHtml(r.delta)}</td>
-        <td><span class="sparkcell" data-trend="${r.trend.join(",")}"></span></td>
+        <td class="col-trend"><span class="sparkcell" data-trend="${r.trend.join(",")}"></span></td>
       </tr>`).join("");
     document.getElementById("standings").innerHTML =
-      `<table class="t"><thead><tr><th>#</th><th>Corps · last event</th><th class="num">Score</th><th class="num">vs prev</th><th>Trend</th></tr></thead><tbody>${rows}</tbody></table>`;
+      `<table class="t standings"><thead><tr><th>#</th><th>Corps · last event</th><th class="num">Score</th><th class="num">vs prev</th><th class="col-trend">Trend</th></tr></thead><tbody>${rows}</tbody></table>`;
     document.querySelectorAll(".sparkcell").forEach((elm, i) => {
       const vals = elm.dataset.trend.split(",").map(Number).filter(n => !isNaN(n));
       sparkline(elm, vals, "#52514e");
