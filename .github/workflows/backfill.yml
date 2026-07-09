@@ -51,3 +51,5 @@ jobs:
       contents: read
       pages: write
       id-token: write
+
+# rebuild queue: 2026-07-09T16:31:19Z

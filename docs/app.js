@@ -329,9 +329,9 @@
         </tbody></table></div>`;
     const chrono = champs.slice().reverse();
     lineChart(document.getElementById("champChart"), {
-      series: [{ name: "Winning score", points: chrono.map((c, i) => ({ x: i, y: c.score })) }],
-      xLabels: chrono.map(c => String(c.year)),
-      height: 260, yFmt: v => v.toFixed(1),
+      linearX: true,
+      series: [{ name: "Winning score", points: chrono.map(c => ({ x: c.year, y: c.score })) }],
+      height: 260, yFmt: v => v.toFixed(1), xFmt: v => String(Math.round(v)),
     });
   }
 
@@ -341,7 +341,7 @@
     const idx = await data("corps_index.json");
     app.innerHTML = `
       <h1 class="page">Corps directory</h1>
-      <p class="lede">Every corps with two or more recorded performances, DCI and DCA, 1972–today.</p>
+      <p class="lede">Every corps with a recorded performance, DCI and DCA, 1972–today — from Blue Devils to the Govenaires. Missing someone? They'll appear as soon as a source publishes a score. Want raw rows instead? Try the <a href="#/database">full database</a>.</p>
       <div class="filters">
         <input class="ctrl" id="q" placeholder="Search corps…">
         <button class="tab" data-f="all">All</button>
@@ -422,8 +422,9 @@
         <div id="perfTable"></div></div>`;
 
     lineChart(document.getElementById("corpsChart"), {
-      series: [{ name: "Season best", points: series.map((v, i) => ({ x: i, y: v })) }],
-      xLabels: years.map(String), height: 280, yFmt: v => v.toFixed(0),
+      linearX: true,
+      series: [{ name: "Season best", points: years.map((y, i) => ({ x: y, y: series[i] })) }],
+      height: 280, yFmt: v => v.toFixed(0), xFmt: v => String(Math.round(v)),
     });
 
     function renderPerfs() {
@@ -439,6 +440,104 @@
     }
     document.getElementById("yearSel").addEventListener("change", renderPerfs);
     renderPerfs();
+  }
+
+  /* ---------------- DATABASE (full sortable) ---------------- */
+  const DB = { rows: null, sort: [0, -1] };
+  async function loadDb() {
+    if (DB.rows) return DB.rows;
+    const idx = await data("db/index.json");
+    const parts = await Promise.all(idx.map(d => data(`db/perfs_${d.decade}.json`)));
+    DB.rows = parts.flat();
+    return DB.rows;
+  }
+
+  async function viewDatabase() {
+    setNav("database");
+    app.innerHTML = `<h1 class="page">Full database</h1>
+      <p class="lede">Every recorded performance in the archive — DCI and DCA, 1972 to today. Click a column header to sort; combine filters freely. <span id="dbcount" class="kicker"></span></p>
+      <div class="filters">
+        <input class="ctrl" id="fq" placeholder="Search corps or event…">
+        <select class="ctrl" id="fcir"><option value="">Both circuits</option><option value="dci">DCI</option><option value="dca">DCA</option></select>
+        <select class="ctrl" id="fcls"><option value="">All classes</option></select>
+        <select class="ctrl" id="fy1"></select>
+        <select class="ctrl" id="fy2"></select>
+        <button class="tab" id="csv">Export CSV</button>
+      </div>
+      <div class="card"><div id="dbtable"><div class="loading">Loading full archive…</div></div></div>`;
+    let rows;
+    try { rows = await loadDb(); }
+    catch (e) { document.getElementById("dbtable").innerHTML = "<div class='empty'>The database builds with the first data run — check back shortly.</div>"; return; }
+
+    const years = [...new Set(rows.map(r => r[0]))].sort();
+    const classes = [...new Set(rows.map(r => r[4]).filter(Boolean))].sort();
+    const fy1 = document.getElementById("fy1"), fy2 = document.getElementById("fy2");
+    years.forEach(y => { fy1.add(new Option(y, y)); fy2.add(new Option(y, y)); });
+    fy1.value = years[0]; fy2.value = years[years.length - 1];
+    const fcls = document.getElementById("fcls");
+    classes.forEach(c => fcls.add(new Option(c, c)));
+
+    const COLS = ["Year", "Date", "Event", "Corps", "Class", "Circuit", "Place", "Score"];
+    let filtered = rows;
+
+    function apply() {
+      const q = document.getElementById("fq").value.toLowerCase();
+      const cir = document.getElementById("fcir").value;
+      const cls = fcls.value;
+      const y1 = +fy1.value, y2 = +fy2.value;
+      filtered = rows.filter(r =>
+        r[0] >= y1 && r[0] <= y2 &&
+        (!cir || r[5] === cir) &&
+        (!cls || r[4] === cls) &&
+        (!q || (r[3] || "").toLowerCase().includes(q) || (r[2] || "").toLowerCase().includes(q)));
+      const [ci, dir] = DB.sort;
+      filtered = filtered.slice().sort((a, b) => {
+        const av = a[ci], bv = b[ci];
+        if (av == null && bv == null) return 0;
+        if (av == null) return 1;
+        if (bv == null) return -1;
+        return (typeof av === "number" ? av - bv : String(av).localeCompare(String(bv))) * dir;
+      });
+      render();
+    }
+
+    function render() {
+      const LIMIT = 800;
+      document.getElementById("dbcount").textContent = `· ${filtered.length.toLocaleString()} performances${filtered.length > LIMIT ? ` (showing first ${LIMIT} — narrow with filters or export CSV)` : ""}`;
+      const [ci, dir] = DB.sort;
+      const head = COLS.map((c, i) =>
+        `<th style="cursor:pointer;user-select:none" data-c="${i}">${c}${i === ci ? (dir > 0 ? " ↑" : " ↓") : ""}</th>`).join("");
+      const body = filtered.slice(0, LIMIT).map(r => h`<tr>
+        <td class="num" style="text-align:left">${r[0]}</td>
+        <td style="color:var(--muted);white-space:nowrap">${esc(r[1] || "")}</td>
+        <td>${esc(r[2] || "")}</td>
+        <td>${corpsLink(r[3])}</td>
+        <td><span class="pill">${esc(r[4] || "")}</span></td>
+        <td style="color:var(--muted)">${(r[5] || "").toUpperCase()}</td>
+        <td class="num">${r[6] ?? "—"}</td>
+        <td class="num score">${score3(r[7])}</td></tr>`).join("");
+      document.getElementById("dbtable").innerHTML =
+        `<div class="recapscroll"><table class="t"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+      document.querySelectorAll("#dbtable th").forEach(th => th.onclick = () => {
+        const c = +th.dataset.c;
+        DB.sort = DB.sort[0] === c ? [c, -DB.sort[1]] : [c, c >= 6 || c === 0 ? -1 : 1];
+        apply();
+      });
+    }
+
+    ["fq", "fcir", "fcls", "fy1", "fy2"].forEach(id =>
+      document.getElementById(id).addEventListener(id === "fq" ? "input" : "change", apply));
+    document.getElementById("csv").onclick = () => {
+      const lines = [COLS.join(",")].concat(filtered.map(r =>
+        r.map(v => v == null ? "" : /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v)).join(",")));
+      const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "corps-central-database.csv";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    };
+    apply();
   }
 
   /* ---------------- CHAMPIONS ---------------- */
@@ -515,12 +614,14 @@
     [/^#\/event\/(dci|dca)\/(\d{4})\/(\d+)$/, (m) => viewEvent(m[1], m[2], m[3])],
     [/^#\/corps$/, viewCorpsList],
     [/^#\/corps\/([a-z0-9-]+)$/, (m) => viewCorps(m[1])],
+    [/^#\/database$/, viewDatabase],
     [/^#\/champions$/, viewChampions],
     [/^#\/history$/, viewVault],
     [/^#\/news$/, viewNews],
     [/^#\/about$/, viewAbout],
   ];
 
+  let firstBuildPending = false;
   async function route() {
     const hashv = location.hash || "#/";
     window.scrollTo(0, 0);
@@ -529,7 +630,14 @@
       if (m) {
         try { await fn(m); } catch (e) {
           console.error(e);
-          app.innerHTML = `<div class="card"><div class="empty">Couldn't load this view (${CCViz.esc(e.message)}). Data may still be backfilling — try again shortly.</div></div>`;
+          app.innerHTML = firstBuildPending
+            ? `<div class="card" style="text-align:center;padding:48px 20px">
+                 <div style="font-size:40px;margin-bottom:10px">🥁</div>
+                 <h2 style="margin:0 0 8px">Warming up the corps…</h2>
+                 <p style="color:var(--text-secondary);max-width:52ch;margin:0 auto">The very first data build is crawling 50+ years of DCI &amp; DCA scores right now.
+                 It usually takes an hour or two, then this page fills in automatically — no refresh regimen needed, though refreshing won't hurt.</p>
+               </div>`
+            : `<div class="card"><div class="empty">Couldn't load this view (${CCViz.esc(e.message)}). Data may still be updating — try again shortly.</div></div>`;
         }
         return;
       }
@@ -540,8 +648,10 @@
 
   data("meta.json").then(m => {
     document.getElementById("updated").textContent = "data: " + m.updated;
+    route();
   }).catch(() => {
+    firstBuildPending = true;
     document.getElementById("updated").textContent = "awaiting first data build";
+    route();
   });
-  route();
 })();

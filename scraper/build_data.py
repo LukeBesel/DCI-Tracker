@@ -189,7 +189,7 @@ def build_corps(events, finals_history):
     for row in finals_history:
         for r in row["results"]:
             perfs[r["corps"]].append({
-                "y": row["year"], "d": f"{row['year']}-08-15",
+                "y": row["year"], "d": None,
                 "ev": "DCI World Championship Finals", "cls": "World Class",
                 "p": r["place"], "s": r["score"], "cir": "dci",
                 "rep": r.get("repertoire"),
@@ -197,8 +197,6 @@ def build_corps(events, finals_history):
 
     index = []
     for corps, plist in sorted(perfs.items()):
-        if len(plist) < 2:
-            continue
         plist.sort(key=lambda x: (x["y"], x["d"] or ""))
         years = sorted({p["y"] for p in plist})
         best = max((p["s"] or 0) for p in plist)
@@ -219,6 +217,21 @@ def build_corps(events, finals_history):
             "circuits": sorted({p["cir"] for p in plist}),
         })
     write_json("corps_index.json", index)
+
+    # Flat sortable database, sharded by decade:
+    # rows [year, date, event, corps, class, circuit, place, score]
+    by_decade = defaultdict(list)
+    for corps, plist in perfs.items():
+        for p in plist:
+            by_decade[(p["y"] // 10) * 10].append(
+                [p["y"], p.get("d"), p.get("ev"), corps, p.get("cls"),
+                 p.get("cir"), p.get("p"), p.get("s")])
+    decades = []
+    for dec, rows in sorted(by_decade.items()):
+        rows.sort(key=lambda r: (r[0], r[1] or "", r[2] or "", r[6] or 99))
+        write_json(f"db/perfs_{dec}s.json", rows)
+        decades.append({"decade": f"{dec}s", "rows": len(rows)})
+    write_json("db/index.json", decades)
     return index
 
 
