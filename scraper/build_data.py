@@ -300,60 +300,90 @@ def _t(a, i):
     return t if abs(x + y - t) < EPS else None
 
 
-def _full_panel_ok(ge1, ge2, ge, vp, va, cg, vis, br, ma, pc, mus, sub):
-    return (abs(ge1 + ge2 - ge) < EPS and abs((vp + va + cg) / 2 - vis) < EPS
-            and abs((br + ma + pc) / 2 - mus) < EPS and abs(ge + vis + mus - sub) < EPS)
+def _triples(a, i, n):
+    """n judge triplets starting at index i — their totals, or None."""
+    ts = []
+    for k in range(n):
+        t = _t(a, i + 3 * k)
+        if t is None:
+            return None
+        ts.append(t)
+    return ts
 
 
-def _layout_30(a):
-    ge1, ge2 = _t(a, 0), _t(a, 3)
-    vp, va, cg = _t(a, 7), _t(a, 10), _t(a, 13)
-    br, ma, pc = _t(a, 17), _t(a, 20), _t(a, 23)
-    ge, vis, mus, sub, pen, tot = a[6], a[16], a[26], a[27], a[28], a[29]
-    if None in (ge1, ge2, vp, va, cg, br, ma, pc):
-        return None
-    if not _full_panel_ok(ge1, ge2, ge, vp, va, cg, vis, br, ma, pc, mus, sub):
-        return None
-    return [ge1, ge2, ge, vp, va, cg, vis, br, ma, pc, mus, pen, tot], sub
+def _ge_readings(ts, tot):
+    """Possible (ge1, ge2) for a GE block. 2 triplets = single panel;
+    3 or 4 = one/both judges doubled (adjacent pairs averaged)."""
+    if len(ts) == 2:
+        cands = [(ts[0], ts[1])]
+    elif len(ts) == 3:
+        cands = [((ts[0] + ts[1]) / 2, ts[2]), (ts[0], (ts[1] + ts[2]) / 2)]
+    elif len(ts) == 4:
+        cands = [((ts[0] + ts[1]) / 2, (ts[2] + ts[3]) / 2)]
+    else:
+        return []
+    return [(round(g1, 3), round(g2, 3)) for g1, g2 in cands
+            if abs(g1 + g2 - tot) < EPS]
 
 
-def _layout_33(a):  # dual percussion panel
-    ge1, ge2 = _t(a, 0), _t(a, 3)
-    vp, va, cg = _t(a, 7), _t(a, 10), _t(a, 13)
-    br, ma, pca, pcb = _t(a, 17), _t(a, 20), _t(a, 23), _t(a, 26)
-    ge, vis, mus, sub, pen, tot = a[6], a[16], a[29], a[30], a[31], a[32]
-    if None in (ge1, ge2, vp, va, cg, br, ma, pca, pcb):
-        return None
-    pc = (pca + pcb) / 2
-    if not _full_panel_ok(ge1, ge2, ge, vp, va, cg, vis, br, ma, pc, mus, sub):
-        return None
-    return [ge1, ge2, ge, vp, va, cg, vis, br, ma, pc, mus, pen, tot], sub
+def _capt_readings(ts, tot):
+    """Possible (c1, c2, c3) for a visual/music block (tot = sum/2).
+    3 triplets = single panel; 4 = one caption double-judged."""
+    if len(ts) == 3:
+        cands = [tuple(ts)]
+    elif len(ts) == 4:
+        cands = [((ts[0] + ts[1]) / 2, ts[2], ts[3]),
+                 (ts[0], (ts[1] + ts[2]) / 2, ts[3]),
+                 (ts[0], ts[1], (ts[2] + ts[3]) / 2)]
+    else:
+        return []
+    return [tuple(round(x, 3) for x in c) for c in cands
+            if abs(sum(c) / 2 - tot) < EPS]
 
 
-def _layout_36(a):  # dual GE panels
-    g1a, g1b, g2a, g2b = _t(a, 0), _t(a, 3), _t(a, 6), _t(a, 9)
-    vp, va, cg = _t(a, 13), _t(a, 16), _t(a, 19)
-    br, ma, pc = _t(a, 23), _t(a, 26), _t(a, 29)
-    ge, vis, mus, sub, pen, tot = a[12], a[22], a[32], a[33], a[34], a[35]
-    if None in (g1a, g1b, g2a, g2b, vp, va, cg, br, ma, pc):
-        return None
-    ge1, ge2 = (g1a + g1b) / 2, (g2a + g2b) / 2
-    if not _full_panel_ok(ge1, ge2, ge, vp, va, cg, vis, br, ma, pc, mus, sub):
-        return None
-    return [ge1, ge2, ge, vp, va, cg, vis, br, ma, pc, mus, pen, tot], sub
-
-
-def _layout_39(a):  # dual GE + dual percussion (major regionals/championships)
-    g1a, g1b, g2a, g2b = _t(a, 0), _t(a, 3), _t(a, 6), _t(a, 9)
-    vp, va, cg = _t(a, 13), _t(a, 16), _t(a, 19)
-    br, ma, pca, pcb = _t(a, 23), _t(a, 26), _t(a, 29), _t(a, 32)
-    ge, vis, mus, sub, pen, tot = a[12], a[22], a[35], a[36], a[37], a[38]
-    if None in (g1a, g1b, g2a, g2b, vp, va, cg, br, ma, pca, pcb):
-        return None
-    ge1, ge2, pc = (g1a + g1b) / 2, (g2a + g2b) / 2, (pca + pcb) / 2
-    if not _full_panel_ok(ge1, ge2, ge, vp, va, cg, vis, br, ma, pc, mus, sub):
-        return None
-    return [ge1, ge2, ge, vp, va, cg, vis, br, ma, pc, mus, pen, tot], sub
+def _parse_full_panel(a):
+    """General full-sheet decomposition: GE block (2-4 triplets), visual
+    block (3-4), music block (3-4), then sub/pen/tot. Every candidate must
+    reconcile arithmetically; rows with multiple distinct readings are
+    rejected rather than guessed."""
+    n = len(a)
+    results = []
+    for ge_n in (2, 3, 4):
+        for vis_n in (3, 4):
+            for mus_n in (3, 4):
+                if (ge_n + vis_n + mus_n) * 3 + 6 != n:
+                    continue
+                i = 0
+                ge_ts = _triples(a, i, ge_n)
+                if ge_ts is None:
+                    continue
+                ge_tot = a[i + 3 * ge_n]
+                i += 3 * ge_n + 1
+                vis_ts = _triples(a, i, vis_n)
+                if vis_ts is None:
+                    continue
+                vis_tot = a[i + 3 * vis_n]
+                i += 3 * vis_n + 1
+                mus_ts = _triples(a, i, mus_n)
+                if mus_ts is None:
+                    continue
+                mus_tot = a[i + 3 * mus_n]
+                i += 3 * mus_n + 1
+                sub = a[i]
+                pen, tot = a[i + 1], a[i + 2]
+                if abs(ge_tot + vis_tot + mus_tot - sub) > EPS:
+                    continue
+                for ge1, ge2 in _ge_readings(ge_ts, ge_tot):
+                    for vp, va, cg in _capt_readings(vis_ts, vis_tot):
+                        for br, ma, pc in _capt_readings(mus_ts, mus_tot):
+                            results.append((
+                                [ge1, ge2, round(ge_tot, 3), vp, va, cg,
+                                 round(vis_tot, 3), br, ma, pc,
+                                 round(mus_tot, 3), pen, tot], sub))
+    distinct = {tuple(r[0]) for r in results}
+    if len(distinct) != 1:
+        return None  # unparseable or ambiguous — never guess
+    return results[0]
 
 
 def _layout_19(a):  # reduced panel: judge assignments vary and sub-caption
@@ -376,8 +406,6 @@ def _layout_19(a):  # reduced panel: judge assignments vary and sub-caption
     return [ge1, ge2, ge, None, None, None, None, None, None, None, None, pen, tot], sub
 
 
-LAYOUTS = {30: _layout_30, 33: _layout_33, 36: _layout_36, 39: _layout_39, 19: _layout_19}
-
 
 def parse_recap_cells(cells) -> dict | None:
     atoms = []
@@ -387,11 +415,13 @@ def parse_recap_cells(cells) -> dict | None:
             atoms.append(float(t.split()[0]))
         elif DASH.fullmatch(t):
             atoms.append(0.0)
-    fn = LAYOUTS.get(len(atoms))
-    if not fn:
-        return None
     try:
-        parsed = fn(atoms)
+        if len(atoms) == 19:
+            parsed = _layout_19(atoms)
+        elif len(atoms) >= 27:
+            parsed = _parse_full_panel(atoms)
+        else:
+            parsed = None
     except IndexError:
         return None
     if not parsed:
