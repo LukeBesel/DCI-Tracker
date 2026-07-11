@@ -109,6 +109,29 @@ p.pagenote { color: var(--muted); font-size: 11.5px; font-family: var(--mono); m
 
 p.capkey { color: var(--muted); font-size: 11.5px; margin: 10px 2px 0; line-height: 1.6; }
 
+/* favorites */
+.favbtn {
+  border: 0; background: none; cursor: pointer; font-size: 17px;
+  color: var(--baseline); padding: 2px 4px; line-height: 1;
+}
+.favbtn.on { color: var(--gold); }
+.favbtn::after { content: ""; position: absolute; inset: -8px; }
+.favbtn { position: relative; }
+.favrow { background: var(--accent-wash); }
+
+/* live-scores refresh toast */
+#liveToast {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(20px + env(safe-area-inset-bottom)); z-index: 120;
+  background: var(--navy); color: #fff; border: 2px solid var(--gold);
+  border-radius: 999px; padding: 11px 20px; font-size: 14px; cursor: pointer;
+  box-shadow: 0 8px 30px rgba(22,35,61,0.35);
+  animation: toastin 0.35s ease;
+}
+#liveToast b { color: var(--gold); }
+@media (max-width: 640px) { #liveToast { bottom: calc(96px + env(safe-area-inset-bottom)); } }
+@keyframes toastin { from { opacity: 0; transform: translateX(-50%) translateY(12px); } }
+
 /* Data section sub-tabs */
 .subtabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 2px 0 16px; }
 .subtabs a {

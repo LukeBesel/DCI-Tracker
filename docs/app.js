@@ -84,6 +84,19 @@
     for (let i = 0; i < n.length; i++) hsum = (hsum * 31 + n.charCodeAt(i)) >>> 0;
     return EXT_PALETTE[hsum % EXT_PALETTE.length];
   }
+  const FAVS = (() => {
+    let set;
+    try { set = new Set(JSON.parse(localStorage.getItem("cad-favs") || "[]")); }
+    catch (e) { set = new Set(); }
+    return {
+      has: n => set.has(n),
+      toggle: n => {
+        set.has(n) ? set.delete(n) : set.add(n);
+        localStorage.setItem("cad-favs", JSON.stringify([...set]));
+      },
+    };
+  })();
+
   function corpsLink(name) {
     return `<a href="#/corps/${slugOf(name)}">${esc(name)}</a>`;
   }
@@ -373,22 +386,32 @@
     };
     drawTrend();
 
-    document.getElementById("standTitle").innerHTML =
-      `${esc(cls)} Standings <span class="sub">each corps' most recent score</span>`;
-    document.getElementById("standings").innerHTML = `
-      <table class="t standings"><thead><tr><th>#</th><th>Corps · last event</th><th class="num">Score</th><th class="num col-high">Season high</th><th class="num">vs prev</th><th class="col-trend">Trend</th></tr></thead><tbody>
-      ${block.rows.map(r => h`<tr>
-        <td class="rank">${r.rank}</td>
-        <td>${corpsLink(r.corps)}<div style="font-size:11.5px;color:var(--muted)">${esc(r.event)} · ${esc(fmtDateY(r.date))}</div></td>
-        <td class="num score">${score3(r.score)}</td>
-        <td class="num col-high" data-tip="${esc(`${score3(r.high)} — ${r.high_event || ""} · ${fmtDateY(r.high_date) || ""}`)}">${score3(r.high)}</td>
-        <td class="num">${deltaHtml(r.delta)}</td>
-        <td class="col-trend"><span class="sparkcell" data-trend="${r.trend.map(t => t[1]).join(",")}"></span></td>
-      </tr>`).join("")}</tbody></table>`;
-    document.querySelectorAll(".sparkcell").forEach(elm => {
-      sparkline(elm, elm.dataset.trend.split(",").map(Number).filter(n => !isNaN(n)), "#97a2b3");
-    });
-    collapseRows(document.querySelector("#standings tbody"), 5, "corps");
+    function renderStandings() {
+      const sorted = block.rows.slice().sort((a, b) =>
+        (FAVS.has(b.corps) ? 1 : 0) - (FAVS.has(a.corps) ? 1 : 0) || a.rank - b.rank);
+      document.getElementById("standTitle").innerHTML =
+        `${esc(cls)} Standings <span class="sub">each corps' most recent score · ★ pins favorites</span>`;
+      document.getElementById("standings").innerHTML = `
+        <table class="t standings"><thead><tr><th></th><th>#</th><th>Corps · last event</th><th class="num">Score</th><th class="num col-high">Season high</th><th class="num">vs prev</th><th class="col-trend">Trend</th></tr></thead><tbody>
+        ${sorted.map(r => h`<tr${FAVS.has(r.corps) ? ' class="favrow"' : ""}>
+          <td><button class="favbtn${FAVS.has(r.corps) ? " on" : ""}" data-fav="${esc(r.corps)}" title="${FAVS.has(r.corps) ? "Unpin" : "Pin to top"}">${FAVS.has(r.corps) ? "★" : "☆"}</button></td>
+          <td class="rank">${r.rank}</td>
+          <td>${corpsLink(r.corps)}<div style="font-size:11.5px;color:var(--muted)">${esc(r.event)} · ${esc(fmtDateY(r.date))}</div></td>
+          <td class="num score">${score3(r.score)}</td>
+          <td class="num col-high" data-tip="${esc(`${score3(r.high)} — ${r.high_event || ""} · ${fmtDateY(r.high_date) || ""}`)}">${score3(r.high)}</td>
+          <td class="num">${deltaHtml(r.delta)}</td>
+          <td class="col-trend"><span class="sparkcell" data-trend="${r.trend.map(t => t[1]).join(",")}"></span></td>
+        </tr>`).join("")}</tbody></table>`;
+      document.querySelectorAll(".sparkcell").forEach(elm => {
+        sparkline(elm, elm.dataset.trend.split(",").map(Number).filter(n => !isNaN(n)), "#97a2b3");
+      });
+      document.querySelectorAll(".favbtn").forEach(bt => bt.onclick = () => {
+        FAVS.toggle(bt.dataset.fav);
+        renderStandings();
+      });
+      collapseRows(document.querySelector("#standings tbody"), 5, "corps");
+    }
+    renderStandings();
 
     // Upcoming events with lineups
     const up = await data("upcoming.json").catch(() => []);
@@ -2125,6 +2148,42 @@
       else hide();
     });
     addEventListener("scroll", hide, { passive: true });
+  })();
+
+  // live scores: on show nights the pipeline lands new data every half hour —
+  // poll the stamp while the tab is open and offer a one-tap refresh
+  (() => {
+    let stamp = null;
+    let toast = null;
+    function offer(newStamp) {
+      if (toast) return;
+      toast = document.createElement("button");
+      toast.id = "liveToast";
+      toast.innerHTML = "🥁 New scores just landed — <b>tap to refresh</b>";
+      toast.onclick = () => {
+        cache.clear();
+        toast.remove();
+        toast = null;
+        stamp = newStamp;
+        const upd = document.getElementById("updated");
+        if (upd) upd.textContent = "data: " + newStamp;
+        route();
+      };
+      document.body.appendChild(toast);
+    }
+    async function check() {
+      if (document.hidden) return;
+      try {
+        const r = await fetch("data/meta.json", { cache: "no-cache" });
+        if (!r.ok) return;
+        const m = await r.json();
+        if (stamp && m.updated !== stamp) offer(m.updated);
+        else stamp = m.updated;
+      } catch (e) { /* offline — try again next tick */ }
+    }
+    setInterval(check, 5 * 60 * 1000);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) check(); });
+    check();
   })();
 
   addEventListener("hashchange", route);
