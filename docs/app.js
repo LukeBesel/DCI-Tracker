@@ -28,6 +28,12 @@
     const [y, m, d] = iso.split("-").map(Number);
     return `${MONTHS[m - 1]} ${d}, ${y}`;
   }
+  // stacked date for table cells: "Jul 10" with the year underneath
+  function fmtDate2(iso, fallback) {
+    if (!iso) return fallback == null ? "" : esc(String(fallback));
+    const [y, m, d] = iso.split("-").map(Number);
+    return `<span class="dstack">${MONTHS[m - 1]} ${d}<small>${y}</small></span>`;
+  }
   function dayOfSeason(iso) { // days since May 31 of that year
     const [y, m, d] = iso.split("-").map(Number);
     return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(y, 4, 31)) / 86400000);
@@ -150,6 +156,11 @@
     let q = "";
 
     function summary() {
+      // a view can name well-known selections ("Top 12"); null falls through
+      if (cfg.summary) {
+        const s = cfg.summary();
+        if (s != null) return s;
+      }
       const n = cfg.selected.size;
       if (!n) return cfg.label;
       const lbls = [...cfg.selected].map(v =>
@@ -179,7 +190,7 @@
           };
           return b;
         };
-        bar.appendChild(mk("Select all", () => cfg.options.forEach(o => cfg.selected.add(String(o.value)))));
+        if (cfg.bulkAll !== false) bar.appendChild(mk("Select all", () => cfg.options.forEach(o => cfg.selected.add(String(o.value)))));
         (cfg.presets || []).forEach(p => bar.appendChild(mk(p.label, () => {
           cfg.selected.clear();
           p.values().forEach(v => cfg.selected.add(String(v)));
@@ -316,6 +327,9 @@
     }
     const msTrend = multiSelect(document.getElementById("trendCorpsSel"), {
       label: "Pick corps to chart…", searchable: block.rows.length > 12,
+      summary: () => isDefaultPick() ? "Top 12" : null,
+      bulk: true, bulkAll: false,
+      presets: [{ label: "Top 12", values: () => top12 }],
       options: block.rows.map(r => ({ value: r.corps, label: r.corps, hint: `#${r.rank}` })),
       selected: trendPick,
       onChange: drawTrend,
@@ -452,12 +466,16 @@
       yearsSel = yearsSel.filter(y => allYears.includes(y));
     }
     // an explicitly empty selection (user cleared, or shared a cleared URL)
-    // stays empty; only a fresh arrival gets the default matchup
+    // stays empty; only a fresh arrival gets the default matchup:
+    // the current #1 corps, this season vs their previous one
     if (!explicit && !corpsSel.length && !yearsSel.length) {
       const rows = rk && rk.standings && (rk.standings["World Class"] || Object.values(rk.standings)[0] || {}).rows;
-      corpsSel = (rows || []).slice(0, 2).map(r => slugOf(r.corps)).filter(s => bySlug.has(s));
-      if (!corpsSel.length) corpsSel = idx.slice(0, 2).map(c => c.slug);
-      yearsSel = allYears.slice(0, 2);
+      corpsSel = (rows || []).slice(0, 1).map(r => slugOf(r.corps)).filter(s => bySlug.has(s));
+      if (!corpsSel.length) corpsSel = idx.slice(0, 1).map(c => c.slug);
+      const leader = bySlug.get(corpsSel[0]);
+      const theirYears = leader ? leader.series.map(s => s[0]).sort((a, b) => b - a) : allYears;
+      yearsSel = theirYears.slice(0, 2).filter(y => allYears.includes(y));
+      if (!yearsSel.length) yearsSel = allYears.slice(0, 2);
     }
 
     function persist() {
@@ -503,6 +521,7 @@
     const msCorps = multiSelect(document.getElementById("corpsSel"), {
       label: "Select corps…", searchable: true,
       labelFor: v => (bySlug.get(v) || { name: v }).name,
+      bulk: true, bulkAll: false,
       options: corpsOptions(),
       selected: corpsSet,
       onChange: v => { corpsSel = v; persist(); draw(); renderRows(); },
@@ -578,10 +597,12 @@
           if (!pts.length) continue;
           combos++;
           const label = multiYears || !multiCorps ? `${name} ’${String(years[yi]).slice(2)}` : name;
+          // colors and dashes key off the calendar year itself, not its
+          // position in the selection — filtering never recolors a line
           series.push({
             name: label, points: pts,
-            color: multiCorps ? corpsColor(name) : PALETTE[yi % PALETTE.length],
-            dash: multiCorps && multiYears ? YEAR_DASHES[yi % YEAR_DASHES.length] : "",
+            color: multiCorps ? corpsColor(name) : PALETTE[years[yi] % PALETTE.length],
+            dash: multiCorps && multiYears ? YEAR_DASHES[years[yi] % YEAR_DASHES.length] : "",
           });
           const scores = pts.map(p => p.y);
           summary.push({
@@ -737,7 +758,7 @@
       document.getElementById("perfTable").innerHTML = `<div class="tscroll"><table class="t">
         <thead><tr><th>Date</th><th>Event</th><th>Class</th><th class="num">Place</th><th class="num">Score</th></tr></thead>
         <tbody id="perfRows">${list.slice(0, 600).map(p => h`<tr>
-          <td style="color:var(--muted);white-space:nowrap">${esc(fmtDateY(p.d) || p.y)}</td>
+          <td style="color:var(--muted);white-space:nowrap">${fmtDate2(p.d, p.y)}</td>
           <td>${esc(p.ev || "")}</td>
           <td><span class="pill">${esc(p.cls || "")}</span></td>
           <td class="num">${p.p ?? "—"}</td><td class="num score">${score3(p.s)}</td></tr>`).join("")}</tbody></table></div>`;
@@ -853,7 +874,7 @@
     if (finalsIdx >= 0) {
       const fe = events[finalsIdx];
       finalsHtml = h`<div class="card" style="margin-bottom:14px">
-        <h2>Final standings <span class="sub">${esc(fe.name)} · ${esc(fmtDate(fe.date) || fe.date_display || "")}</span></h2>
+        <h2>Final standings <span class="sub">${esc(fe.name)} · ${esc(fmtDateY(fe.date) || fe.date_display || "")}</span></h2>
         <div class="grid cols-tiles">
         ${(fe.classes || []).map(c => h`<div>
           <h3 class="evcls" style="margin-top:4px">${esc(c.class)}</h3>
@@ -915,7 +936,7 @@
         const winner = eventWinner(ev);
         return h`<div class="evrow card" data-i="${i}">
           <button class="evhead" aria-expanded="false">
-            <span class="evwhen">${esc(fmtDateY(ev.date) || ev.date_display || "")}</span>
+            <span class="evwhen">${fmtDate2(ev.date, ev.date_display)}</span>
             <span class="evmain"><b>${esc(ev.name)}${(ev.recap && ev.recap.length) ? ' <span class="pill evpill">recap</span>' : ""}</b><span class="evloc">${esc(ev.location || "")}</span></span>
             <span class="evwin">${winner ? h`${esc(winner.corps)}<b>${score3(winner.score)}</b>` : ""}</span>
             <span class="caret">▸</span>
@@ -976,7 +997,7 @@
     app.innerHTML = h`
       <div class="crumbs"><a href="#/seasons">Seasons</a> / <a href="#/season/${year}">${year}</a> / ${esc(ev.name)}</div>
       <h1 class="page">${esc(ev.name)}</h1>
-      <p class="lede">${esc(ev.date_display || fmtDate(ev.date) || "")}${ev.location ? " · " + esc(ev.location) : ""}${ev.url ? h` · <a href="${encodeURI(ev.url)}" target="_blank" rel="noopener">source ↗</a>` : ""}</p>
+      <p class="lede">${esc(fmtDateY(ev.date) || ev.date_display || "")}${ev.location ? " · " + esc(ev.location) : ""}${ev.url ? h` · <a href="${encodeURI(ev.url)}" target="_blank" rel="noopener">source ↗</a>` : ""}</p>
       ${(ev.classes || []).map(c => h`
         <div class="card" style="margin-bottom:14px"><h2>${esc(c.class)}</h2>
         <table class="t"><thead><tr><th>#</th><th>Corps</th><th class="num">Score</th></tr></thead><tbody>
@@ -1047,6 +1068,9 @@
     const capPick = new Set();
     let seedPick = true; // (re)fill the picker with the top 12 on next update
     let msCap = null;
+    let lastBoard = [];
+    const capIsDefault = () => capPick.size === Math.min(12, lastBoard.length)
+      && lastBoard.slice(0, 12).every(b => capPick.has(b.corps));
 
     const iDate = () => cols.indexOf("date"), iEv = () => cols.indexOf("event"),
       iCls = () => cols.indexOf("class"), iCorps = () => cols.indexOf("corps");
@@ -1091,8 +1115,8 @@
         board.slice(0, 12).forEach(b => capPick.add(b.corps));
         seedPick = false;
       }
-      const capDefault = capPick.size === Math.min(12, board.length)
-        && board.slice(0, 12).every(b => capPick.has(b.corps));
+      lastBoard = board;
+      const capDefault = capIsDefault();
       const chosen = board.filter(b => capPick.has(b.corps));
       document.getElementById("capChartTitle").innerHTML =
         `${esc(label)} progression <span class="sub">${esc(String(year))} · ${capDefault ? "top 12" : chosen.length + " selected"}</span>`;
@@ -1128,6 +1152,9 @@
       if (!msCap) {
         msCap = multiSelect(document.getElementById("capCorpsSel"), {
           label: "Pick corps to chart…", searchable: true,
+          summary: () => capIsDefault() ? "Top 12" : null,
+          bulk: true, bulkAll: false,
+          presets: [{ label: "Top 12", values: () => lastBoard.slice(0, 12).map(b => b.corps) }],
           options: capOptions,
           selected: capPick,
           onChange: update,
@@ -1289,7 +1316,8 @@
       const yearOpts = years.map(y => ({ value: String(y), label: String(y) }));
       if (!msDbCorps) {
         msDbCorps = multiSelect(document.getElementById("dbCorps"), {
-          label: "All corps", searchable: true, options: corpsOpts, selected: corpsSet, onChange: apply,
+          label: "All corps", searchable: true, bulk: true, bulkAll: false,
+          options: corpsOpts, selected: corpsSet, onChange: apply,
         });
         msDbYears = multiSelect(document.getElementById("dbYears"), {
           label: "All seasons", searchable: years.length > 15, bulk: true,
@@ -1326,7 +1354,7 @@
 
     function cellHtml(r, i) {
       if (i === 0) return `<td class="num" style="text-align:left">${r[0]}</td>`;
-      if (i === cfg.dateIdx) return `<td style="color:var(--muted);white-space:nowrap">${esc(fmtDate(r[i]))}</td>`;
+      if (i === cfg.dateIdx) return `<td style="color:var(--muted);white-space:nowrap">${fmtDate2(r[i])}</td>`;
       if (i === cfg.corpsIdx) return `<td>${corpsLink(r[i])}</td>`;
       if (i === cfg.clsIdx) return `<td><span class="pill">${esc(r[i] || "")}</span></td>`;
       if (i === cfg.evIdx) return `<td>${esc(r[i] || "")}</td>`;

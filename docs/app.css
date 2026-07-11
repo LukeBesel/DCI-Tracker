@@ -255,6 +255,9 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; }
 }
 .evhead:hover { background: var(--surface-2); }
 .evwhen { color: var(--muted); font-size: 12.5px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* stacked date: "Jul 10" over a small mono year — used in date cells */
+.dstack { display: inline-flex; flex-direction: column; line-height: 1.15; vertical-align: middle; }
+.dstack small { font-size: 10px; font-family: var(--mono); color: var(--muted); letter-spacing: 0.4px; }
 .evmain { min-width: 0; }
 .evmain b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .evmain .evloc { display: block; color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
