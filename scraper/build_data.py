@@ -9,6 +9,9 @@ Output: docs/data/
   corps_index.json         per-corps summary + season-best series
   corps/<slug>.json        every performance for one corps
   db/perfs_<decade>s.json  flat sortable rows + db/index.json
+  records.json             all-time record-book inputs (top scores, finals)
+  caption_titles.json      per-year caption winners at championship finals
+  pace.json                each champion's score-by-date curve per class
 """
 from __future__ import annotations
 
@@ -134,16 +137,27 @@ def build_seasons(events):
     return season_index
 
 
+def is_champ_finals(ev) -> bool:
+    """True when this event crowns a champion: a championship FINALS, or the
+    single-day All-Age World Championship (named without a "Finals" token).
+    Archive-sourced events cover other circuits (VFW, DCA...) — only a DCI
+    championship counts for DCI records."""
+    n = (ev.get("name") or "").lower()
+    if "championship" not in n:
+        return False
+    if "semi" in n or "prelim" in n or "quarter" in n:
+        return False
+    if ev.get("source") == "dcx" and "dci" not in n:
+        return False
+    return "final" in n or "all age" in n or "all-age" in n
+
+
 def build_champions(events):
     champs = defaultdict(dict)
     for ev in events:
+        if not is_champ_finals(ev):
+            continue
         n = (ev.get("name") or "").lower()
-        if "championship" not in n or "final" not in n or "semi" in n or "prelim" in n or "quarter" in n:
-            continue
-        # archive-sourced events cover other circuits too (VFW, DCA …):
-        # only a DCI championship crowns a DCI champion
-        if ev.get("source") == "dcx" and "dci" not in n:
-            continue
         for c in ev["classes"]:
             res = [r for r in c["results"] if r.get("score")]
             if not res:
@@ -459,6 +473,57 @@ def build_captions(events):
                 by_year[ev["year"]].append(
                     [ev.get("date"), ev.get("name"), cls, corps,
                      *[caps[k] for k in CAPTION_COLS]])
+    # caption titles: the best score in each judged caption at the season's
+    # championship recap. Finals preferred; when a finals recap never
+    # published (2013/2016/2019 have gaps) the semifinals or prelims stand
+    # in, and the entry says which round decided it.
+    def _title_tier(name):
+        n = (name or "").lower()
+        if "championship" not in n:
+            return 0
+        champ_week = ("world championship" in n or "final" in n
+                      or "semi" in n or "prelim" in n)
+        if not champ_week:
+            return 0                          # regionals like "Southwestern Championship"
+        if "semi" in n:
+            return 2
+        if "prelim" in n:
+            return 1
+        return 3                              # finals (or single-day championship)
+    title_keys = CAPTION_COLS[:-2]          # every judged caption; no pen/tot
+    titles_out = defaultdict(list)
+    for year, rows in by_year.items():
+        pick = {}                            # cls -> best (tier, date, event)
+        for r in rows:
+            t = _title_tier(r[1])
+            if t:
+                cand = (t, r[0] or "", r[1])
+                if r[2] not in pick or cand > pick[r[2]]:
+                    pick[r[2]] = cand
+        for cls, (tier, d, evname) in pick.items():
+            best = {}
+            for r in rows:
+                if r[2] != cls or r[1] != evname or (r[0] or "") != d:
+                    continue
+                for i, k in enumerate(title_keys):
+                    v = r[4 + i]
+                    if v is None:
+                        continue
+                    if k not in best or v > best[k][1]:
+                        best[k] = ([r[3]], v)
+                    elif v == best[k][1] and r[3] not in best[k][0]:
+                        best[k][0].append(r[3])
+            if best:
+                titles_out[cls].append({
+                    "y": year, "d": d or None, "event": evname,
+                    "round": {3: "finals", 2: "semifinals", 1: "prelims"}[tier],
+                    "w": {k: [" & ".join(ns), v] for k, (ns, v) in best.items()},
+                })
+    for cls in titles_out:
+        titles_out[cls].sort(key=lambda e: e["y"])
+    write_json("caption_titles.json", dict(titles_out))
+    log(f"caption titles: {sum(len(v) for v in titles_out.values())} class-seasons")
+
     index = []
     for year, rows in sorted(by_year.items()):
         rows.sort(key=lambda r: (r[0] or "", r[1] or ""))
@@ -468,6 +533,93 @@ def build_captions(events):
                {"seasons": index, "cols": ["date", "event", "class", "corps", *CAPTION_COLS]})
     log(f"captions: {parsed} rows verified, {dropped} rows failed reconciliation (dropped)")
     return index
+
+
+def build_records(events):
+    """docs/data/records.json — compact inputs for the all-time record book.
+    The client derives every list (titles, streaks, margins, appearances)
+    from these, so era/class/corps filters stay instant:
+      top:    each season's 10 highest single-show scores per class
+      finals: championship-finals results per class/year (top 15 by score)
+    """
+    main_classes = ("World Class", "Open Class", "All-Age")
+    per_year = defaultdict(lambda: defaultdict(list))   # cls -> year -> rows
+    finals = defaultdict(dict)                          # cls -> year -> rows
+    for ev in events:
+        finals_ev = is_champ_finals(ev)
+        n = (ev.get("name") or "").lower()
+        for c in ev.get("classes") or []:
+            cls = c["class"]
+            res = [r for r in (c.get("results") or []) if r.get("score")]
+            if not res:
+                continue
+            if cls in main_classes:
+                for r in res:
+                    per_year[cls][ev["year"]].append(
+                        [ev["year"], ev.get("date"), r["corps"], r["score"], ev.get("name")])
+            if finals_ev:
+                fcls = cls
+                if "open class" in n and cls == "World Class":
+                    fcls = "Open Class"
+                if "all-age" in n or "all age" in n:
+                    fcls = "All-Age"
+                if fcls not in main_classes:
+                    continue
+                rows = sorted(res, key=lambda r: -(r["score"] or 0))
+                rows = [[r["corps"], r["score"]] for r in rows][:15]
+                cur = finals[fcls].get(ev["year"])
+                if cur is None or rows[0][1] > cur[0][1]:
+                    finals[fcls][ev["year"]] = rows
+    out = {}
+    for cls in main_classes:
+        top = []
+        for year, entries in per_year[cls].items():
+            entries.sort(key=lambda e: -(e[3] or 0))
+            top.extend(entries[:10])
+        top.sort(key=lambda e: (-(e[3] or 0), e[0]))
+        f = {str(y): v for y, v in sorted(finals[cls].items())}
+        if top or f:
+            out[cls] = {"top": top, "finals": f}
+    write_json("records.json", out)
+    log(f"records: {sum(len(v['top']) for v in out.values())} top rows, "
+        f"{sum(len(v['finals']) for v in out.values())} finals seasons")
+
+
+def build_pace(events, champions):
+    """docs/data/pace.json — every champion's score-by-date curve, so the
+    current leaders can be charted against title pace. Seasons need at
+    least 4 scored shows for the champion or the curve is too thin to use."""
+    by_year = defaultdict(list)
+    for ev in events:
+        if ev.get("date"):
+            by_year[ev["year"]].append(ev)
+    curves = defaultdict(list)
+    for y_str, by_cls in champions.items():
+        y = int(y_str)
+        for cls, w in by_cls.items():
+            name = w.get("corps")
+            if not name:
+                continue
+            pts = {}
+            for ev in by_year.get(y, []):
+                for c in ev.get("classes") or []:
+                    if c["class"] != cls:
+                        continue
+                    for r in c.get("results") or []:
+                        if r.get("corps") == name and r.get("score"):
+                            d = ev["date"]
+                            pts[d] = max(r["score"], pts.get(d, 0))
+            pts = sorted(pts.items())
+            if len(pts) >= 4:
+                curves[cls].append({
+                    "y": y, "corps": name,
+                    "final": w.get("score") or pts[-1][1],
+                    "pts": [[d, s] for d, s in pts],
+                })
+    for cls in curves:
+        curves[cls].sort(key=lambda e: -e["y"])
+    write_json("pace.json", dict(curves))
+    log(f"pace: {sum(len(v) for v in curves.values())} champion curves")
 
 
 def build_upcoming():
@@ -501,6 +653,8 @@ def main():
     corps_index = build_corps(events)
     rankings = build_rankings(events)
     build_captions(events)
+    build_records(events)
+    build_pace(events, champions)
     build_upcoming()
 
     write_json("champions.json", champions)

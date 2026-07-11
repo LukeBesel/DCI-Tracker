@@ -292,7 +292,7 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; }
   .card h2 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .card h2 .sub { display: none; }
   .tile .value { font-size: 24px; }
-  .standings .col-trend, .standings .col-high, .col-perfs { display: none; }
+  .standings .col-trend, .standings .col-high, .col-perfs, .m-hide { display: none; }
   .t td, .t th { padding: 6px 5px; }
   .filters .ctrl { flex: 1 1 auto; min-width: 0; }
   input.ctrl { min-width: 120px; }

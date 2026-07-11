@@ -38,6 +38,17 @@
     const [y, m, d] = iso.split("-").map(Number);
     return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(y, 4, 31)) / 86400000);
   }
+  function interpAt(pts, day) { // linear interpolation on sorted {x,y} points
+    if (!pts.length || day < pts[0].x || day > pts[pts.length - 1].x) return null;
+    for (let i = 0; i < pts.length; i++) {
+      if (pts[i].x === day) return pts[i].y;
+      if (pts[i].x > day) {
+        const a = pts[i - 1], b = pts[i];
+        return a.y + (b.y - a.y) * (day - a.x) / (b.x - a.x);
+      }
+    }
+    return pts[pts.length - 1].y;
+  }
   function dayLabel(day) { // inverse for a non-leap reference
     const dt = new Date(Date.UTC(2001, 4, 31 + Math.round(day)));
     return `${MONTHS[dt.getUTCMonth()]} ${dt.getUTCDate()}`;
@@ -108,9 +119,9 @@
     btn.onclick = () => {
       open = !open;
       applyRows();
-      btn.textContent = open ? `Show top ${n} ▴` : `Show all ${rows.length} ${noun} ▾`;
+      btn.textContent = open ? `Show Top ${n} ▴` : `Show All ${rows.length} ${noun} ▾`;
     };
-    btn.textContent = `Show all ${rows.length} ${noun} ▾`;
+    btn.textContent = `Show All ${rows.length} ${noun} ▾`;
     wrap.appendChild(btn);
     host.insertAdjacentElement("afterend", wrap);
     applyRows();
@@ -284,10 +295,11 @@
       <h1 class="page">${esc(String(rk.season))} Rankings</h1>
       <div class="filters"><select class="ctrl" id="clsSel"></select></div>
       <div class="card">
-        <h2 id="trendTitle">Season progression <span class="sub" id="trendSub">score by date · top 12</span></h2>
+        <h2 id="trendTitle">Season Progression <span class="sub" id="trendSub">score by date · top 12</span></h2>
         <div class="filters" style="margin:2px 0 8px"><div id="trendCorpsSel"></div><button class="tab" id="trendReset" hidden>Top 12</button></div>
         <div class="chartwrap" id="trendChart"></div>
       </div>
+      <div class="card" id="paceCard" style="margin-top:14px" hidden></div>
       <div class="grid cols-2" style="margin-top:14px">
         <div class="card">
           <h2 id="standTitle"></h2>
@@ -342,8 +354,86 @@
     };
     drawTrend();
 
+    // championship pace: the field vs past champions at the same date
+    (async () => {
+      const pace = ((await data("pace.json").catch(() => null)) || {})[cls];
+      const recAll = ((await data("records.json").catch(() => null)) || {})[cls];
+      const classRecord = recAll && recAll.top && recAll.top[0] ? recAll.top[0][3] : 100;
+      const el = document.getElementById("paceCard");
+      const live = document.getElementById("clsSel");
+      // class switched while loading → this run's card belongs to the old class
+      if (stale() || !el || !pace || !pace.length || !block.rows.length || (live && live.value !== cls)) return;
+      el.hidden = false;
+      let corps = block.rows[0].corps;
+      const champPick = new Set(pace.slice(0, 5).map(e => String(e.y)));
+      el.innerHTML = `
+        <h2>Championship Pace <span class="sub">the field vs past champions, day by day</span></h2>
+        <div class="filters" style="margin:2px 0 8px">
+          <select class="ctrl" id="paceCorps"></select>
+          <div id="paceYears"></div>
+        </div>
+        <div class="chartwrap" id="paceChart"></div>
+        <div class="grid cols-tiles" id="paceTiles" style="margin-top:12px"></div>
+        <p style="color:var(--muted);font-size:12px;margin:10px 2px 0" id="paceNote"></p>`;
+      const cSel = document.getElementById("paceCorps");
+      block.rows.forEach(r => cSel.add(new Option(`#${r.rank}  ${r.corps}`, r.corps)));
+      cSel.value = corps;
+      cSel.onchange = () => { corps = cSel.value; drawPace(); };
+      multiSelect(document.getElementById("paceYears"), {
+        label: "Past champions…", bulk: true, bulkAll: false,
+        presets: [{ label: "Past 5", values: () => pace.slice(0, 5).map(e => String(e.y)) }],
+        options: pace.map(e => ({ value: String(e.y), label: `\u2019${String(e.y).slice(2)} ${e.corps}` })),
+        selected: champPick,
+        onChange: drawPace,
+      });
+      const med = a => { const so = a.slice().sort((x, y) => x - y); const m = so.length >> 1; return so.length % 2 ? so[m] : (so[m - 1] + so[m]) / 2; };
+      function drawPace() {
+        const chartEl = document.getElementById("paceChart");
+        if (!chartEl) return;
+        const row = block.rows.find(r => r.corps === corps);
+        const curPts = (row ? row.trend : []).map(t => ({ x: dayOfSeason(t[0]), y: t[1] }));
+        const chosen = pace.filter(e => champPick.has(String(e.y)));
+        const series = chosen.map(e => ({
+          name: `\u2019${String(e.y).slice(2)} ${e.corps}`,
+          color: PALETTE[e.y % PALETTE.length], dash: "6 4",
+          points: e.pts.map(([d, sc]) => ({ x: dayOfSeason(d), y: sc })),
+        }));
+        if (curPts.length) series.push({ name: `${corps} \u2019${String(rk.season).slice(2)}`, color: corpsColor(corps), points: curPts });
+        lineChart(chartEl, { linearX: true, series, height: 330, xFmt: dayLabel, yFmt: v => v.toFixed(1) });
+        const tiles = document.getElementById("paceTiles");
+        const note = document.getElementById("paceNote");
+        if (!curPts.length) { tiles.innerHTML = ""; note.textContent = "No scores yet this season."; return; }
+        const day = curPts[curPts.length - 1].x, cur = curPts[curPts.length - 1].y;
+        const atD = [], deltas = [];
+        chosen.forEach(e => {
+          const pts = e.pts.map(([d, sc]) => ({ x: dayOfSeason(d), y: sc }));
+          const v = interpAt(pts, day);
+          if (v != null) { atD.push(v); deltas.push(e.final - v); }
+        });
+        if (atD.length >= 2) {
+          const vs = cur - med(atD);
+          const cap = v => Math.min(100, v);
+          const raw = cur + med(deltas);
+          const lo = cap(cur + Math.min(...deltas)), hi = cap(cur + Math.max(...deltas));
+          // ahead of every title pace on record → say that, not a fake number
+          const projTile = raw > classRecord
+            ? `<div class="tile"><div class="label">Projected finals</div><div class="value">${score3(classRecord)}+</div><div class="sub">record pace — the all-time best is ${score3(classRecord)}</div></div>`
+            : `<div class="tile"><div class="label">Projected finals</div><div class="value">${raw.toFixed(2)}</div><div class="sub">range ${lo.toFixed(2)} – ${hi.toFixed(2)}</div></div>`;
+          tiles.innerHTML = `
+            <div class="tile"><div class="label">${esc(corps)} — latest</div><div class="value">${score3(cur)}</div><div class="sub">${esc(dayLabel(day))}</div></div>
+            <div class="tile"><div class="label">vs champions at this date</div><div class="value">${vs >= 0 ? "+" : ""}${vs.toFixed(2)}</div><div class="sub">against the median of ${atD.length} title runs</div></div>
+            ${projTile}`;
+          note.textContent = "Projection applies the late-season climb past champions managed from this same calendar date — a pace measure, not a prophecy.";
+        } else {
+          tiles.innerHTML = "";
+          note.textContent = "Too early in the season to measure against champion pace.";
+        }
+      }
+      drawPace();
+    })();
+
     document.getElementById("standTitle").innerHTML =
-      `${esc(cls)} standings <span class="sub">each corps' most recent score</span>`;
+      `${esc(cls)} Standings <span class="sub">each corps' most recent score</span>`;
     document.getElementById("standings").innerHTML = `
       <table class="t standings"><thead><tr><th>#</th><th>Corps · last event</th><th class="num">Score</th><th class="num col-high">Season high</th><th class="num">vs prev</th><th class="col-trend">Trend</th></tr></thead><tbody>
       ${block.rows.map(r => h`<tr>
@@ -364,7 +454,7 @@
     const upEl = document.getElementById("upcomingCard");
     if (stale() || !upEl) return; // user navigated away while loading
     if (up.length) {
-      upEl.innerHTML = `<h2>Upcoming events <span class="sub">who's performing next</span></h2>` +
+      upEl.innerHTML = `<h2>Upcoming Events <span class="sub">who's performing next</span></h2>` +
         up.slice(0, 6).map(ev => {
           const lineup = ev.lineup || [];
           const head = lineup.slice(0, 7).map(c => corpsLink(c)).join(", ");
@@ -385,28 +475,28 @@
         bt.textContent = rest.hidden ? `+${bt.dataset.n} more ▾` : "fewer ▴";
       });
     } else {
-      upEl.innerHTML = `<h2>Upcoming events</h2>
+      upEl.innerHTML = `<h2>Upcoming Events</h2>
         <div class="empty" style="padding:12px 0">Schedule updates with the nightly data run.</div>
         <div><a href="#/season/${rk.season}">All ${rk.season} results →</a></div>`;
     }
 
     const jump = block.movers && block.movers[0];
     document.getElementById("moveCard").innerHTML = jump ? h`
-      <h2>Biggest move <span class="sub">latest show vs previous</span></h2>
+      <h2>Biggest Move <span class="sub">latest show vs previous</span></h2>
       <div style="font-size:20px;font-weight:650">${corpsLink(jump.corps)}</div>
       <div style="color:var(--text-secondary)">${score3(jump.prev_score)} → <b>${score3(jump.score)}</b> ${deltaHtml(jump.delta)}</div>
       ${block.movers.slice(1).map(m => `<div style="font-size:13px;margin-top:6px">${corpsLink(m.corps)} ${deltaHtml(m.delta)}</div>`).join("")}`
-      : "<h2>Biggest move</h2><div class='empty'>Needs two shows.</div>";
+      : "<h2>Biggest Move</h2><div class='empty'>Needs two shows.</div>";
 
     const b = block.battles && block.battles[0];
     document.getElementById("battleCard").innerHTML = b ? h`
-      <h2>Closest battle <span class="sub">smallest gap in standings</span></h2>
+      <h2>Closest Battle <span class="sub">smallest gap in standings</span></h2>
       <table class="t">
         <tr><td class="rank">${b.ra}</td><td>${corpsLink(b.a)}</td><td class="num score">${score3(b.sa)}</td></tr>
         <tr><td class="rank">${b.rb}</td><td>${corpsLink(b.b)}</td><td class="num score">${score3(b.sb)}</td></tr>
       </table>
       <div style="margin-top:8px;font-size:13px;color:var(--text-secondary)">Gap: <b style="color:var(--bad)">${b.gap.toFixed(3)}</b></div>`
-      : "<h2>Closest battle</h2><div class='empty'>—</div>";
+      : "<h2>Closest Battle</h2><div class='empty'>—</div>";
   }
 
   /* ============ CORPS HUB (directory + compare) ============ */
@@ -501,7 +591,7 @@
         <div id="cmpTable" style="margin-top:12px"></div>
       </div>
       <div class="card" style="margin-top:14px">
-        <h2>All corps <span class="sub">tap a corps for its full history · ⊕ adds it to the chart</span></h2>
+        <h2>All Corps <span class="sub">tap a corps for its full history · ⊕ adds it to the chart</span></h2>
         <div class="filters">
           <input class="ctrl" id="q" placeholder="Search corps…">
         </div>
@@ -623,8 +713,8 @@
       lineChart(chartEl, { linearX: true, series, height: 360, xFmt: dayLabel, yFmt: v => v.toFixed(1) });
       summary.sort((a, b) => b.year - a.year || (b.latest || 0) - (a.latest || 0));
       tableEl.innerHTML = `
-        <div class="tscroll"><table class="t"><thead><tr><th>Corps</th><th class="num">Season</th><th class="num">First</th><th class="num">Latest / Final</th><th class="num">High</th><th class="num">Gain</th></tr></thead><tbody id="cmpRows">
-        ${summary.map(s => h`<tr><td>${corpsLink(s.corps)}</td><td class="num">${s.year}</td><td class="num">${score3(s.first)}</td><td class="num score">${score3(s.latest)}</td><td class="num">${score3(s.high)}</td><td class="num">${s.gain > 0 ? "+" : ""}${s.gain}</td></tr>`).join("")}
+        <div class="tscroll"><table class="t"><thead><tr><th>Corps</th><th class="num">Season</th><th class="num m-hide">First</th><th class="num">Latest / Final</th><th class="num m-hide">High</th><th class="num">Gain</th></tr></thead><tbody id="cmpRows">
+        ${summary.map(s => h`<tr><td>${corpsLink(s.corps)}</td><td class="num">${s.year}</td><td class="num m-hide">${score3(s.first)}</td><td class="num score">${score3(s.latest)}</td><td class="num m-hide">${score3(s.high)}</td><td class="num">${s.gain > 0 ? "+" : ""}${s.gain}</td></tr>`).join("")}
         </tbody></table></div>`;
       collapseRows(document.getElementById("cmpRows"), 5, "rows");
     }
@@ -698,7 +788,7 @@
       <div class="filters"><select class="ctrl" id="yearSel2"><option value="">All years</option>
         ${years.slice().reverse().map(y => `<option>${y}</option>`).join("")}</select></div>
       <div class="card"><h2 id="corpsChartTitle"></h2><div class="chartwrap" id="corpsChart"></div></div>
-      <div class="card" style="margin-top:14px"><h2 id="perfTitle">Performance log</h2>
+      <div class="card" style="margin-top:14px"><h2 id="perfTitle">Performance Log</h2>
         <div id="perfTable"></div></div>
       <div class="grid cols-tiles" style="margin-top:14px">
         <div class="tile"><div class="label">Performances</div><div class="value">${perfs.length}</div><div class="sub">${years[0]}–${years[years.length - 1]}</div></div>
@@ -711,7 +801,7 @@
       const yv = document.getElementById("yearSel2").value;
       const title = document.getElementById("corpsChartTitle");
       if (yv) {
-        title.innerHTML = `${yv} season progression <span class="sub">score by date · <a href="#/corps?c=${slug}&y=${cmpYears}">compare seasons →</a></span>`;
+        title.innerHTML = `${yv} Season Progression <span class="sub">score by date · <a href="#/corps?c=${slug}&y=${cmpYears}">compare seasons →</a></span>`;
         const pts = (byYear.get(+yv) || []).filter(p => p.s && p.d)
           .map(p => ({ x: dayOfSeason(p.d), y: p.s })).sort((a, b) => a.x - b.x);
         lineChart(document.getElementById("corpsChart"), {
@@ -723,7 +813,7 @@
       // All years: top score per season — the line only connects consecutive
       // seasons, so years the corps didn't march show as real gaps and an
       // in-progress season sits as its own point instead of dragging the line
-      title.innerHTML = `Top score by year <span class="sub">gaps = seasons not marched · <a href="#/corps?c=${slug}&y=${cmpYears}">compare seasons →</a></span>`;
+      title.innerHTML = `Top Score by Year <span class="sub">gaps = seasons not marched · <a href="#/corps?c=${slug}&y=${cmpYears}">compare seasons →</a></span>`;
       const ptsAll = years.map((y, i) => ({ x: y, y: bestByYear[i] })).filter(p => p.y);
       const segs = [];
       let cur = [];
@@ -742,7 +832,7 @@
     function renderPerfs() {
       const yv = document.getElementById("yearSel2").value;
       document.getElementById("perfTitle").innerHTML =
-        `Performance log${yv ? ` <span class="sub">${esc(yv)} only</span>` : ""}`;
+        `Performance Log${yv ? ` <span class="sub">${esc(yv)} only</span>` : ""}`;
       const list = perfs.filter(p => !yv || p.y === +yv)
         .sort((a, b) => (b.d || "").localeCompare(a.d || "") || b.y - a.y);
       document.getElementById("perfTable").innerHTML = `<div class="tscroll"><table class="t">
@@ -775,61 +865,82 @@
     years.sort((a, b) => b.year - a.year);
     app.innerHTML = h`
       <h1 class="page">Season History <span class="kicker">· the record book</span></h1>
-            <div class="card"><h2>Past champions <span class="sub" id="champSub"></span></h2>
+      <div class="card"><h2>Past Champions <span class="sub" id="champSub"></span></h2>
       <div class="filters" style="margin-bottom:8px"><select class="ctrl" id="champCls"></select></div>
-      <table class="t" id="champT"></table></div>
-      <div class="card" style="margin-top:14px"><h2>Browse a season <span class="sub">every show of that summer — who performed, and every score</span></h2>
-      <table class="t"><thead><tr><th>Season</th><th class="num">Events</th><th>World Class champion</th></tr></thead>
-      <tbody id="seasonRows">
-        ${years.map(s => {
-          if (s.covid) return h`<tr>
-            <td style="color:var(--muted)"><b>${s.year}</b></td>
-            <td class="num" style="color:var(--muted)">—</td>
-            <td style="color:var(--muted)">COVID-19 — ${s.year === 2020 ? "season canceled" : "no competitive tour"}</td>
-          </tr>`;
-          const w = (champs[String(s.year)] || {})["World Class"];
-          return h`<tr class="rowlink" data-y="${s.year}">
-            <td><b>${s.year}</b></td>
-            <td class="num">${s.events}</td>
-            <td>${w ? h`🏆 ${esc(w.corps)}${w.score ? h` <span class="kicker">${score3(w.score)}</span>` : ""}` : "<span style='color:var(--muted)'>—</span>"}</td>
-          </tr>`;
-        }).join("")}
-      </tbody></table></div>`;
-    // champions: one class at a time
+      <table class="t" id="champT"></table>
+      <p style="color:var(--muted);font-size:12.5px;margin:10px 2px 0">Tap a year for that season — every show, every score, full recaps.</p>
+      <div id="champChartWrap" hidden style="margin-top:16px">
+        <h2>Winning Score by Year <span class="sub" id="champChartSub"></span></h2>
+        <div class="chartwrap" id="champChart"></div>
+      </div></div>`;
+
+    // one table: every season, its champion, click through to the year
     const clsSet = new Set();
     Object.values(champs).forEach(byCls => Object.keys(byCls).forEach(c => clsSet.add(c)));
     const clsList = sortClasses([...clsSet]);
     let champCls = clsList.includes("World Class") ? "World Class" : clsList[0];
+    const currentYear = Math.max(...years.map(s => s.year));
     function renderChamps() {
       const sel = document.getElementById("champCls");
       sel.innerHTML = "";
       clsList.forEach(c => sel.add(new Option(c, c)));
       sel.value = champCls;
       sel.onchange = () => { champCls = sel.value; renderChamps(); };
-      document.getElementById("champSub").textContent = `${champCls} · World Championship Finals winners`;
-      const yearsWith = Object.keys(champs).filter(y => champs[y][champCls]).map(Number);
-      // the COVID years sit inside the record as labeled rows, not silent gaps
-      const rowsList = yearsWith.map(y => ({ y, w: champs[y][champCls] }));
-      [2020, 2021].forEach(cy => {
-        if (yearsWith.some(n => n > cy) && yearsWith.some(n => n < cy))
-          rowsList.push({ y: cy, covid: true });
+      document.getElementById("champSub").textContent = `${champCls} · every season on record`;
+      // World Class shows every scraped season; other classes show the
+      // seasons they actually crowned a champion (plus the running season)
+      const withChamp = new Set(Object.keys(champs).filter(y => champs[y][champCls]).map(Number));
+      const rowsList = [];
+      years.forEach(s => {
+        if (s.covid) { rowsList.push({ y: s.year, covid: true }); return; }
+        const w = champs[String(s.year)] && champs[String(s.year)][champCls];
+        if (champCls === "World Class" || w || s.year === currentYear)
+          rowsList.push({ y: s.year, w, events: s.events });
       });
       rowsList.sort((a, b) => b.y - a.y);
       document.getElementById("champT").innerHTML = `
         <thead><tr><th>Year</th><th>Champion</th><th class="num">Score</th></tr></thead><tbody id="champRows">
-        ${rowsList.map(r => r.covid
-          ? `<tr><td style="color:var(--muted)">${r.y}</td><td colspan="2" style="color:var(--muted)">COVID-19 — ${r.y === 2020 ? "season canceled, no championships" : "no championships held"}</td></tr>`
-          : `<tr><td><a href="#/season/${r.y}">${r.y}</a></td><td><b>${esc(r.w.corps)}</b></td><td class="num score">${score3(r.w.score)}</td></tr>`
-        ).join("")}</tbody>`;
+        ${rowsList.map(r => {
+          if (r.covid) return `<tr><td style="color:var(--muted)">${r.y}</td><td colspan="2" style="color:var(--muted)">COVID-19 — ${r.y === 2020 ? "season canceled, no championships" : "no championships held"}</td></tr>`;
+          const label = r.w
+            ? `<b>${esc(r.w.corps)}</b>`
+            : (r.y === currentYear
+              ? "<span style='color:var(--muted)'>season in progress…</span>"
+              : "<span style='color:var(--muted)'>—</span>");
+          return `<tr class="rowlink" data-y="${r.y}"><td><a href="#/season/${r.y}"><b>${r.y}</b></a>${r.events ? ` <span class="kicker">${r.events} events</span>` : ""}</td><td>${label}</td><td class="num score">${r.w && r.w.score ? score3(r.w.score) : "—"}</td></tr>`;
+        }).join("")}</tbody>`;
+      document.querySelectorAll("#champRows tr[data-y]").forEach(tr => {
+        tr.onclick = e => {
+          if (e.target.closest("a")) return;
+          location.hash = `#/season/${tr.dataset.y}`;
+        };
+      });
       collapseRows(document.getElementById("champRows"), 5, "seasons");
+
+      // the winning score, year over year — gaps stay gaps
+      const pts = rowsList.filter(r => r.w && r.w.score)
+        .map(r => ({ x: r.y, y: r.w.score })).sort((a, b) => a.x - b.x);
+      const segs = [];
+      let seg = [];
+      pts.forEach(pt => {
+        if (seg.length && pt.x - seg[seg.length - 1].x > 1) { segs.push(seg); seg = []; }
+        seg.push(pt);
+      });
+      if (seg.length) segs.push(seg);
+      const wrap = document.getElementById("champChartWrap");
+      if (pts.length >= 3) {
+        wrap.hidden = false;
+        document.getElementById("champChartSub").textContent = `${champCls} title score by season`;
+        lineChart(document.getElementById("champChart"), {
+          linearX: true, noLegend: true,
+          series: segs.map(sg => ({ name: "Winning score", points: sg, color: "#d9480f" })),
+          height: 240, yFmt: v => v.toFixed(1), xFmt: v => String(Math.round(v)),
+        });
+      } else {
+        wrap.hidden = true;
+      }
     }
     renderChamps();
-
-    const sr = document.getElementById("seasonRows");
-    sr.querySelectorAll("tr[data-y]").forEach(tr => {
-      tr.onclick = () => { location.hash = `#/season/${tr.dataset.y}`; };
-    });
-    collapseRows(sr, 5, "seasons");
   }
 
   function eventWinner(ev) {
@@ -842,6 +953,14 @@
   }
 
   function eventBodyHtml(ev, year, i) {
+    if (ev.future) {
+      return (ev.lineup || []).length
+        ? h`<h3 class="evcls">Scheduled lineup <span class="kicker">${ev.lineup.length} corps</span></h3>
+            <table class="t"><tbody>
+            ${ev.lineup.map(c => `<tr><td>${corpsLink(c)}</td><td class="num" style="color:var(--muted)">upcoming</td></tr>`).join("")}
+            </tbody></table>`
+        : "<div class='empty'>Lineup not announced yet.</div>";
+    }
     return h`
       ${(ev.classes || []).map(c => h`
         <h3 class="evcls">${esc(c.class)} <span class="kicker">${c.results.length} corps</span></h3>
@@ -865,6 +984,20 @@
     }
     if (stale()) return;
 
+    // running season: the schedule's future events join the list, marked
+    // "upcoming" — the season page is the one place with the whole summer
+    if (+year === new Date().getFullYear()) {
+      const up = await data("upcoming.json").catch(() => []);
+      if (stale()) return;
+      const seen = new Set(events.map(e => (e.date || "") + "|" + (e.name || "").toLowerCase()));
+      for (const u of up) {
+        if (!u.date || !String(u.date).startsWith(String(year))) continue;
+        if (seen.has(u.date + "|" + (u.name || "").toLowerCase())) continue;
+        events.push({ name: u.name, date: u.date, location: u.location,
+          lineup: u.lineup || [], future: true });
+      }
+    }
+
     // filter option sets from the actual data
     const clsSet = new Set();
     events.forEach(ev => (ev.classes || []).forEach(c => clsSet.add(c.class)));
@@ -883,7 +1016,7 @@
     if (finalsIdx >= 0) {
       const fe = events[finalsIdx];
       finalsHtml = h`<div class="card" style="margin-bottom:14px">
-        <h2>Final standings <span class="sub">${esc(fe.name)} · ${esc(fmtDateY(fe.date) || fe.date_display || "")}</span></h2>
+        <h2>Final Standings <span class="sub">${esc(fe.name)} · ${esc(fmtDateY(fe.date) || fe.date_display || "")}</span></h2>
         <div class="grid cols-tiles">
         ${(fe.classes || []).map(c => h`<div>
           <h3 class="evcls" style="margin-top:4px">${esc(c.class)}</h3>
@@ -897,13 +1030,13 @@
 
     app.innerHTML = h`
       <div class="crumbs"><a href="#/seasons">Seasons</a> / ${year}</div>
-      <h1 class="page">${year} season <span class="kicker">· ${events.length} events</span></h1>
+      <h1 class="page">${year} Season <span class="kicker">· ${events.length} events</span></h1>
       ${finalsHtml}
       <div class="filters">
         <select class="ctrl" id="fCls"><option value="">All classes</option>
           ${clsList.map(c => `<option>${esc(c)}</option>`).join("")}</select>
         <input class="ctrl" id="fQ" placeholder="Search event, city or corps…">
-        <button class="tab" id="toggleAll">Expand all ▾</button>
+        <button class="tab" id="toggleAll">Expand All ▾</button>
       </div>
       <div id="evcount" class="kicker" style="margin:-6px 0 10px"></div>
       <div id="evlist"></div>`;
@@ -926,10 +1059,12 @@
 
     function matches(ev, cls, q) {
       if (cls && !(ev.classes || []).some(c => c.class === cls)) return false;
+      if (cls && ev.future) return false;
       if (q) {
         const hay = (ev.name + " " + (ev.location || "")).toLowerCase();
         const inCorps = (ev.classes || []).some(c =>
-          (c.results || []).some(r => (r.corps || "").toLowerCase().includes(q)));
+          (c.results || []).some(r => (r.corps || "").toLowerCase().includes(q)))
+          || (ev.lineup || []).some(c => c.toLowerCase().includes(q));
         if (!hay.includes(q) && !inCorps) return false;
       }
       return true;
@@ -939,6 +1074,13 @@
       const cls = document.getElementById("fCls").value;
       const q = document.getElementById("fQ").value.trim().toLowerCase();
       const idxs = events.map((ev, i) => [ev, i]).filter(([ev]) => matches(ev, cls, q));
+      // reading order for "what's happening": next show first, then the
+      // most recent results, back through the season
+      idxs.sort(([a], [b]) => {
+        if (!!a.future !== !!b.future) return a.future ? -1 : 1;
+        const cmpd = (a.date || "").localeCompare(b.date || "");
+        return a.future ? cmpd : -cmpd;
+      });
       document.getElementById("evcount").textContent =
         idxs.length === events.length ? "" : `${idxs.length} of ${events.length} events match`;
       list.innerHTML = idxs.map(([ev, i]) => {
@@ -947,7 +1089,7 @@
           <button class="evhead" aria-expanded="false">
             <span class="evwhen">${fmtDate2(ev.date, ev.date_display)}</span>
             <span class="evmain"><b>${esc(ev.name)}${(ev.recap && ev.recap.length) ? ' <span class="pill evpill">recap</span>' : ""}</b><span class="evloc">${esc(ev.location || "")}</span></span>
-            <span class="evwin">${winner ? h`${esc(winner.corps)}<b>${score3(winner.score)}</b>` : ""}</span>
+            <span class="evwin">${ev.future ? '<span class="pill">upcoming</span>' : winner ? h`${esc(winner.corps)}<b>${score3(winner.score)}</b>` : ""}</span>
             <span class="caret">▸</span>
           </button>
           <div class="evbody" hidden></div>
@@ -962,7 +1104,7 @@
     ["fCls", "fQ"].forEach(id =>
       document.getElementById(id).addEventListener(id === "fQ" ? "input" : "change", () => { allOpen = false; syncToggle(); render(); }));
     const toggleBtn = document.getElementById("toggleAll");
-    function syncToggle() { toggleBtn.textContent = allOpen ? "Collapse all ▴" : "Expand all ▾"; }
+    function syncToggle() { toggleBtn.textContent = allOpen ? "Collapse All ▴" : "Expand All ▾"; }
     toggleBtn.onclick = () => {
       allOpen = !allOpen;
       list.querySelectorAll(".evrow").forEach(r => toggle(r, allOpen));
@@ -991,7 +1133,7 @@
       arr.push(r);
       capByClass.set(r[2], arr);
     });
-    const CAP_HEAD = [["ge", "GE"], ["vp", "Vis Prof"], ["va", "Vis Anal"], ["cg", "Guard"], ["br", "Brass"], ["ma", "Mus Anal"], ["pc", "Perc"], ["tot", "Total"]];
+    const CAP_HEAD = [["ge", "GE"], ["vp", "Vis Prof"], ["va", "Vis Anlys"], ["cg", "Guard"], ["br", "Brass"], ["ma", "Mus Anlys"], ["pc", "Perc"], ["tot", "Total"]];
     const CIDX = { date: 0, event: 1, cls: 2, corps: 3, ge1: 4, ge2: 5, ge: 6, vp: 7, va: 8, cg: 9, vis: 10, br: 11, ma: 12, pc: 13, mus: 14, pen: 15, tot: 16 };
     const capTable = cls => {
       const rows = (capByClass.get(cls) || []).slice().sort((a, b) => b[CIDX.tot] - a[CIDX.tot]);
@@ -1014,7 +1156,7 @@
         </tbody></table>
         ${capTable(c.class)}</div>`).join("")}
       ${(ev.recap || []).map(rc => h`
-        <div class="card" style="margin-bottom:14px"><h2>Caption recap — ${esc(rc.class)}</h2>
+        <div class="card" style="margin-bottom:14px"><h2>Caption Recap — ${esc(rc.class)}</h2>
         <div class="tscroll dense"><table class="t">
           ${(rc.captions || []).length ? `<thead><tr>${rc.captions.map(c => `<th>${esc(c)}</th>`).join("")}</tr></thead>` : ""}
           <tbody>${rc.rows.map(r => `<tr>${r.cells.map(c => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody>
@@ -1047,7 +1189,7 @@
     let capKey = CAPTION_DEFS.some(([k]) => k === params.cap) ? params.cap : "ge";
 
     app.innerHTML = `
-      <h1 class="page">Caption scores</h1>
+      <h1 class="page">Caption Scores</h1>
       <div class="filters">
         <select class="ctrl" id="capYear">${seasons.map(y => `<option>${y}</option>`).join("")}</select>
         <select class="ctrl" id="capKey">${CAPTION_DEFS.map(([k, l]) => `<option value="${k}">${l}</option>`).join("")}</select>
@@ -1063,9 +1205,17 @@
         <div id="capBoard"></div>
       </div>
       <div class="card" style="margin-top:14px">
-        <h2 id="spotTitle">Corps spotlight</h2>
+        <h2 id="spotTitle">Corps Spotlight</h2>
         <div class="filters" style="margin:2px 0 8px"><select class="ctrl" id="spotCorps"></select></div>
         <div class="chartwrap" id="spotChart"></div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h2 id="titlesTitle">Caption Titles</h2>
+        <div class="filters" style="margin:2px 0 8px">
+          <div id="titlesCaps"></div>
+          <button class="tab" id="titlesMode">Career totals</button>
+        </div>
+        <div id="titlesBody"><div class="loading">Loading…</div></div>
       </div>`;
 
     document.getElementById("capYear").value = String(year);
@@ -1092,7 +1242,7 @@
       sel.innerHTML = "";
       cl.forEach(c => sel.add(new Option(c, c)));
       sel.value = cls;
-      sel.onchange = () => { cls = sel.value; seedPick = true; update(); };
+      sel.onchange = () => { cls = sel.value; seedPick = true; update(); renderTitles(); };
     }
 
     function corpsSeries() {
@@ -1128,7 +1278,7 @@
       const capDefault = capIsDefault();
       const chosen = board.filter(b => capPick.has(b.corps));
       document.getElementById("capChartTitle").innerHTML =
-        `${esc(label)} progression <span class="sub">${esc(String(year))} · ${capDefault ? "top 12" : chosen.length + " selected"}</span>`;
+        `${esc(label)} Progression <span class="sub">${esc(String(year))} · ${capDefault ? "top 12" : chosen.length + " selected"}</span>`;
       document.getElementById("capReset").hidden = capDefault;
       document.getElementById("capReset").textContent = "Top 12";
       lineChart(document.getElementById("capChart"), {
@@ -1141,7 +1291,7 @@
       });
 
       document.getElementById("capBoardTitle").innerHTML =
-        `${esc(label)} leaders <span class="sub">best single-show score, ${esc(String(year))} ${esc(cls)}</span>`;
+        `${esc(label)} Leaders <span class="sub">best single-show score, ${esc(String(year))} ${esc(cls)}</span>`;
       document.getElementById("capBoard").innerHTML = board.length ? `
         <table class="t"><thead><tr><th>#</th><th>Corps</th><th class="num">Best</th><th>At</th><th class="num col-high">Latest</th><th class="num col-perfs">Scored shows</th></tr></thead><tbody>
         ${board.map(b => h`<tr>
@@ -1177,8 +1327,8 @@
     }
 
     // caption-by-caption bars for one corps: latest show vs season best
-    const SPOT_CAPS = [["ge1", "GE 1"], ["ge2", "GE 2"], ["vp", "Vis Prof"], ["va", "Vis Anal"],
-      ["cg", "Guard"], ["br", "Brass"], ["ma", "Mus Anal"], ["pc", "Perc"]];
+    const SPOT_CAPS = [["ge1", "GE 1"], ["ge2", "GE 2"], ["vp", "Vis Prof"], ["va", "Vis Anlys"],
+      ["cg", "Guard"], ["br", "Brass"], ["ma", "Mus Anlys"], ["pc", "Perc"]];
     function renderSpot(board) {
       const sel = document.getElementById("spotCorps");
       if (!sel) return;
@@ -1196,7 +1346,7 @@
       if (!mine.length) { chartEl.innerHTML = "<div class='empty'>No verified recap for this corps yet.</div>"; return; }
       const latest = mine[mine.length - 1];
       document.getElementById("spotTitle").innerHTML =
-        `${esc(corps)} — caption scores <span class="sub">${esc(latest[iEv()])} · ${esc(fmtDateY(latest[iDate()]))} · each caption out of 20</span>`;
+        `${esc(corps)} — Caption Scores <span class="sub">${esc(latest[iEv()])} · ${esc(fmtDateY(latest[iDate()]))} · each caption out of 20</span>`;
       // per-caption rank within the class (by season best)
       const bestBy = {};
       for (const [k] of SPOT_CAPS) {
@@ -1230,9 +1380,63 @@
       update();
     }
 
+    // ---- caption titles: who took each caption at the championships ----
+    const TITLE_CAPS = [["ge", "GE"], ["vis", "Visual"], ["vp", "Vis Prof"], ["va", "Vis Anlys"],
+      ["cg", "Guard"], ["mus", "Music"], ["br", "Brass"], ["ma", "Mus Anlys"], ["pc", "Perc"]];
+    const titleSel = new Set(["ge", "br", "pc", "cg"]);
+    let titlesMode = "years";
+    let titlesData = null;
+    multiSelect(document.getElementById("titlesCaps"), {
+      label: "Pick captions…", bulk: true,
+      options: TITLE_CAPS.map(([k, l]) => ({ value: k, label: l })),
+      selected: titleSel, onChange: renderTitles,
+    });
+    document.getElementById("titlesMode").onclick = () => {
+      titlesMode = titlesMode === "years" ? "career" : "years";
+      document.getElementById("titlesMode").textContent = titlesMode === "years" ? "Career totals" : "By year";
+      renderTitles();
+    };
+    async function renderTitles() {
+      if (!titlesData) titlesData = await data("caption_titles.json").catch(() => ({}));
+      const el = document.getElementById("titlesBody");
+      if (stale() || !el) return;
+      const list = (titlesData[cls] || []).slice().sort((a, b) => b.y - a.y);
+      const capsShown = TITLE_CAPS.filter(([k]) => titleSel.has(k));
+      document.getElementById("titlesTitle").innerHTML =
+        `Caption Titles <span class="sub">${esc(cls)} · best caption score at the championships, every year</span>`;
+      if (!list.length || !capsShown.length) {
+        el.innerHTML = `<div class='empty'>${capsShown.length ? "No championship recaps for this class yet." : "Pick at least one caption."}</div>`;
+        return;
+      }
+      if (titlesMode === "years") {
+        el.innerHTML = `<div class="tscroll"><table class="t"><thead><tr><th>Year</th>${capsShown.map(([, l]) => `<th>${l}</th>`).join("")}</tr></thead><tbody id="titleRows">
+          ${list.map(e => `<tr><td style="white-space:nowrap"><a href="#/season/${e.y}"><b>${e.y}</b></a>${e.round !== "finals" ? ` <span class="kicker">${esc(e.round)}</span>` : ""}</td>
+            ${capsShown.map(([k]) => { const w = e.w[k]; return w ? `<td><b>${esc(w[0])}</b> <span class="kicker">${(+w[1]).toFixed(2)}</span></td>` : "<td style='color:var(--muted)'>—</td>"; }).join("")}</tr>`).join("")}
+        </tbody></table></div>`;
+      } else {
+        const count = new Map();
+        list.forEach(e => capsShown.forEach(([k]) => {
+          const w = e.w[k];
+          if (!w) return;
+          w[0].split(" & ").forEach(name => {
+            const c = count.get(name) || { total: 0, per: {} };
+            c.total++;
+            c.per[k] = (c.per[k] || 0) + 1;
+            count.set(name, c);
+          });
+        }));
+        const rowsC = [...count.entries()].sort((a, b) => b[1].total - a[1].total);
+        el.innerHTML = `<div class="tscroll"><table class="t"><thead><tr><th>Corps</th>${capsShown.map(([, l]) => `<th class="num">${l}</th>`).join("")}<th class="num">Total</th></tr></thead><tbody id="titleRows">
+          ${rowsC.map(([n, c]) => `<tr><td>${corpsLink(n)}</td>${capsShown.map(([k]) => `<td class="num">${c.per[k] || "—"}</td>`).join("")}<td class="num score">${c.total}</td></tr>`).join("")}
+        </tbody></table></div>`;
+      }
+      collapseRows(document.getElementById("titleRows"), 5, titlesMode === "years" ? "seasons" : "corps");
+    }
+
     document.getElementById("capYear").onchange = e => { year = +e.target.value; seedPick = true; loadYear(); };
     document.getElementById("capKey").onchange = e => { capKey = e.target.value; update(); };
     await loadYear();
+    renderTitles();
   }
 
   /* ============ DATABASE ============ */
@@ -1262,10 +1466,10 @@
       load: loadScores,
     },
     captions: {
-      label: "Caption scores",
+      label: "Caption Scores",
       cols: ["Year", "Date", "Event", "Class", "Corps",
-             "GE1", "GE2", "GE", "VisProf", "VisAnal", "Guard", "Visual",
-             "Brass", "MusAnal", "Perc", "Music", "Pen", "Total"],
+             "GE1", "GE2", "GE", "VisProf", "VisAnlys", "Guard", "Visual",
+             "Brass", "MusAnlys", "Perc", "Music", "Pen", "Total"],
       corpsIdx: 4, clsIdx: 3, evIdx: 2, dateIdx: 1, scoreCols: [17],
       load: loadCaptionRows,
     },
@@ -1311,7 +1515,7 @@
       }
       if (stale() || gen !== dbGen || !document.getElementById("dbtable")) return;
       rows = got;
-      DB.sort = [0, -1];
+      DB.sort = [cfg.dateIdx, -1];   // freshest shows first
       corpsSet.clear(); yearSet.clear();
       document.getElementById("fq").value = "";
 
@@ -1421,6 +1625,214 @@
     await initDataset();
   }
 
+  /* ============ RECORDS ============ */
+  async function viewRecords(_m, stale) {
+    setNav("records");
+    const [rec, idx] = await Promise.all([data("records.json"), data("corps_index.json")]);
+    if (stale()) return;
+    const classes = sortClasses(Object.keys(rec));
+    if (!classes.length) {
+      app.innerHTML = "<div class='card'><div class='empty'>The record book builds with the next data run.</div></div>";
+      return;
+    }
+    const savedCls = localStorage.getItem("dt-reccls");
+    let cls = classes.includes(savedCls) ? savedCls : (classes.includes("World Class") ? "World Class" : classes[0]);
+    let marginMode = "closest";
+
+    app.innerHTML = `
+      <h1 class="page">Records <span class="kicker">· the all-time book</span></h1>
+      <div class="filters">
+        <select class="ctrl" id="recCls"></select>
+        <select class="ctrl" id="recEra"></select>
+        <div id="recCorps"></div>
+      </div>
+      <div id="recBody"></div>`;
+
+    const clsSel = document.getElementById("recCls");
+    classes.forEach(c => clsSel.add(new Option(c, c)));
+    clsSel.value = cls;
+    const eraSel = document.getElementById("recEra");
+    const corpsSet = new Set();
+    let msCorps = null;
+
+    function rebuildFilters() {
+      const d = rec[cls];
+      const ys = [...new Set([...d.top.map(r => r[0]), ...Object.keys(d.finals).map(Number)])].sort((a, b) => a - b);
+      const prevEra = eraSel.value;
+      eraSel.innerHTML = "";
+      eraSel.add(new Option("All-time", "all"));
+      if (ys.some(y => y >= 2013) && ys.some(y => y < 2013)) eraSel.add(new Option("Modern era (2013–now)", "modern"));
+      const decades = [...new Set(ys.map(y => Math.floor(y / 10) * 10))].sort((a, b) => b - a);
+      if (decades.length > 1) decades.forEach(dd => eraSel.add(new Option(`${dd}s`, String(dd))));
+      if ([...eraSel.options].some(o => o.value === prevEra)) eraSel.value = prevEra;
+      const names = [...new Set([
+        ...d.top.map(r => r[2]),
+        ...Object.values(d.finals).flat().map(r => r[0]),
+      ])].sort();
+      const opts = names.map(n => ({ value: n, label: n }));
+      if (!msCorps) {
+        msCorps = multiSelect(document.getElementById("recCorps"), {
+          label: "All corps", searchable: true, bulk: true, bulkAll: false,
+          options: opts, selected: corpsSet, onChange: render,
+        });
+      } else {
+        [...corpsSet].forEach(n => { if (!names.includes(n)) corpsSet.delete(n); });
+        msCorps.setOptions(opts);
+        msCorps.refresh();
+      }
+    }
+
+    const inEra = y => {
+      const v = eraSel.value;
+      if (v === "all") return true;
+      if (v === "modern") return y >= 2013;
+      return Math.floor(y / 10) * 10 === +v;
+    };
+    const inCorps = n => !corpsSet.size || corpsSet.has(n);
+    const yearLink = y => `<a href="#/season/${y}">${y}</a>`;
+
+    function card(title, sub, body) {
+      return `<div class="card"><h2>${title}${sub ? ` <span class="sub">${sub}</span>` : ""}</h2>${body}</div>`;
+    }
+    const emptyNote = "<div class='empty'>Nothing in this slice — widen the era or corps filter.</div>";
+
+    function render() {
+      const d = rec[cls];
+
+      // finals per year, rows kept sorted by score
+      const champBy = {};
+      Object.entries(d.finals).forEach(([y, rows]) => {
+        if (!inEra(+y)) return;
+        champBy[+y] = rows.slice().sort((a, b) => (b[1] || 0) - (a[1] || 0));
+      });
+      const champYears = Object.keys(champBy).map(Number).sort((a, b) => a - b);
+
+      // 1 — highest single-show scores
+      const top = d.top.filter(r => inEra(r[0]) && inCorps(r[2])).slice(0, 100);
+      const topHtml = top.length ? `<div class="tscroll"><table class="t"><thead><tr><th>#</th><th>Corps</th><th class="num">Score</th><th>Event</th><th>Date</th></tr></thead><tbody id="recTop">
+        ${top.map((r, i) => `<tr><td class="rank">${i + 1}</td><td>${corpsLink(r[2])}</td><td class="num score">${score3(r[3])}</td><td class="m-hide" style="color:var(--muted);font-size:12.5px">${esc(r[4] || "")}</td><td style="white-space:nowrap">${fmtDate2(r[1], r[0])}</td></tr>`).join("")}
+      </tbody></table></div>` : emptyNote;
+
+      // 2 — championship titles
+      const titleBy = new Map();
+      champYears.forEach(y => {
+        const c = champBy[y][0][0];
+        if (!inCorps(c)) return;
+        const t = titleBy.get(c) || { n: 0, years: [] };
+        t.n++;
+        t.years.push(y);
+        titleBy.set(c, t);
+      });
+      const titles = [...titleBy.entries()].sort((a, b) => b[1].n - a[1].n || b[1].years[b[1].years.length - 1] - a[1].years[a[1].years.length - 1]);
+      const titlesHtml = titles.length ? `<div class="tscroll"><table class="t"><thead><tr><th>Corps</th><th class="num">Titles</th><th>Years</th></tr></thead><tbody id="recTitles">
+        ${titles.map(([n, t]) => `<tr><td>${corpsLink(n)}</td><td class="num score">${t.n}</td><td class="kicker" style="max-width:260px">${t.years.join(" · ")}</td></tr>`).join("")}
+      </tbody></table></div>` : emptyNote;
+
+      // 3 — dynasties: consecutive titles over contested seasons
+      const streaks = [];
+      let cur = null;
+      champYears.forEach(y => {
+        const c = champBy[y][0][0];
+        if (cur && cur.corps === c) { cur.end = y; cur.len++; }
+        else {
+          if (cur && cur.len >= 2 && inCorps(cur.corps)) streaks.push(cur);
+          cur = { corps: c, start: y, end: y, len: 1 };
+        }
+      });
+      if (cur && cur.len >= 2 && inCorps(cur.corps)) streaks.push(cur);
+      streaks.sort((a, b) => b.len - a.len || b.end - a.end);
+      const streaksHtml = streaks.length ? `<div class="tscroll"><table class="t"><thead><tr><th>Corps</th><th class="num">In a row</th><th>Span</th></tr></thead><tbody id="recStreaks">
+        ${streaks.map(t => `<tr><td>${corpsLink(t.corps)}</td><td class="num score">${t.len}</td><td class="kicker">${t.start}–${t.end}</td></tr>`).join("")}
+      </tbody></table></div>` : "<div class='empty'>No back-to-back champions in this slice.</div>";
+
+      // 4 — finals margins
+      const margins = [];
+      champYears.forEach(y => {
+        const rows = champBy[y];
+        if (rows.length < 2 || rows[0][1] == null || rows[1][1] == null) return;
+        if (corpsSet.size && !inCorps(rows[0][0]) && !inCorps(rows[1][0])) return;
+        margins.push({ y, c1: rows[0][0], s1: rows[0][1], c2: rows[1][0], s2: rows[1][1], m: +(rows[0][1] - rows[1][1]).toFixed(3) });
+      });
+      margins.sort((a, b) => marginMode === "closest" ? a.m - b.m : b.m - a.m);
+      const marginsHtml = margins.length ? `<div class="tscroll"><table class="t"><thead><tr><th>Year</th><th>Champion</th><th class="num">Score</th><th>Runner-up</th><th class="num m-hide">Score</th><th class="num">Margin</th></tr></thead><tbody id="recMargins">
+        ${margins.map(g => `<tr><td>${yearLink(g.y)}</td><td><b>${esc(g.c1)}</b></td><td class="num score">${score3(g.s1)}</td><td>${esc(g.c2)}</td><td class="num m-hide">${score3(g.s2)}</td><td class="num" style="font-weight:650">${g.m.toFixed(3)}</td></tr>`).join("")}
+      </tbody></table></div>` : emptyNote;
+
+      // 5 — biggest one-season leaps (best score, year over year)
+      const leaps = [];
+      for (const c of idx) {
+        if (!inCorps(c.name)) continue;
+        const series = (c.series || []).slice().sort((a, b) => a[0] - b[0]);
+        for (let i = 1; i < series.length; i++) {
+          const [y1, b1] = series[i - 1], [y2, b2, k2] = series[i];
+          if (y2 !== y1 + 1 || k2 !== cls || b1 == null || b2 == null || !inEra(y2)) continue;
+          const dlt = +(b2 - b1).toFixed(3);
+          if (dlt > 0) leaps.push({ corps: c.name, y1, y2, b1, b2, d: dlt });
+        }
+      }
+      leaps.sort((a, b) => b.d - a.d);
+      const leapsHtml = leaps.length ? `<div class="tscroll"><table class="t"><thead><tr><th>Corps</th><th>Seasons</th><th class="num m-hide">From</th><th class="num m-hide">To</th><th class="num">Jump</th></tr></thead><tbody id="recLeaps">
+        ${leaps.slice(0, 50).map(l => `<tr><td>${corpsLink(l.corps)}</td><td class="kicker">${l.y1} → ${l.y2}</td><td class="num m-hide">${score3(l.b1)}</td><td class="num m-hide">${score3(l.b2)}</td><td class="num score">+${l.d.toFixed(3)}</td></tr>`).join("")}
+      </tbody></table></div>` : emptyNote;
+
+      // 6 — most championship-finals appearances
+      const appBy = new Map();
+      champYears.forEach(y => {
+        champBy[y].forEach(([c]) => {
+          if (!inCorps(c)) return;
+          const a = appBy.get(c) || { n: 0, first: y, last: y };
+          a.n++;
+          a.first = Math.min(a.first, y);
+          a.last = Math.max(a.last, y);
+          appBy.set(c, a);
+        });
+      });
+      const apps = [...appBy.entries()].sort((a, b) => b[1].n - a[1].n || b[1].last - a[1].last);
+      const appsHtml = apps.length ? `<div class="tscroll"><table class="t"><thead><tr><th>Corps</th><th class="num">Finals</th><th>First – Last</th></tr></thead><tbody id="recApps">
+        ${apps.map(([n, a]) => `<tr><td>${corpsLink(n)}</td><td class="num score">${a.n}</td><td class="kicker">${a.first}–${a.last}</td></tr>`).join("")}
+      </tbody></table></div>` : emptyNote;
+
+      const finalsSpan = champYears.length ? `${champYears[0]}–${champYears[champYears.length - 1]}` : "";
+      document.getElementById("recBody").innerHTML = `
+        ${card("Highest Scores Ever", "the best single performances on record", topHtml)}
+        <div class="grid cols-2" style="margin-top:14px">
+          ${card("Championship Titles", finalsSpan, titlesHtml)}
+          ${card("Dynasties", "back-to-back champions", streaksHtml)}
+        </div>
+        <div class="card" style="margin-top:14px">
+          <h2>Finals Margins <span class="sub">champion vs runner-up on the last night</span></h2>
+          <div class="filters" style="margin:2px 0 8px">
+            <button class="tab${marginMode === "closest" ? " on" : ""}" data-mm="closest">Closest ever</button>
+            <button class="tab${marginMode === "biggest" ? " on" : ""}" data-mm="biggest">Biggest blowouts</button>
+          </div>
+          ${marginsHtml}
+        </div>
+        <div class="grid cols-2" style="margin-top:14px">
+          ${card("Biggest One-Season Leaps", "season best vs the year before", leapsHtml)}
+          ${card("Most Finals Made", "championship-finals appearances", appsHtml)}
+        </div>`;
+
+      ["recTop", "recTitles", "recStreaks", "recMargins", "recLeaps", "recApps"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) collapseRows(el, 5, "rows");
+      });
+      document.querySelectorAll("[data-mm]").forEach(bt => bt.onclick = () => {
+        marginMode = bt.dataset.mm;
+        render();
+      });
+    }
+
+    clsSel.onchange = () => {
+      cls = clsSel.value;
+      localStorage.setItem("dt-reccls", cls);
+      rebuildFilters();
+      render();
+    };
+    eraSel.onchange = render;
+    rebuildFilters();
+    render();
+  }
+
   /* ============ router ============ */
   const routes = [
     [/^#?\/?$/, viewRankings],
@@ -1430,6 +1842,7 @@
     [/^#\/season\/(\d{4})$/, (m, st) => viewSeason(m[1], st)],
     [/^#\/event\/(\d{4})\/(\d+)$/, (m, st) => viewEvent(m[1], m[2], st)],
     [/^#\/captions(?:\?(.*))?$/, (m, st) => viewCaptions(m[1], st)],
+    [/^#\/records$/, viewRecords],
     [/^#\/database$/, viewDatabase],
     // legacy routes from earlier versions
     [/^#\/compare(?:\?.*)?$/, () => { location.replace("#/corps"); }],
