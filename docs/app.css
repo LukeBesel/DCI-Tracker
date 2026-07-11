@@ -20,12 +20,13 @@
   --series-8: #495057;
   --good: #2b8a3e;
   --bad: #c92a2a;
-  --accent: #d7263d;
-  --accent-ink: #bd1f34;
-  --accent-wash: rgba(215,38,61,0.09);
+  --gold: #f0b429;
+  --accent: #d97706;
+  --accent-ink: #a16207;
+  --accent-wash: rgba(240,180,41,0.14);
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
-* { box-sizing: border-box; -webkit-tap-highlight-color: rgba(215,38,61,0.15); }
+* { box-sizing: border-box; -webkit-tap-highlight-color: rgba(240,180,41,0.25); }
 table.t, #nav, .msel, .tab, .tile, .evhead, .legend, h1.page, .card h2, .card h3 {
   -webkit-user-select: none; user-select: none;
 }
@@ -58,13 +59,13 @@ a:hover { text-decoration: underline; }
   flex-wrap: wrap;
 }
 .brand { display: flex; align-items: center; gap: 9px; color: #fff; font-size: 18.5px; font-weight: 700; }
-.brand b { color: #ff8fa0; }
+.brand b { color: var(--gold); }
 .brand:hover { text-decoration: none; }
 #nav { display: flex; gap: 4px; flex-wrap: wrap; }
 #nav a { color: rgba(255,255,255,0.82); padding: 8px 15px; border-radius: 10px; font-size: 15.5px; font-weight: 550; display: flex; align-items: center; gap: 6px; }
 #nav a svg { display: none; }
 #nav a:hover { color: #fff; background: rgba(255,255,255,0.10); text-decoration: none; }
-#nav a.active { color: #fff; background: var(--accent); font-weight: 650; }
+#nav a.active { color: var(--navy); background: var(--gold); font-weight: 700; }
 .updated { margin-left: auto; color: rgba(255,255,255,0.55); font-size: 11px; }
 
 main { max-width: 1180px; margin: 0 auto; padding: 22px 18px 60px; min-height: 70vh; }
@@ -109,9 +110,9 @@ p.pagenote { color: var(--muted); font-size: 11.5px; font-family: var(--mono); m
 p.capkey { color: var(--muted); font-size: 11.5px; margin: 10px 2px 0; line-height: 1.6; }
 
 /* Data section sub-tabs */
-.subtabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 2px 0 14px; }
+.subtabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 2px 0 16px; }
 .subtabs a {
-  padding: 7px 15px; border-radius: 999px; font-size: 13.5px; font-weight: 600;
+  padding: 10px 20px; border-radius: 999px; font-size: 15px; font-weight: 600;
   background: var(--surface-1); border: 1px solid var(--border); color: var(--text-secondary);
 }
 .subtabs a:hover { text-decoration: none; color: var(--text-primary); }
@@ -129,7 +130,7 @@ p.capkey { color: var(--muted); font-size: 11.5px; margin: 10px 2px 0; line-heig
   border-radius: 8px; padding: 7px 14px; font-size: 14px; font-family: inherit; cursor: pointer;
 }
 .tab:hover { color: var(--text-primary); background: var(--surface-2); }
-.tab.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.tab.on { background: var(--navy); border-color: var(--navy); color: #fff; font-weight: 600; }
 /* one look for every filter control: native selects, text inputs and the
    multiselect buttons all share the same chrome so filter rows read as one */
 .ctrl {
@@ -306,11 +307,11 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14.5px; }
   .updated { display: none; }
   #nav { flex: 1; flex-wrap: nowrap; gap: 0; }
   #nav a {
-    flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; gap: 2px;
-    padding: 5px 3px; font-size: 10.5px; font-weight: 600;
-    text-align: center; min-width: 0; border-radius: 9px; white-space: nowrap;
+    flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 6px 3px; font-size: 11.5px; font-weight: 650;
+    text-align: center; min-width: 0; border-radius: 10px; white-space: nowrap;
   }
-  #nav a svg { display: block; width: 20px; height: 20px; }
+  #nav a svg { display: block; width: 23px; height: 23px; }
   main { padding: 14px 12px 50px; }
   h1.page { font-size: 21px; }
   .evwhen { font-size: 11px; }

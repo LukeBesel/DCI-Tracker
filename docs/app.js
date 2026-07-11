@@ -310,7 +310,7 @@
     const saved = localStorage.getItem("dt-class");
     const cls = classes.includes(saved) ? saved : classes[0];
     app.innerHTML = h`
-      <h1 class="page">${esc(String(rk.season))} Rankings</h1>
+      <h1 class="page">${esc(String(rk.season))} Scoreboard</h1>
       <div class="filters"><div id="clsSel"></div></div>
       <div class="card">
         <h2 id="trendTitle">Season Progression <span class="sub" id="trendSub">score by date · top 12</span></h2>
@@ -973,7 +973,7 @@
         document.getElementById("champChartSub").textContent = `${champCls} title score by season`;
         lineChart(document.getElementById("champChart"), {
           linearX: true, noLegend: true,
-          series: segs.map(sg => ({ name: "Winning score", points: sg, color: "#d7263d" })),
+          series: segs.map(sg => ({ name: "Winning score", points: sg, color: "#d97706" })),
           height: 240, yFmt: v => v.toFixed(1), xFmt: v => String(Math.round(v)),
         });
       } else {
@@ -1022,7 +1022,7 @@
     const years = meta.seasons.map(sn => sn.year).sort((a, b) => b - a);
     let year = +params.y && years.includes(+params.y) ? +params.y : years[0];
     app.innerHTML = `
-      <h1 class="page">Events <span class="kicker" id="evCount"></span></h1>
+      <h1 class="page">Shows <span class="kicker" id="evCount"></span></h1>
       <div class="filters"><div id="evYearSel"></div></div>
       <div id="seasonMount"><div class="loading">Loading…</div></div>`;
     let gen = 0;
@@ -1237,7 +1237,7 @@
     };
 
     app.innerHTML = h`
-      <div class="crumbs"><a href="#/events?y=${year}">Events</a> / <a href="#/events?y=${year}">${year}</a> / ${esc(ev.name)}</div>
+      <div class="crumbs"><a href="#/events?y=${year}">Shows</a> / <a href="#/events?y=${year}">${year}</a> / ${esc(ev.name)}</div>
       <h1 class="page">${esc(ev.name)}</h1>
       <p class="lede">${esc(fmtDateY(ev.date) || ev.date_display || "")}${ev.location ? " · " + esc(ev.location) : ""}${ev.url ? h` · <a href="${encodeURI(ev.url)}" target="_blank" rel="noopener">source ↗</a>` : ""}</p>
       ${(ev.classes || []).map((c, ci) => h`

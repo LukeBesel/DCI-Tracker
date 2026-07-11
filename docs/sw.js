@@ -1,7 +1,7 @@
 /* DCI Tracker service worker — network-first with cache fallback.
    Fresh data always wins when online; the app shell and the last-seen data
    keep working offline. Nothing is ever served stale while connected. */
-const CACHE = "dci-tracker-v2";
+const CACHE = "cadence-v3";
 const SHELL = ["./", "index.html", "app.css", "app.js", "charts.js", "manifest.webmanifest"];
 
 self.addEventListener("install", e => {
