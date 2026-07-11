@@ -110,8 +110,9 @@ async function broadcast(events) {
     jobs.push(webpush.sendNotification(sub, payload).then(
       () => { status.sent++; },
       err => {
-        if (err.statusCode === 404 || err.statusCode === 410) {
-          subs.delete(sub.endpoint); // subscriber is gone
+        status.lastPushError = `${new Date().toISOString()} ${err.statusCode || ""} ${err.message}`;
+        if ([401, 403, 404, 410].includes(err.statusCode)) {
+          subs.delete(sub.endpoint); // gone, or bound to a rotated key
         }
       }));
   }
@@ -164,14 +165,22 @@ http.createServer(async (req, res) => {
   if (req.method === "POST" && url.pathname === "/test") {
     const entry = json.endpoint && subs.get(json.endpoint);
     if (!entry) return send(res, 404, { error: "not subscribed" });
-    try {
-      await webpush.sendNotification(entry.sub, JSON.stringify({
-        title: "🥁 Cadence test", body: "Score alerts are working — you're all set.", url: SITE,
-      }));
-      return send(res, 200, { ok: true });
-    } catch (e) {
-      return send(res, 502, { error: e.message });
-    }
+    // a short delay lets the user leave the app first — iOS won't banner a
+    // push that lands while the app is in the foreground
+    const delay = Math.min(Math.max(+json.delay || 0, 0), 30000);
+    setTimeout(async () => {
+      try {
+        await webpush.sendNotification(entry.sub, JSON.stringify({
+          title: "🥁 Cadence test", body: "Score alerts are working — you're all set.", url: SITE,
+          tag: "cadence-test",
+        }));
+        status.sent++;
+      } catch (e) {
+        status.lastPushError = `${new Date().toISOString()} ${e.statusCode || ""} ${e.message}`;
+        if ([401, 403, 404, 410].includes(e.statusCode)) { subs.delete(entry.sub.endpoint); saveSubs(); }
+      }
+    }, delay);
+    return send(res, 200, { ok: true, queued: true, delay });
   }
   send(res, 404, { error: "not found" });
 }).listen(PORT, () => console.log(`cadence-push on :${PORT} — watching ${SITE}`));

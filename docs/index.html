@@ -210,12 +210,14 @@ if ("serviceWorker" in navigator) {
       await fetch(PUSH_SERVER + "/subscribe", { method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ subscription: sub.toJSON(), favs }) });
-      btn.innerHTML = "<b>✅ Alerts on!</b> — sending a test ping now…";
-      // prove the whole chain right away: server → push service → this device
+      btn.innerHTML = "<b>✅ Alerts on!</b> — test ping in ~15 s, lock your screen or go home to see it";
+      // prove the whole chain: server → push service → this device. The
+      // delay gives the user time to background the app first — iOS won't
+      // banner a push that lands while the app is open on screen.
       fetch(PUSH_SERVER + "/test", { method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ endpoint: sub.endpoint }) }).catch(() => {});
-      setTimeout(paint, 6000);
+        body: JSON.stringify({ endpoint: sub.endpoint, delay: 12000 }) }).catch(() => {});
+      setTimeout(paint, 20000);
     } catch (err) {
       alert("Couldn't turn on alerts: " + err.message);
     }
