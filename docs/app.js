@@ -271,7 +271,7 @@
     const cls = classes.includes(saved) ? saved : classes[0];
     app.innerHTML = h`
       <h1 class="page">${esc(String(rk.season))} Rankings</h1>
-      <div class="filters" id="classTabs"></div>
+      <div class="filters classrow" id="classTabs"></div>
       <div class="card">
         <h2 id="trendTitle">Season progression <span class="sub" id="trendSub">score by date · top 12</span></h2>
         <div class="filters" style="margin:2px 0 8px"><div id="trendCorpsSel"></div><button class="tab" id="trendReset" hidden>Top 12</button></div>
@@ -338,7 +338,7 @@
       <table class="t standings"><thead><tr><th>#</th><th>Corps · last event</th><th class="num">Score</th><th class="num col-high">Season high</th><th class="num">vs prev</th><th class="col-trend">Trend</th></tr></thead><tbody>
       ${block.rows.map(r => h`<tr>
         <td class="rank">${r.rank}</td>
-        <td>${corpsLink(r.corps)}<div style="font-size:11.5px;color:var(--muted)">${esc(r.event)} · ${esc(fmtDate(r.date))}</div></td>
+        <td>${corpsLink(r.corps)}<div style="font-size:11.5px;color:var(--muted)">${esc(r.event)} · ${esc(fmtDateY(r.date))}</div></td>
         <td class="num score">${score3(r.score)}</td>
         <td class="num col-high">${score3(r.high)}</td>
         <td class="num">${deltaHtml(r.delta)}</td>
@@ -363,7 +363,7 @@
             ? `<span class="lineup-rest" hidden>, ${rest}</span> <button class="lineup-more" data-n="${lineup.length - 7}">+${lineup.length - 7} more ▾</button>`
             : "";
           return h`<div class="upitem">
-            <div><b>${esc(ev.name)}</b> <span class="kicker">${esc(fmtDate(ev.date))}</span></div>
+            <div><b>${esc(ev.name)}</b> <span class="kicker">${esc(fmtDateY(ev.date))}</span></div>
             <div style="color:var(--muted);font-size:12px">${esc(ev.location || "")}</div>
             ${lineup.length ? `<div class="lineup">${head}${more}</div>` : ""}
           </div>`;
@@ -771,29 +771,57 @@
           <td style="white-space:nowrap">${t.winner ? h`🏆 ${esc(t.winner.corps)} <span class="score">${score3(t.winner.score)}</span>` : ""}</td>
         </tr>`).join("")}
       </tbody></table></div>` : ""}
-      <div class="card"><h2>Past champions <span class="sub">World Championship Finals winners</span></h2>
-      <div class="tscroll dense"><table class="t" id="champT"></table></div></div>
+      <div class="card"><h2>Past champions <span class="sub" id="champSub"></span></h2>
+      <div class="filters classrow" id="champTabs" style="margin-bottom:8px"></div>
+      <table class="t" id="champT"></table></div>
       <div class="card" style="margin-top:14px"><h2>Browse a season <span class="sub">every show of that summer — who performed, and every score</span></h2>
-      <div class="years">
+      <table class="t"><thead><tr><th>Season</th><th class="num">Events</th><th>World Class champion</th></tr></thead>
+      <tbody id="seasonRows">
         ${years.map(s => {
-          const c = champs[String(s.year)] && (champs[String(s.year)]["World Class"] || {}).corps;
-          return `<a class="year" href="#/season/${s.year}">${s.year}<small>${s.events} events${c ? " · 🏆 " + esc(c) : ""}</small></a>`;
+          const w = (champs[String(s.year)] || {})["World Class"];
+          return h`<tr class="rowlink" data-y="${s.year}">
+            <td><b>${s.year}</b></td>
+            <td class="num">${s.events}</td>
+            <td>${w ? h`🏆 ${esc(w.corps)}${w.score ? h` <span class="kicker">${score3(w.score)}</span>` : ""}` : "<span style='color:var(--muted)'>—</span>"}</td>
+          </tr>`;
         }).join("")}
-      </div></div>
+      </tbody></table></div>
       <p class="pagenote">Open a year to see each show that happened — who performed, in what class, and every score — with caption recaps where DCI published them.</p>`;
     const tw = document.getElementById("twRows");
     if (tw) collapseRows(tw, 6, "shows");
+
+    // champions: one class at a time
     const clsSet = new Set();
     Object.values(champs).forEach(byCls => Object.keys(byCls).forEach(c => clsSet.add(c)));
     const clsList = sortClasses([...clsSet]);
-    document.getElementById("champT").innerHTML = `
-      <thead><tr><th>Year</th>${clsList.map(c => `<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>
-      ${Object.keys(champs).sort((a, b) => b - a).map(y => `<tr>
-        <td><a href="#/season/${y}">${y}</a></td>
-        ${clsList.map(c => {
-          const w = champs[y][c];
-          return `<td>${w ? `<b>${esc(w.corps)}</b> <span class="kicker">${score3(w.score)}</span>` : "<span style='color:var(--grid)'>·</span>"}</td>`;
-        }).join("")}</tr>`).join("")}</tbody>`;
+    let champCls = clsList.includes("World Class") ? "World Class" : clsList[0];
+    function renderChamps() {
+      const tabs = document.getElementById("champTabs");
+      tabs.innerHTML = "";
+      clsList.forEach(c => {
+        const b = document.createElement("button");
+        b.className = "tab" + (c === champCls ? " on" : "");
+        b.textContent = c;
+        b.onclick = () => { champCls = c; renderChamps(); };
+        tabs.appendChild(b);
+      });
+      document.getElementById("champSub").textContent = `${champCls} · World Championship Finals winners`;
+      const yearsWith = Object.keys(champs).filter(y => champs[y][champCls]).sort((a, b) => b - a);
+      document.getElementById("champT").innerHTML = `
+        <thead><tr><th>Year</th><th>Champion</th><th class="num">Score</th></tr></thead><tbody id="champRows">
+        ${yearsWith.map(y => {
+          const w = champs[y][champCls];
+          return `<tr><td><a href="#/season/${y}">${y}</a></td><td><b>${esc(w.corps)}</b></td><td class="num score">${score3(w.score)}</td></tr>`;
+        }).join("")}</tbody>`;
+      collapseRows(document.getElementById("champRows"), 10, "seasons");
+    }
+    renderChamps();
+
+    const sr = document.getElementById("seasonRows");
+    sr.querySelectorAll("tr[data-y]").forEach(tr => {
+      tr.onclick = () => { location.hash = `#/season/${tr.dataset.y}`; };
+    });
+    collapseRows(sr, 12, "seasons");
   }
 
   function eventWinner(ev) {
@@ -831,13 +859,8 @@
 
     // filter option sets from the actual data
     const clsSet = new Set();
-    const monthSet = new Set();
-    events.forEach(ev => {
-      (ev.classes || []).forEach(c => clsSet.add(c.class));
-      if (ev.date) monthSet.add(+ev.date.split("-")[1]);
-    });
+    events.forEach(ev => (ev.classes || []).forEach(c => clsSet.add(c.class)));
     const clsList = sortClasses([...clsSet]);
-    const monthList = [...monthSet].sort((a, b) => a - b);
 
     // the season's outcome: championship finals podium, when scraped
     const finalsIdx = events.reduce((best, e, i) => {
@@ -871,11 +894,8 @@
       <div class="filters">
         <select class="ctrl" id="fCls"><option value="">All classes</option>
           ${clsList.map(c => `<option>${esc(c)}</option>`).join("")}</select>
-        <select class="ctrl" id="fMon"><option value="">All months</option>
-          ${monthList.map(m => `<option value="${m}">${MONTH_FULL[m - 1]}</option>`).join("")}</select>
         <input class="ctrl" id="fQ" placeholder="Search event, city or corps…">
-        <button class="tab" id="expandAll">Expand all</button>
-        <button class="tab" id="collapseAll">Collapse all</button>
+        <button class="tab" id="toggleAll">Expand all ▾</button>
       </div>
       <div id="evcount" class="kicker" style="margin:-6px 0 10px"></div>
       <div id="evlist"></div>
@@ -897,9 +917,8 @@
       head.setAttribute("aria-expanded", String(open));
     }
 
-    function matches(ev, cls, mon, q) {
+    function matches(ev, cls, q) {
       if (cls && !(ev.classes || []).some(c => c.class === cls)) return false;
-      if (mon && (!ev.date || +ev.date.split("-")[1] !== +mon)) return false;
       if (q) {
         const hay = (ev.name + " " + (ev.location || "")).toLowerCase();
         const inCorps = (ev.classes || []).some(c =>
@@ -911,16 +930,15 @@
 
     function render() {
       const cls = document.getElementById("fCls").value;
-      const mon = document.getElementById("fMon").value;
       const q = document.getElementById("fQ").value.trim().toLowerCase();
-      const idxs = events.map((ev, i) => [ev, i]).filter(([ev]) => matches(ev, cls, mon, q));
+      const idxs = events.map((ev, i) => [ev, i]).filter(([ev]) => matches(ev, cls, q));
       document.getElementById("evcount").textContent =
         idxs.length === events.length ? "" : `${idxs.length} of ${events.length} events match`;
       list.innerHTML = idxs.map(([ev, i]) => {
         const winner = eventWinner(ev);
         return h`<div class="evrow card" data-i="${i}">
           <button class="evhead" aria-expanded="false">
-            <span class="evwhen">${esc(fmtDate(ev.date) || ev.date_display || "")}</span>
+            <span class="evwhen">${esc(fmtDateY(ev.date) || ev.date_display || "")}</span>
             <span class="evmain"><b>${esc(ev.name)}${(ev.recap && ev.recap.length) ? ' <span class="pill evpill">recap</span>' : ""}</b><span class="evloc">${esc(ev.location || "")}</span></span>
             <span class="evwin">${winner ? h`${esc(winner.corps)}<b>${score3(winner.score)}</b>` : ""}</span>
             <span class="caret">▸</span>
@@ -933,12 +951,16 @@
       });
     }
 
-    ["fCls", "fMon", "fQ"].forEach(id =>
-      document.getElementById(id).addEventListener(id === "fQ" ? "input" : "change", render));
-    document.getElementById("expandAll").onclick = () =>
-      list.querySelectorAll(".evrow").forEach(r => toggle(r, true));
-    document.getElementById("collapseAll").onclick = () =>
-      list.querySelectorAll(".evrow").forEach(r => toggle(r, false));
+    let allOpen = false;
+    ["fCls", "fQ"].forEach(id =>
+      document.getElementById(id).addEventListener(id === "fQ" ? "input" : "change", () => { allOpen = false; syncToggle(); render(); }));
+    const toggleBtn = document.getElementById("toggleAll");
+    function syncToggle() { toggleBtn.textContent = allOpen ? "Collapse all ▴" : "Expand all ▾"; }
+    toggleBtn.onclick = () => {
+      allOpen = !allOpen;
+      list.querySelectorAll(".evrow").forEach(r => toggle(r, allOpen));
+      syncToggle();
+    };
     render();
   }
 
@@ -1022,7 +1044,7 @@
       <div class="filters">
         <select class="ctrl" id="capYear">${seasons.map(y => `<option>${y}</option>`).join("")}</select>
         <select class="ctrl" id="capKey">${CAPTION_DEFS.map(([k, l]) => `<option value="${k}">${l}</option>`).join("")}</select>
-        <span id="capClassTabs" style="display:flex;gap:6px;flex-wrap:wrap"></span>
+        <span id="capClassTabs" class="classrow" style="display:flex;gap:6px"></span>
       </div>
       <div class="card">
         <h2 id="capChartTitle"></h2>
@@ -1111,7 +1133,7 @@
           <td class="rank">${b.rank}</td>
           <td>${corpsLink(b.corps)}</td>
           <td class="num score">${score3(b.best)}</td>
-          <td style="color:var(--muted);font-size:12.5px">${esc(b.bestEv)} · ${esc(fmtDate(b.bestD))}</td>
+          <td style="color:var(--muted);font-size:12.5px">${esc(b.bestEv)} · ${esc(fmtDateY(b.bestD))}</td>
           <td class="num col-high">${score3(b.latest)}</td>
           <td class="num col-perfs">${b.n}</td></tr>`).join("")}
         </tbody></table>` : "<div class='empty'>No recap data for this caption yet — it fills in as recaps are scraped.</div>";
@@ -1156,7 +1178,7 @@
       if (!mine.length) { chartEl.innerHTML = "<div class='empty'>No verified recap for this corps yet.</div>"; return; }
       const latest = mine[mine.length - 1];
       document.getElementById("spotTitle").innerHTML =
-        `${esc(corps)} — caption detail <span class="sub">${esc(latest[iEv()])} · ${esc(fmtDate(latest[iDate()]))} vs season best</span>`;
+        `${esc(corps)} — caption detail <span class="sub">${esc(latest[iEv()])} · ${esc(fmtDateY(latest[iDate()]))} vs season best</span>`;
       const groups = SPOT_CAPS.map(([k, label]) => {
         const ki = cols.indexOf(k);
         const best = Math.max(...mine.map(r => r[ki] == null ? -1 : r[ki]));
@@ -1241,6 +1263,8 @@
 
     let setKey = "scores";
     let cfg = DB_SETS[setKey];
+    const CHUNK0 = 100;
+    let shown = CHUNK0;
     let rows = [];
     let filtered = [];
     const corpsSet = new Set();
@@ -1293,6 +1317,7 @@
     }
 
     function apply() {
+      shown = CHUNK0;
       const q = document.getElementById("fq").value.trim().toLowerCase();
       const cls = fcls.value;
       filtered = rows.filter(r =>
@@ -1326,15 +1351,18 @@
     }
 
     function render() {
-      const LIMIT = 800;
       document.getElementById("dbcount").textContent =
-        `· ${filtered.length.toLocaleString()} rows${filtered.length > LIMIT ? ` (showing ${LIMIT} — narrow filters or export CSV)` : ""}`;
+        `· ${filtered.length.toLocaleString()} rows`;
       const [ci, dir] = DB.sort;
+      const more = filtered.length - shown;
       document.getElementById("dbtable").innerHTML =
         `<div class="tscroll dense"><table class="t"><thead><tr>${cfg.cols.map((c, i) =>
           `<th style="cursor:pointer;user-select:none" data-c="${i}">${c}${i === ci ? (dir > 0 ? " ↑" : " ↓") : ""}</th>`).join("")}</tr></thead><tbody>
-        ${filtered.slice(0, LIMIT).map(r =>
-          `<tr>${cfg.cols.map((c, i) => cellHtml(r, i)).join("")}</tr>`).join("")}</tbody></table></div>`;
+        ${filtered.slice(0, shown).map(r =>
+          `<tr>${cfg.cols.map((c, i) => cellHtml(r, i)).join("")}</tr>`).join("")}</tbody></table></div>` +
+        (more > 0 ? `<div class="expandwrap"><button class="tab" id="dbMore">Show ${Math.min(CHUNK0 * 3, more).toLocaleString()} more ▾ <span class="kicker">(${(shown).toLocaleString()} of ${filtered.length.toLocaleString()})</span></button></div>` : "");
+      const mb = document.getElementById("dbMore");
+      if (mb) mb.onclick = () => { shown += CHUNK0 * 3; render(); };
       document.querySelectorAll("#dbtable th").forEach(th => th.onclick = () => {
         const c = +th.dataset.c;
         DB.sort = DB.sort[0] === c ? [c, -DB.sort[1]] : [c, c === 0 || c >= 5 ? -1 : 1];
