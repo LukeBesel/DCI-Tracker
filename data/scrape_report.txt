@@ -1,4 +1,5 @@
-mode=backfill started=2026-07-11 05:18:45 UTC
-dci.org backfill chunk: OK (1206s)
+mode=update started=2026-07-11 05:51:37 UTC
+dci.org current season: OK (54s)
+dci.org history chunk: OK (358s)
 build site data: OK (1s)
-finished=2026-07-11 05:38:52 UTC
+finished=2026-07-11 05:58:30 UTC
