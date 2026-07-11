@@ -118,6 +118,11 @@
 
   const CAP_KEY_NOTE = "<p class='capkey'>GE General Effect · VP Visual Proficiency · VA Visual Analysis · CG Color Guard · BR Brass · MA Music Analysis · PC Percussion</p>";
 
+  // pill sub-tabs inside the Data tab
+  const DATA_SUBS = [["compare", "Compare"], ["captions", "Captions"], ["champions", "Champions"], ["records", "Records"], ["database", "Database"]];
+  const dataSubNav = active => `<div class="subtabs">${DATA_SUBS.map(([k, l]) =>
+    `<a href="#/${k}" class="${k === active ? "on" : ""}">${l}</a>`).join("")}</div>`;
+
   // one-choice slicer with the same look as the checkbox pickers
   function singleSelect(mount, cfg) {
     const selected = new Set(cfg.value != null ? [String(cfg.value)] : []);
@@ -461,7 +466,7 @@
   };
 
   async function viewCorpsHub(qs, stale) {
-    setNav("compare");
+    setNav("data");
     const [meta, idx, rk] = await Promise.all([
       data("meta.json"), data("corps_index.json"), data("rankings.json").catch(() => null)]);
     if (stale()) return;
@@ -513,6 +518,7 @@
     }
 
     app.innerHTML = `
+      ${dataSubNav("compare")}
       <h1 class="page">Compare <span class="kicker">· any corps, any seasons</span></h1>
       <div class="card">
         <h2>Compare <span class="sub">any corps, any seasons, one chart</span></h2>
@@ -877,7 +883,7 @@
 
   /* ============ SEASONS ============ */
   async function viewSeasons(_m, stale) {
-    setNav("seasons");
+    setNav("data");
     const [meta, champs] = await Promise.all([
       data("meta.json"), data("champions.json").catch(() => ({}))]);
     if (stale()) return;
@@ -890,7 +896,8 @@
     });
     years.sort((a, b) => b.year - a.year);
     app.innerHTML = h`
-      <h1 class="page">Season History <span class="kicker">· the record book</span></h1>
+      ${dataSubNav("champions")}
+      <h1 class="page">Champions <span class="kicker">· the record book, 1972–today</span></h1>
       <div class="card"><h2>Past Champions <span class="sub" id="champSub"></span></h2>
       <div class="filters" style="margin-bottom:8px"><div id="champCls"></div></div>
       <div class="tscroll"><table class="t" id="champT"></table></div>
@@ -1007,15 +1014,43 @@
 
   const MONTH_FULL = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-  async function viewSeason(year, stale) {
-    setNav("seasons");
+  async function viewEvents(qs, stale) {
+    setNav("events");
+    const meta = await data("meta.json");
+    if (stale()) return;
+    const params = parseHashQuery(qs);
+    const years = meta.seasons.map(sn => sn.year).sort((a, b) => b - a);
+    let year = +params.y && years.includes(+params.y) ? +params.y : years[0];
+    app.innerHTML = `
+      <h1 class="page">Events <span class="kicker" id="evCount"></span></h1>
+      <div class="filters"><div id="evYearSel"></div></div>
+      <div id="seasonMount"><div class="loading">Loading…</div></div>`;
+    let gen = 0;
+    async function load() {
+      const g = ++gen;
+      history.replaceState(null, "", `#/events?y=${year}`);
+      const mount = document.getElementById("seasonMount");
+      if (mount) mount.innerHTML = "<div class='loading'>Loading…</div>";
+      await renderSeason(year, () => stale() || g !== gen);
+    }
+    singleSelect(document.getElementById("evYearSel"), {
+      label: "Season", searchable: years.length > 15,
+      options: years.map(y => ({ value: String(y), label: String(y) })),
+      value: String(year),
+      onChange: v => { year = +v; load(); },
+    });
+    await load();
+  }
+
+  async function renderSeason(year, stale) {
+    const mount = () => document.getElementById("seasonMount");
     let events;
     try { events = await data(`seasons/${year}.json`); }
     catch (e) {
-      if (!stale()) app.innerHTML = "<div class='card'><div class='empty'>No data for this season yet.</div></div>";
+      if (!stale() && mount()) mount().innerHTML = "<div class='card'><div class='empty'>No data for this season yet.</div></div>";
       return;
     }
-    if (stale()) return;
+    if (stale() || !mount()) return;
 
     // running season: the schedule's future events join the list, marked
     // "upcoming" — the season page is the one place with the whole summer
@@ -1063,9 +1098,9 @@
       </div>`;
     }
 
-    app.innerHTML = h`
-      <div class="crumbs"><a href="#/seasons">Seasons</a> / ${year}</div>
-      <h1 class="page">${year} Season <span class="kicker">· ${events.filter(e => !e.future).length} events${events.some(e => e.future) ? ` · ${events.filter(e => e.future).length} upcoming` : ""}</span></h1>
+    const cnt = document.getElementById("evCount");
+    if (cnt) cnt.textContent = `· ${year} — ${events.filter(e => !e.future).length} events${events.some(e => e.future) ? `, ${events.filter(e => e.future).length} upcoming` : ""}`;
+    mount().innerHTML = h`
       ${finalsHtml}
       <div class="filters">
         <div id="fCls"></div>
@@ -1167,7 +1202,7 @@
   }
 
   async function viewEvent(year, idx, stale) {
-    setNav("seasons");
+    setNav("events");
     const events = await data(`seasons/${year}.json`);
     if (stale()) return;
     const ev = events[+idx];
@@ -1202,7 +1237,7 @@
     };
 
     app.innerHTML = h`
-      <div class="crumbs"><a href="#/seasons">Seasons</a> / <a href="#/season/${year}">${year}</a> / ${esc(ev.name)}</div>
+      <div class="crumbs"><a href="#/events?y=${year}">Events</a> / <a href="#/events?y=${year}">${year}</a> / ${esc(ev.name)}</div>
       <h1 class="page">${esc(ev.name)}</h1>
       <p class="lede">${esc(fmtDateY(ev.date) || ev.date_display || "")}${ev.location ? " · " + esc(ev.location) : ""}${ev.url ? h` · <a href="${encodeURI(ev.url)}" target="_blank" rel="noopener">source ↗</a>` : ""}</p>
       ${(ev.classes || []).map((c, ci) => h`
@@ -1224,7 +1259,7 @@
   ];
 
   async function viewCaptions(qs, stale) {
-    setNav("captions");
+    setNav("data");
     let cindex;
     try { cindex = await data("captions/index.json"); }
     catch (e) {
@@ -1239,6 +1274,7 @@
     let capKey = CAPTION_DEFS.some(([k]) => k === params.cap) ? params.cap : "ge";
 
     app.innerHTML = `
+      ${dataSubNav("captions")}
       <h1 class="page">Caption Scores</h1>
       <div class="filters">
         <div id="capYear"></div>
@@ -1557,8 +1593,8 @@
   };
 
   async function viewDatabase(_m, stale) {
-    setNav("database");
-    app.innerHTML = `<h1 class="page">Database <span id="dbcount" class="kicker"></span></h1>
+    setNav("data");
+    app.innerHTML = `${dataSubNav("database")}<h1 class="page">Database <span id="dbcount" class="kicker"></span></h1>
       <div class="filters" id="dbFilters">
         <div id="dbSet"></div>
         <div id="dbCorps"></div>
@@ -1725,7 +1761,7 @@
 
   /* ============ RECORDS ============ */
   async function viewRecords(_m, stale) {
-    setNav("records");
+    setNav("data");
     const [rec, idx] = await Promise.all([data("records.json"), data("corps_index.json")]);
     if (stale()) return;
     const classes = sortClasses(Object.keys(rec));
@@ -1738,6 +1774,7 @@
     let marginMode = "closest";
 
     app.innerHTML = `
+      ${dataSubNav("records")}
       <h1 class="page">Records <span class="kicker">· the all-time book</span></h1>
       <div class="filters">
         <div id="recCls"></div>
@@ -1955,15 +1992,17 @@
     [/^#\/corps\?(.*)$/, m => { location.replace(`#/compare?${m[1]}`); }],
     [/^#\/corps$/, (m, st) => viewCorpsPage(null, st)],
     [/^#\/corps\/([a-z0-9-]+)$/, (m, st) => viewCorpsPage(m[1], st)],
-    [/^#\/seasons$/, viewSeasons],
-    [/^#\/season\/(\d{4})$/, (m, st) => viewSeason(m[1], st)],
+    [/^#\/events(?:\?(.*))?$/, (m, st) => viewEvents(m[1], st)],
+    [/^#\/(?:seasons|champions)$/, viewSeasons],
+    [/^#\/data$/, () => { location.replace("#/compare"); }],
+    [/^#\/season\/(\d{4})$/, m => { location.replace(`#/events?y=${m[1]}`); }],
     [/^#\/event\/(\d{4})\/(\d+)$/, (m, st) => viewEvent(m[1], m[2], st)],
     [/^#\/captions(?:\?(.*))?$/, (m, st) => viewCaptions(m[1], st)],
     [/^#\/records$/, viewRecords],
     [/^#\/database$/, viewDatabase],
     // legacy routes from earlier versions
     [/^#\/(today|rankings)$/, viewRankings],
-    [/^#\/season\/dci\/(\d{4})$/, (m, st) => viewSeason(m[1], st)],
+    [/^#\/season\/dci\/(\d{4})$/, m => { location.replace(`#/events?y=${m[1]}`); }],
   ];
 
   let firstBuildPending = false;
