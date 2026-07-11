@@ -287,8 +287,7 @@
           <div class="card" id="moveCard"></div>
           <div class="card" id="battleCard"></div>
         </div>
-      </div>
-      <p class="pagenote">Each corps' most recent official score, movement since their last show, and the season race. Updated nightly from DCI.org (last: ${esc(rk.generated)}).</p>`;
+      </div>`;
 
     const tabs = document.getElementById("classTabs");
     classes.forEach(c => {
@@ -301,17 +300,17 @@
 
     const block = rk.standings[cls];
 
-    // progression chart: top 12 by default, or the corps the viewer picks
-    const trendPick = new Set();
+    // progression chart: top 12 pre-selected — open the picker to tweak
+    const top12 = block.rows.slice(0, 12).map(r => r.corps);
+    const trendPick = new Set(top12);
+    const isDefaultPick = () => trendPick.size === top12.length && top12.every(c => trendPick.has(c));
     function drawTrend() {
       const el = document.getElementById("trendChart");
       if (!el) return;
-      const rows = trendPick.size
-        ? block.rows.filter(r => trendPick.has(r.corps))
-        : block.rows.slice(0, 12);
+      const rows = block.rows.filter(r => trendPick.has(r.corps));
       document.getElementById("trendSub").textContent =
-        trendPick.size ? `score by date · ${rows.length} selected` : "score by date · top 12";
-      document.getElementById("trendReset").hidden = !trendPick.size;
+        isDefaultPick() ? "score by date · top 12" : `score by date · ${rows.length} selected`;
+      document.getElementById("trendReset").hidden = isDefaultPick();
       lineChart(el, {
         linearX: true,
         series: rows.map(r => ({ name: r.corps, color: corpsColor(r.corps),
@@ -327,6 +326,7 @@
     });
     document.getElementById("trendReset").onclick = () => {
       trendPick.clear();
+      top12.forEach(c => trendPick.add(c));
       msTrend.refresh();
       drawTrend();
     };
@@ -496,8 +496,7 @@
         <div class="tscroll"><table class="t"><thead>
           <tr><th></th><th>Corps</th><th class="num">Seasons</th><th>Years</th><th class="num">Best score</th><th class="num col-perfs">Performances</th></tr>
         </thead><tbody id="rows"></tbody></table></div>
-      </div>
-      <p class="pagenote">Lines align by calendar date, so you can see who's ahead at the same point in any summer — or race a corps against its own past seasons.</p>`;
+      </div>`;
 
     // --- multiselects ---
     const corpsSet = new Set(corpsSel);
@@ -785,8 +784,7 @@
             <td>${w ? h`🏆 ${esc(w.corps)}${w.score ? h` <span class="kicker">${score3(w.score)}</span>` : ""}` : "<span style='color:var(--muted)'>—</span>"}</td>
           </tr>`;
         }).join("")}
-      </tbody></table></div>
-      <p class="pagenote">Open a year to see each show that happened — who performed, in what class, and every score — with caption recaps where DCI published them.</p>`;
+      </tbody></table></div>`;
     const tw = document.getElementById("twRows");
     if (tw) collapseRows(tw, 6, "shows");
 
@@ -898,8 +896,7 @@
         <button class="tab" id="toggleAll">Expand all ▾</button>
       </div>
       <div id="evcount" class="kicker" style="margin:-6px 0 10px"></div>
-      <div id="evlist"></div>
-      <p class="pagenote">Every show of the summer in date order. Tap any event to unfold the complete results — every corps, every class, every score.</p>`;
+      <div id="evlist"></div>`;
 
     const list = document.getElementById("evlist");
 
@@ -1059,8 +1056,7 @@
         <h2 id="spotTitle">Corps spotlight</h2>
         <div class="filters" style="margin:2px 0 8px"><select class="ctrl" id="spotCorps"></select></div>
         <div class="chartwrap" id="spotChart"></div>
-      </div>
-      <p class="pagenote">Every number here comes from DCI's published judge recaps and is arithmetically reconciled (caption sums must reproduce the official total) before it's shown. Dual-judge panels at big regionals are averaged, exactly as on the sheet.</p>`;
+      </div>`;
 
     document.getElementById("capYear").value = String(year);
     document.getElementById("capKey").value = capKey;
@@ -1069,6 +1065,7 @@
     let cls = "";
     let loadGen = 0; // guards against out-of-order season loads
     const capPick = new Set();
+    let seedPick = true; // (re)fill the picker with the top 12 on next update
     let msCap = null;
 
     const iDate = () => cols.indexOf("date"), iEv = () => cols.indexOf("event"),
@@ -1083,7 +1080,7 @@
         const b = document.createElement("button");
         b.className = "tab" + (c === cls ? " on" : "");
         b.textContent = c;
-        b.onclick = () => { cls = c; capPick.clear(); update(); };
+        b.onclick = () => { cls = c; seedPick = true; update(); };
         tabs.appendChild(b);
       });
     }
@@ -1111,11 +1108,19 @@
       }).sort((x, y) => y.best - x.best);
       board.forEach((b, i) => { b.rank = i + 1; });
 
-      // chart: picked corps, else top 8 by best
-      const chosen = capPick.size ? board.filter(b => capPick.has(b.corps)) : board.slice(0, 8);
+      // chart: top 12 pre-selected in the picker — deselect to trim
+      if (seedPick) {
+        capPick.clear();
+        board.slice(0, 12).forEach(b => capPick.add(b.corps));
+        seedPick = false;
+      }
+      const capDefault = capPick.size === Math.min(12, board.length)
+        && board.slice(0, 12).every(b => capPick.has(b.corps));
+      const chosen = board.filter(b => capPick.has(b.corps));
       document.getElementById("capChartTitle").innerHTML =
-        `${esc(label)} progression <span class="sub">${esc(String(year))} · ${capPick.size ? chosen.length + " selected" : "top 8"}</span>`;
-      document.getElementById("capReset").hidden = !capPick.size;
+        `${esc(label)} progression <span class="sub">${esc(String(year))} · ${capDefault ? "top 12" : chosen.length + " selected"}</span>`;
+      document.getElementById("capReset").hidden = capDefault;
+      document.getElementById("capReset").textContent = "Top 12";
       lineChart(document.getElementById("capChart"), {
         linearX: true,
         series: chosen.map(b => ({
@@ -1137,7 +1142,7 @@
           <td class="num col-high">${score3(b.latest)}</td>
           <td class="num col-perfs">${b.n}</td></tr>`).join("")}
         </tbody></table>` : "<div class='empty'>No recap data for this caption yet — it fills in as recaps are scraped.</div>";
-      if (board.length) collapseRows(document.querySelector("#capBoard tbody"), 10, "corps");
+      if (board.length) collapseRows(document.querySelector("#capBoard tbody"), 5, "corps");
 
       renderSpot(board);
 
@@ -1150,7 +1155,7 @@
           selected: capPick,
           onChange: update,
         });
-        document.getElementById("capReset").onclick = () => { capPick.clear(); msCap.refresh(); update(); };
+        document.getElementById("capReset").onclick = () => { seedPick = true; msCap.refresh(); update(); };
       } else {
         msCap.setOptions(capOptions);
       }
@@ -1178,19 +1183,12 @@
       if (!mine.length) { chartEl.innerHTML = "<div class='empty'>No verified recap for this corps yet.</div>"; return; }
       const latest = mine[mine.length - 1];
       document.getElementById("spotTitle").innerHTML =
-        `${esc(corps)} — caption detail <span class="sub">${esc(latest[iEv()])} · ${esc(fmtDateY(latest[iDate()]))} vs season best</span>`;
+        `${esc(corps)} — caption scores <span class="sub">${esc(latest[iEv()])} · ${esc(fmtDateY(latest[iDate()]))} · each caption out of 20</span>`;
       const groups = SPOT_CAPS.map(([k, label]) => {
         const ki = cols.indexOf(k);
-        const best = Math.max(...mine.map(r => r[ki] == null ? -1 : r[ki]));
-        return {
-          label,
-          bars: [
-            { name: "Latest show", value: latest[ki], color: corpsColor(corps) },
-            { name: "Season best", value: best < 0 ? null : best, color: "#8f8672" },
-          ],
-        };
+        return { label, bars: [{ name: "Score", value: latest[ki], color: corpsColor(corps) }] };
       });
-      CCViz.barChart(chartEl, { groups, height: 280, yFmt: v => v.toFixed(1) });
+      CCViz.barChart(chartEl, { groups, height: 280, yMax: 20, track: true, yFmt: v => v.toFixed(1) });
     }
 
     async function loadYear() {
@@ -1205,7 +1203,7 @@
       update();
     }
 
-    document.getElementById("capYear").onchange = e => { year = +e.target.value; capPick.clear(); loadYear(); };
+    document.getElementById("capYear").onchange = e => { year = +e.target.value; seedPick = true; loadYear(); };
     document.getElementById("capKey").onchange = e => { capKey = e.target.value; update(); };
     await loadYear();
   }
@@ -1258,8 +1256,7 @@
         <button class="tab" id="dbReset" title="Clear all filters">Reset</button>
         <button class="tab" id="csv">Export CSV</button>
       </div>
-      <div class="card"><div id="dbtable"><div class="loading">Loading…</div></div></div>
-      <p class="pagenote">Everything on record as sortable tables — pick the dataset (raw scores, or verified judge-by-judge caption scores), stack corps/season/class filters, click any column to sort, and export exactly what you've filtered to CSV.</p>`;
+      <div class="card"><div id="dbtable"><div class="loading">Loading…</div></div></div>`;
 
     let setKey = "scores";
     let cfg = DB_SETS[setKey];

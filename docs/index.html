@@ -44,6 +44,7 @@
 
 <footer class="foot">
   <div><a href="#/database"><b>Full score database</b> — every score, sortable &amp; exportable →</a></div>
+  <div><button id="installBtn" class="tab" hidden>📲 Install app</button></div>
   <div>Scores from <a href="https://www.dci.org/scores" rel="noopener">DCI.org</a> · updates nightly at 10:30 PM ET</div>
 </footer>
 
@@ -54,6 +55,23 @@
 if ("serviceWorker" in navigator) {
   addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
 }
+// footer install button: native prompt where supported, instructions elsewhere
+(function () {
+  const btn = document.getElementById("installBtn");
+  let deferred = null;
+  const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+  if (!standalone) btn.hidden = false;
+  addEventListener("beforeinstallprompt", e => {
+    e.preventDefault();
+    deferred = e;
+    btn.hidden = false;
+  });
+  btn.addEventListener("click", () => {
+    if (deferred) { deferred.prompt(); deferred = null; }
+    else alert("To install DCI Tracker:\n\niPhone/iPad: Share button \u2192 Add to Home Screen\nAndroid: browser menu \u2192 Add to Home screen / Install app\nDesktop Chrome/Edge: install icon in the address bar");
+  });
+  addEventListener("appinstalled", () => { btn.hidden = true; });
+})();
 </script>
 </body>
 </html>

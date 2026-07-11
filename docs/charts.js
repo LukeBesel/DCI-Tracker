@@ -269,7 +269,7 @@
     const groups = (opts.groups || []).filter(g => g.bars.some(b => b.value != null));
     if (!groups.length) { container.innerHTML = '<div class="empty">No data yet.</div>'; return; }
     const allV = groups.flatMap(g => g.bars.map(b => b.value)).filter(v => v != null);
-    const yMax = (opts.yMax || Math.max(...allV)) * 1.12;
+    const yMax = opts.yMax ? opts.yMax : Math.max(...allV) * 1.12;
     const Y = v => m.top + ih - (v / yMax) * ih;
     const fmt = opts.yFmt || (v => v.toFixed(1));
 
@@ -290,6 +290,10 @@
       g.bars.forEach((b, bi) => {
         if (b.value == null) return;
         const x = gx + bi * (bw + 3);
+        if (opts.track) {
+          el("rect", { x: x.toFixed(1), y: m.top.toFixed(1), width: bw.toFixed(1),
+                       height: ih.toFixed(1), rx: 2, fill: "#191510", opacity: 0.07 }, svg);
+        }
         const y = Y(b.value);
         el("rect", { x: x.toFixed(1), y: y.toFixed(1), width: bw.toFixed(1),
                      height: (m.top + ih - y).toFixed(1), rx: 2,
