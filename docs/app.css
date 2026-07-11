@@ -102,13 +102,15 @@ p.pagenote { color: var(--muted); font-size: 11.5px; font-family: var(--mono); m
 .filters { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0 0 14px; }
 .tab {
   border: 1px solid var(--border); background: var(--surface-1); color: var(--text-secondary);
-  border-radius: 7px; padding: 6px 14px; font-size: 13.5px; cursor: pointer;
+  border-radius: 8px; padding: 7px 14px; font-size: 14px; font-family: inherit; cursor: pointer;
 }
 .tab:hover { color: var(--text-primary); background: var(--surface-2); }
 .tab.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
-select.ctrl, input.ctrl {
+/* one look for every filter control: native selects, text inputs and the
+   multiselect buttons all share the same chrome so filter rows read as one */
+.ctrl {
   background: var(--surface-1); color: var(--text-primary); border: 1px solid var(--baseline);
-  border-radius: 8px; padding: 7px 10px; font-size: 14px;
+  border-radius: 8px; padding: 7px 10px; font-size: 14px; font-family: inherit;
 }
 input.ctrl { min-width: 210px; }
 
