@@ -2508,8 +2508,9 @@
     const t = Date.parse(s.replace(" UTC", "Z").replace(" ", "T"));
     if (isNaN(t)) { el.textContent = "Updated " + s; return; }
     const mins = Math.max(0, Math.round((Date.now() - t) / 60000));
-    const ago = mins < 1 ? "just now"
-      : mins < 60 ? `${mins} min ago`
+    // plain minutes — under normal operation this never exceeds ~30
+    const ago = mins < 1 ? "<1 min ago"
+      : mins < 180 ? `${mins} min ago`
       : mins < 36 * 60 ? `${Math.round(mins / 60)} h ago`
       : `${Math.round(mins / 1440)} d ago`;
     el.textContent = `Updated ${ago}`;
