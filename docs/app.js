@@ -983,6 +983,11 @@
         <h2 id="capBoardTitle"></h2>
         <div id="capBoard"></div>
       </div>
+      <div class="card" style="margin-top:14px">
+        <h2 id="spotTitle">Corps spotlight</h2>
+        <div class="filters" style="margin:2px 0 8px"><select class="ctrl" id="spotCorps"></select></div>
+        <div class="chartwrap" id="spotChart"></div>
+      </div>
       <p class="pagenote">Every number here comes from DCI's published judge recaps and is arithmetically reconciled (caption sums must reproduce the official total) before it's shown. Dual-judge panels at big regionals are averaged, exactly as on the sheet.</p>`;
 
     document.getElementById("capYear").value = String(year);
@@ -1061,6 +1066,8 @@
           <td class="num col-perfs">${b.n}</td></tr>`).join("")}
         </tbody></table>` : "<div class='empty'>No recap data for this caption yet — it fills in as recaps are scraped.</div>";
 
+      renderSpot(board);
+
       // corps picker persists across updates so the panel stays open
       const capOptions = board.map(b => ({ value: b.corps, label: b.corps, hint: `#${b.rank}` }));
       if (!msCap) {
@@ -1076,6 +1083,41 @@
       }
 
       if (!stale()) history.replaceState(null, "", `#/captions?y=${year}&cap=${capKey}`);
+    }
+
+    // caption-by-caption bars for one corps: latest show vs season best
+    const SPOT_CAPS = [["ge1", "GE 1"], ["ge2", "GE 2"], ["vp", "Vis Prof"], ["va", "Vis Anal"],
+      ["cg", "Guard"], ["br", "Brass"], ["ma", "Mus Anal"], ["pc", "Perc"]];
+    function renderSpot(board) {
+      const sel = document.getElementById("spotCorps");
+      if (!sel) return;
+      const prev = sel.value;
+      sel.innerHTML = "";
+      board.forEach(b => sel.add(new Option(b.corps, b.corps)));
+      if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+      sel.onchange = () => renderSpot(board);
+      const corps = sel.value;
+      const chartEl = document.getElementById("spotChart");
+      if (!corps) { chartEl.innerHTML = "<div class='empty'>No corps in this class yet.</div>"; return; }
+
+      const mine = rows.filter(r => r[iCls()] === cls && r[iCorps()] === corps && r[iDate()])
+        .sort((a, b) => a[iDate()].localeCompare(b[iDate()]));
+      if (!mine.length) { chartEl.innerHTML = "<div class='empty'>No verified recap for this corps yet.</div>"; return; }
+      const latest = mine[mine.length - 1];
+      document.getElementById("spotTitle").innerHTML =
+        `${esc(corps)} — caption detail <span class="sub">${esc(latest[iEv()])} · ${esc(fmtDate(latest[iDate()]))} vs season best</span>`;
+      const groups = SPOT_CAPS.map(([k, label]) => {
+        const ki = cols.indexOf(k);
+        const best = Math.max(...mine.map(r => r[ki] == null ? -1 : r[ki]));
+        return {
+          label,
+          bars: [
+            { name: "Latest show", value: latest[ki], color: PALETTE[0] },
+            { name: "Season best", value: best < 0 ? null : best, color: "#8f8672" },
+          ],
+        };
+      });
+      CCViz.barChart(chartEl, { groups, height: 280, yFmt: v => v.toFixed(1) });
     }
 
     async function loadYear() {
