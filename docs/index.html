@@ -6,35 +6,35 @@
 <title>DCI Tracker — Scores, Rankings & History</title>
 <meta name="description" content="Auto-updating DCI drum corps dashboard: current season rankings, multi-corps multi-year comparisons, every published score, caption recaps, corps histories and champions — straight from official DCI.org published scores.">
 <meta name="color-scheme" content="light">
-<meta name="theme-color" content="#eae0c8">
+<meta name="theme-color" content="#1d2d50">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="DCI Tracker">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><g stroke='%23191510' stroke-width='4' stroke-linecap='round'><line x1='17' y1='9' x2='42' y2='27'/><line x1='47' y1='9' x2='22' y2='27'/></g><circle cx='17' cy='9' r='4' fill='%23191510'/><circle cx='47' cy='9' r='4' fill='%23191510'/><rect x='8' y='28' width='48' height='26' rx='5' fill='%23e8590c'/><rect x='8' y='28' width='48' height='7' rx='3.5' fill='%23faf6ec'/><path d='M14 35 L22 54 M30 35 L38 54 M46 35 L54 54 M22 54 L30 35 M38 54 L46 35' stroke='%23f9f9f7' stroke-width='2.6' fill='none' stroke-linecap='round' opacity='0.85'/></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><g stroke='%2316233d' stroke-width='4' stroke-linecap='round'><line x1='17' y1='9' x2='42' y2='27'/><line x1='47' y1='9' x2='22' y2='27'/></g><circle cx='17' cy='9' r='4' fill='%2316233d'/><circle cx='47' cy='9' r='4' fill='%2316233d'/><rect x='8' y='28' width='48' height='26' rx='5' fill='%23d7263d'/><rect x='8' y='28' width='48' height='7' rx='3.5' fill='%23faf6ec'/><path d='M14 35 L22 54 M30 35 L38 54 M46 35 L54 54 M22 54 L30 35 M38 54 L46 35' stroke='%23f9f9f7' stroke-width='2.6' fill='none' stroke-linecap='round' opacity='0.85'/></svg>">
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
 <header class="topbar">
   <a class="brand" href="#/">
     <svg viewBox="0 0 64 64" width="28" height="28" aria-hidden="true">
-      <g stroke="#191510" stroke-width="4" stroke-linecap="round">
+      <g stroke="#16233d" stroke-width="4" stroke-linecap="round">
         <line x1="17" y1="9" x2="42" y2="27"/><line x1="47" y1="9" x2="22" y2="27"/>
       </g>
-      <circle cx="17" cy="9" r="4" fill="#191510"/><circle cx="47" cy="9" r="4" fill="#191510"/>
-      <rect x="8" y="28" width="48" height="26" rx="5" fill="#e8590c"/>
+      <circle cx="17" cy="9" r="4" fill="#16233d"/><circle cx="47" cy="9" r="4" fill="#16233d"/>
+      <rect x="8" y="28" width="48" height="26" rx="5" fill="#d7263d"/>
       <rect x="8" y="28" width="48" height="7" rx="3.5" fill="#faf6ec"/>
       <path d="M14 35 L22 54 M30 35 L38 54 M46 35 L54 54 M22 54 L30 35 M38 54 L46 35" stroke="#f9f9f7" stroke-width="2.6" fill="none" stroke-linecap="round" opacity="0.85"/>
     </svg>
     <span>DCI <b>Tracker</b></span>
   </a>
   <nav id="nav">
-    <a href="#/" data-route="rankings" title="Current standings — latest scores and movement">Rankings</a>
-    <a href="#/corps" data-route="corps" title="One corps in depth: season charts, every performance, titles">Corps</a>
-    <a href="#/compare" data-route="compare" title="Chart any corps against any others, across any seasons">Compare</a>
-    <a href="#/captions" data-route="captions" title="Judge-by-judge caption scores: GE, visual, brass, percussion leaders">Captions</a>
-    <a href="#/seasons" data-route="seasons" title="Every season, every event, full results and recaps">Seasons</a>
+    <a href="#/" data-route="rankings" title="Current standings — latest scores and movement"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 20V12"/><path d="M12 20V5"/><path d="M19 20v-6"/><path d="M3 20h18"/></svg><span>Rankings</span></a>
+    <a href="#/corps" data-route="corps" title="One corps in depth: season charts, every performance, titles"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M7 5l10 4M17 5L7 9"/><rect x="4" y="9" width="16" height="9" rx="2"/><path d="M4 12.5h16"/></svg><span>Corps</span></a>
+    <a href="#/compare" data-route="compare" title="Chart any corps against any others, across any seasons"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 16l5-5 4 3 6-7"/><path d="M14 7h4v4"/></svg><span>Compare</span></a>
+    <a href="#/captions" data-route="captions" title="Judge-by-judge caption scores: GE, visual, brass, percussion leaders"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 9h6M9 13h6M9 17h4"/></svg><span>Captions</span></a>
+    <a href="#/seasons" data-route="seasons" title="Every season, every event, full results and recaps"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg><span>Seasons</span></a>
   </nav>
   <div class="updated" id="updated" title="Data refresh time"></div>
 </header>
@@ -48,6 +48,7 @@
   <div><a href="#/database"><b>Full Score Database</b> — every score, sortable &amp; exportable →</a></div>
   <div><a href="#" id="installBtn" hidden><b>📲 Get the app</b> — install on this device</a></div>
   <div>Scores from <a href="https://www.dci.org/scores" rel="noopener">DCI.org</a> · updates nightly at 10:30 PM ET</div>
+  <div class="credit">Created by Lucas Besel</div>
 </footer>
 
 <div id="tooltip" class="tooltip" hidden></div>

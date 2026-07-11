@@ -376,12 +376,12 @@
         <td class="rank">${r.rank}</td>
         <td>${corpsLink(r.corps)}<div style="font-size:11.5px;color:var(--muted)">${esc(r.event)} · ${esc(fmtDateY(r.date))}</div></td>
         <td class="num score">${score3(r.score)}</td>
-        <td class="num col-high">${score3(r.high)}</td>
+        <td class="num col-high" data-tip="${esc(`${score3(r.high)} — ${r.high_event || ""} · ${fmtDateY(r.high_date) || ""}`)}">${score3(r.high)}</td>
         <td class="num">${deltaHtml(r.delta)}</td>
         <td class="col-trend"><span class="sparkcell" data-trend="${r.trend.map(t => t[1]).join(",")}"></span></td>
       </tr>`).join("")}</tbody></table>`;
     document.querySelectorAll(".sparkcell").forEach(elm => {
-      sparkline(elm, elm.dataset.trend.split(",").map(Number).filter(n => !isNaN(n)), "#898781");
+      sparkline(elm, elm.dataset.trend.split(",").map(Number).filter(n => !isNaN(n)), "#97a2b3");
     });
     collapseRows(document.querySelector("#standings tbody"), 5, "corps");
 
@@ -614,7 +614,7 @@
             if (!ev.date) continue;
             for (const c of ev.classes || []) {
               for (const r of c.results || []) {
-                if (r.corps === name && r.score) pts.push({ x: dayOfSeason(ev.date), y: r.score });
+                if (r.corps === name && r.score) pts.push({ x: dayOfSeason(ev.date), y: r.score, ev: ev.name, d: ev.date });
               }
             }
           }
@@ -630,10 +630,13 @@
             dash: multiCorps && multiYears ? YEAR_DASHES[years[yi] % YEAR_DASHES.length] : "",
           });
           const scores = pts.map(p => p.y);
+          const hiPt = pts.reduce((m, p) => p.y > m.y ? p : m, pts[0]);
+          const tipOf = p => `${score3(p.y)} — ${p.ev} · ${fmtDateY(p.d)}`;
           summary.push({
             corps: name, year: years[yi], shows: pts.length,
             first: scores[0], latest: scores[scores.length - 1],
-            high: Math.max(...scores),
+            high: hiPt.y,
+            firstTip: tipOf(pts[0]), latestTip: tipOf(pts[pts.length - 1]), highTip: tipOf(hiPt),
             gain: (scores[scores.length - 1] - scores[0]).toFixed(2),
           });
         }
@@ -651,7 +654,7 @@
       summary.sort((a, b) => b.year - a.year || (b.latest || 0) - (a.latest || 0));
       tableEl.innerHTML = `
         <div class="tscroll"><table class="t"><thead><tr><th>Corps</th><th class="num">Season</th><th class="num m-hide">First</th><th class="num">Latest / Final</th><th class="num m-hide">High</th><th class="num">Gain</th></tr></thead><tbody id="cmpRows">
-        ${summary.map(s => h`<tr><td>${corpsLink(s.corps)}</td><td class="num">${s.year}</td><td class="num m-hide">${score3(s.first)}</td><td class="num score">${score3(s.latest)}</td><td class="num m-hide">${score3(s.high)}</td><td class="num">${s.gain > 0 ? "+" : ""}${s.gain}</td></tr>`).join("")}
+        ${summary.map(s => h`<tr><td>${corpsLink(s.corps)}</td><td class="num">${s.year}</td><td class="num m-hide" data-tip="${esc(s.firstTip)}">${score3(s.first)}</td><td class="num score" data-tip="${esc(s.latestTip)}">${score3(s.latest)}</td><td class="num m-hide" data-tip="${esc(s.highTip)}">${score3(s.high)}</td><td class="num">${s.gain > 0 ? "+" : ""}${s.gain}</td></tr>`).join("")}
         </tbody></table></div>`;
       collapseRows(document.getElementById("cmpRows"), 5, "rows");
     }
@@ -672,7 +675,7 @@
           <td class="addcell"><button class="addbtn${corpsSet.has(c.slug) ? " on" : ""}" data-add="${c.slug}" title="${corpsSet.has(c.slug) ? "Remove from" : "Add to"} compare">${corpsSet.has(c.slug) ? "✓" : "+"}</button></td>
           <td><b>${esc(c.name)}</b></td>
           <td style="color:var(--muted)">${c.first === c.last ? c.first : c.first + "–" + c.last}</td>
-          <td class="num score">${score3(c.best)}</td></tr>`).join("")
+          <td class="num score" data-tip="${esc(`Best ${score3(c.best)} — ${((c.series || []).find(sr => sr[1] === c.best) || [])[0] || ""} season`)}">${score3(c.best)}</td></tr>`).join("")
         || "<tr><td colspan='4' class='empty'>No matches.</td></tr>";
       rowsEl.querySelectorAll("tr[data-slug]").forEach(tr => {
         tr.onclick = e => {
@@ -963,7 +966,7 @@
         document.getElementById("champChartSub").textContent = `${champCls} title score by season`;
         lineChart(document.getElementById("champChart"), {
           linearX: true, noLegend: true,
-          series: segs.map(sg => ({ name: "Winning score", points: sg, color: "#d9480f" })),
+          series: segs.map(sg => ({ name: "Winning score", points: sg, color: "#d7263d" })),
           height: 240, yFmt: v => v.toFixed(1), xFmt: v => String(Math.round(v)),
         });
       } else {
@@ -1320,7 +1323,9 @@
       const label = (CAPTION_DEFS.find(([k]) => k === capKey) || [])[1];
       const board = [...per.entries()].map(([corps, a]) => {
         const best = a.reduce((m, p) => p.v > m.v ? p : m, a[0]);
-        return { corps, best: best.v, bestEv: best.ev, bestD: best.d, latest: a[a.length - 1].v, n: a.length };
+        const last = a[a.length - 1];
+        return { corps, best: best.v, bestEv: best.ev, bestD: best.d,
+          latest: last.v, latestEv: last.ev, latestD: last.d, n: a.length };
       }).sort((x, y) => y.best - x.best);
       board.forEach((b, i) => { b.rank = i + 1; });
 
@@ -1351,15 +1356,15 @@
       document.getElementById("capBoardTitle").innerHTML =
         `${esc(label)} Leaders — ${esc(String(year))} <span class="sub">best single-show score, ${esc(cls)}</span>`;
       document.getElementById("capBoard").innerHTML = board.length ? `
-        <table class="t"><thead><tr><th>#</th><th>Corps</th><th class="num">Best</th><th>At</th><th class="num col-high">Latest</th><th class="num col-perfs">Scored shows</th></tr></thead><tbody>
+        <div class="tscroll"><table class="t"><thead><tr><th>#</th><th>Corps</th><th class="num">Best</th><th>At</th><th class="num col-high">Latest</th><th class="num col-perfs">Scored shows</th></tr></thead><tbody>
         ${board.map(b => h`<tr>
           <td class="rank">${b.rank}</td>
           <td>${corpsLink(b.corps)}</td>
           <td class="num score">${score3(b.best)}</td>
           <td style="color:var(--muted);font-size:12.5px;white-space:nowrap">${esc(b.bestEv)} · ${esc(fmtDateY(b.bestD))}</td>
-          <td class="num col-high">${score3(b.latest)}</td>
+          <td class="num col-high" data-tip="${esc(`${score3(b.latest)} — ${b.latestEv} · ${fmtDateY(b.latestD)}`)}">${score3(b.latest)}</td>
           <td class="num col-perfs">${b.n}</td></tr>`).join("")}
-        </tbody></table>` : "<div class='empty'>No recap data for this caption yet — it fills in as recaps are scraped.</div>";
+        </tbody></table></div>` : "<div class='empty'>No recap data for this caption yet — it fills in as recaps are scraped.</div>";
       if (board.length) collapseRows(document.querySelector("#capBoard tbody"), 5, "corps");
 
       renderSpot(board);
@@ -1987,6 +1992,39 @@
     }
     app.innerHTML = "<div class='empty'>Page not found.</div>";
   }
+  // info bubbles: hover (mouse) or tap (touch) any [data-tip] element
+  (() => {
+    const tip = document.getElementById("tooltip");
+    let cur = null;
+    function show(el) {
+      cur = el;
+      tip.innerHTML = el.dataset.tip;
+      tip.hidden = false;
+      const r = el.getBoundingClientRect();
+      const tw = tip.offsetWidth, th = tip.offsetHeight;
+      let x = r.left + r.width / 2 - tw / 2 + scrollX;
+      x = Math.max(8, Math.min(x, scrollX + innerWidth - tw - 8));
+      let y = r.top + scrollY - th - 10;
+      if (y < scrollY + 4) y = r.bottom + scrollY + 10;
+      tip.style.left = x + "px";
+      tip.style.top = y + "px";
+    }
+    const hide = () => { if (cur) { tip.hidden = true; cur = null; } };
+    document.addEventListener("pointerover", e => {
+      if (e.pointerType !== "mouse") return;
+      const el = e.target.closest("[data-tip]");
+      if (el) show(el);
+      else if (cur) hide();
+    });
+    document.addEventListener("click", e => {
+      const el = e.target.closest("[data-tip]");
+      if (el && e.target.closest("a")) return;      // links still navigate
+      if (el) { (cur === el && !tip.hidden) ? hide() : show(el); }
+      else hide();
+    });
+    addEventListener("scroll", hide, { passive: true });
+  })();
+
   addEventListener("hashchange", route);
 
   data("meta.json").then(m => {

@@ -1,15 +1,28 @@
 {
   "name": "DCI Tracker",
   "short_name": "DCI Tracker",
-  "description": "DCI drum corps scores, rankings, caption analytics and history — auto-updating from official published scores.",
+  "description": "DCI drum corps scores, rankings, caption analytics and history \u2014 auto-updating from official published scores.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#eae0c8",
-  "theme_color": "#eae0c8",
+  "background_color": "#f2f4f8",
+  "theme_color": "#1d2d50",
   "icons": [
-    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ]
 }

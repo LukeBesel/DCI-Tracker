@@ -309,10 +309,11 @@ def build_rankings(events):
         for corps, hist in corps_map.items():
             hist.sort(key=lambda h: h["date"])
             latest, prev = hist[-1], (hist[-2] if len(hist) > 1 else None)
+            hi = max(hist, key=lambda h: h["score"])
             rows.append({
                 "corps": corps, "score": latest["score"], "date": latest["date"],
                 "event": latest["event"],
-                "high": max(h["score"] for h in hist),
+                "high": hi["score"], "high_event": hi["event"], "high_date": hi["date"],
                 "prev_score": prev["score"] if prev else None,
                 "delta": round(latest["score"] - prev["score"], 3) if prev else None,
                 "outings": len(hist),
