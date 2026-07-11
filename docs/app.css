@@ -306,6 +306,7 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; }
   .standings .col-trend, .standings .col-high, .col-perfs, .m-hide { display: none; }
   .t td, .t th { padding: 6px 5px; }
   .filters .ctrl { flex: 1 1 auto; min-width: 0; }
+  .filters .msel { flex: 1 1 44%; min-width: 0; }
   input.ctrl { min-width: 120px; }
   .msel { flex: 1 1 45%; }
   .msel-btn { width: 100%; max-width: none; min-width: 0; }

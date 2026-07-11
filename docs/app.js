@@ -118,6 +118,22 @@
 
   const CAP_KEY_NOTE = "<p class='capkey'>GE General Effect · VP Visual Proficiency · VA Visual Analysis · CG Color Guard · BR Brass · MA Music Analysis · PC Percussion</p>";
 
+  // one-choice slicer with the same look as the checkbox pickers
+  function singleSelect(mount, cfg) {
+    const selected = new Set(cfg.value != null ? [String(cfg.value)] : []);
+    const ms = multiSelect(mount, {
+      label: cfg.label || "", single: true, searchable: cfg.searchable,
+      options: cfg.options, selected,
+      onChange: v => cfg.onChange(v[0]),
+    });
+    return {
+      get: () => [...selected][0],
+      set: v => { selected.clear(); if (v != null) selected.add(String(v)); ms.refresh(); },
+      setOptions: opts => ms.setOptions(opts),
+      refresh: () => ms.refresh(),
+    };
+  }
+
   const CLASS_ORDER = ["World Class", "Open Class", "All-Age", "International"];
   const sortClasses = names => names.sort((a, b) => {
     const ia = CLASS_ORDER.indexOf(a), ib = CLASS_ORDER.indexOf(b);
@@ -290,7 +306,7 @@
     const cls = classes.includes(saved) ? saved : classes[0];
     app.innerHTML = h`
       <h1 class="page">${esc(String(rk.season))} Rankings</h1>
-      <div class="filters"><select class="ctrl" id="clsSel"></select></div>
+      <div class="filters"><div id="clsSel"></div></div>
       <div class="card">
         <h2 id="trendTitle">Season Progression <span class="sub" id="trendSub">score by date · top 12</span></h2>
         <div class="filters" style="margin:2px 0 8px"><div id="trendCorpsSel"></div><button class="tab" id="trendReset" hidden>Top 12</button></div>
@@ -308,10 +324,12 @@
         </div>
       </div>`;
 
-    const clsSel = document.getElementById("clsSel");
-    classes.forEach(c => clsSel.add(new Option(`${c} (${rk.standings[c].rows.length})`, c)));
-    clsSel.value = cls;
-    clsSel.onchange = () => { localStorage.setItem("dt-class", clsSel.value); viewRankings(null, stale); };
+    singleSelect(document.getElementById("clsSel"), {
+      label: "Class",
+      options: classes.map(c => ({ value: c, label: c, hint: `${rk.standings[c].rows.length} corps` })),
+      value: cls,
+      onChange: v => { localStorage.setItem("dt-class", v); viewRankings(null, stale); },
+    });
 
     const block = rk.standings[cls];
 
@@ -499,7 +517,7 @@
       <div class="card">
         <h2>Compare <span class="sub">any corps, any seasons, one chart</span></h2>
         <div class="filters" style="margin-bottom:10px">
-          <select class="ctrl" id="fClass" title="Corps type"></select>
+          <div id="fClass"></div>
           <div id="corpsSel"></div>
           <div id="yearSel"></div>
           <button class="tab" id="clearSel" title="Reset selection">Clear</button>
@@ -534,16 +552,17 @@
     });
 
     // corps-type filter drives both the dropdown and the directory
-    const fClass = document.getElementById("fClass");
-    fClass.add(new Option("All types", ""));
-    classList.forEach(c => fClass.add(new Option(c, c)));
-    fClass.value = clsFilter;
-    fClass.onchange = () => {
-      clsFilter = fClass.value;
-      localStorage.setItem("dt-corpsclass", clsFilter);
-      msCorps.setOptions(corpsOptions());
-      renderRows();
-    };
+    singleSelect(document.getElementById("fClass"), {
+      label: "Type",
+      options: [{ value: "", label: "All types" }, ...classList.map(c => ({ value: c, label: c }))],
+      value: clsFilter,
+      onChange: v => {
+        clsFilter = v || "";
+        localStorage.setItem("dt-corpsclass", clsFilter);
+        msCorps.setOptions(corpsOptions());
+        renderRows();
+      },
+    });
     const msYears = multiSelect(document.getElementById("yearSel"), {
       label: "Select seasons…", searchable: allYears.length > 15, bulk: true,
       presets: [{ label: "Past 5", values: () => allYears.slice(0, 5) }],
@@ -707,15 +726,11 @@
     app.innerHTML = `
       <h1 class="page" id="corpsPageTitle">Corps</h1>
       <div class="filters">
-        <select class="ctrl" id="cpCls" title="Corps type"></select>
+        <div id="cpCls"></div>
         <div id="cpCorps"></div>
       </div>
       <div id="corpsDetail"><div class="loading">Loading…</div></div>`;
 
-    const cpCls = document.getElementById("cpCls");
-    cpCls.add(new Option("All types", ""));
-    classList.forEach(c => cpCls.add(new Option(c, c)));
-    cpCls.value = clsFilter;
 
     const corpsOpts = () => idx
       .filter(c => !clsFilter || corpsClass(c) === clsFilter)
@@ -729,11 +744,16 @@
       selected: pickSet,
       onChange: v => { if (v[0] && v[0] !== current) { current = v[0]; load(); } },
     });
-    cpCls.onchange = () => {
-      clsFilter = cpCls.value;
-      localStorage.setItem("dt-corpsclass", clsFilter);
-      msPick.setOptions(corpsOpts());
-    };
+    singleSelect(document.getElementById("cpCls"), {
+      label: "Type",
+      options: [{ value: "", label: "All types" }, ...classList.map(c => ({ value: c, label: c }))],
+      value: clsFilter,
+      onChange: v => {
+        clsFilter = v || "";
+        localStorage.setItem("dt-corpsclass", clsFilter);
+        msPick.setOptions(corpsOpts());
+      },
+    });
 
     let detailGen = 0;
     async function load() {
@@ -869,7 +889,7 @@
     app.innerHTML = h`
       <h1 class="page">Season History <span class="kicker">· the record book</span></h1>
       <div class="card"><h2>Past Champions <span class="sub" id="champSub"></span></h2>
-      <div class="filters" style="margin-bottom:8px"><select class="ctrl" id="champCls"></select></div>
+      <div class="filters" style="margin-bottom:8px"><div id="champCls"></div></div>
       <div class="tscroll"><table class="t" id="champT"></table></div>
       <p style="color:var(--muted);font-size:12.5px;margin:10px 2px 0">Tap a year for that season — every show, every score, full recaps.</p>
       <div id="champChartWrap" hidden style="margin-top:16px">
@@ -883,12 +903,14 @@
     const clsList = sortClasses([...clsSet]);
     let champCls = clsList.includes("World Class") ? "World Class" : clsList[0];
     const currentYear = Math.max(...years.map(s => s.year));
+    let ssChampCls = null;
     function renderChamps() {
-      const sel = document.getElementById("champCls");
-      sel.innerHTML = "";
-      clsList.forEach(c => sel.add(new Option(c, c)));
-      sel.value = champCls;
-      sel.onchange = () => { champCls = sel.value; renderChamps(); };
+      if (!ssChampCls) {
+        ssChampCls = singleSelect(document.getElementById("champCls"), {
+          label: "Class", options: clsList.map(c => ({ value: c, label: c })), value: champCls,
+          onChange: v => { champCls = v; renderChamps(); },
+        });
+      }
       document.getElementById("champSub").textContent = `${champCls} · every season on record`;
       // World Class shows every scraped season; other classes show the
       // seasons they actually crowned a champion (plus the running season)
@@ -1043,8 +1065,7 @@
       <h1 class="page">${year} Season <span class="kicker">· ${events.filter(e => !e.future).length} events${events.some(e => e.future) ? ` · ${events.filter(e => e.future).length} upcoming` : ""}</span></h1>
       ${finalsHtml}
       <div class="filters">
-        <select class="ctrl" id="fCls"><option value="">All classes</option>
-          ${clsList.map(c => `<option>${esc(c)}</option>`).join("")}</select>
+        <div id="fCls"></div>
         <input class="ctrl" id="fQ" placeholder="Search event, city or corps…">
         <button class="tab" id="toggleAll">Expand All ▾</button>
       </div>
@@ -1081,7 +1102,7 @@
     }
 
     function render() {
-      const cls = document.getElementById("fCls").value;
+      const cls = fClsVal;
       const q = document.getElementById("fQ").value.trim().toLowerCase();
       const idxs = events.map((ev, i) => [ev, i]).filter(([ev]) => matches(ev, cls, q));
       // reading order for "what's happening": next show first, then the
@@ -1111,8 +1132,14 @@
     }
 
     let allOpen = false;
-    ["fCls", "fQ"].forEach(id =>
-      document.getElementById(id).addEventListener(id === "fQ" ? "input" : "change", () => { allOpen = false; syncToggle(); render(); }));
+    let fClsVal = "";
+    singleSelect(document.getElementById("fCls"), {
+      label: "All classes",
+      options: [{ value: "", label: "All classes" }, ...clsList.map(c => ({ value: c, label: c }))],
+      value: "",
+      onChange: v => { fClsVal = v || ""; allOpen = false; syncToggle(); render(); },
+    });
+    document.getElementById("fQ").addEventListener("input", () => { allOpen = false; syncToggle(); render(); });
     const toggleBtn = document.getElementById("toggleAll");
     function syncToggle() { toggleBtn.textContent = allOpen ? "Collapse All ▴" : "Expand All ▾"; }
     toggleBtn.onclick = () => {
@@ -1201,9 +1228,9 @@
     app.innerHTML = `
       <h1 class="page">Caption Scores</h1>
       <div class="filters">
-        <select class="ctrl" id="capYear">${seasons.map(y => `<option>${y}</option>`).join("")}</select>
-        <select class="ctrl" id="capKey">${CAPTION_DEFS.map(([k, l]) => `<option value="${k}">${l}</option>`).join("")}</select>
-        <select class="ctrl" id="capCls"></select>
+        <div id="capYear"></div>
+        <div id="capKey"></div>
+        <div id="capCls"></div>
       </div>
       <div class="secdiv" id="capSeasonDiv"></div>
       <div class="card">
@@ -1217,7 +1244,7 @@
       </div>
       <div class="card" style="margin-top:14px">
         <h2 id="spotTitle">Corps Spotlight</h2>
-        <div class="filters" style="margin:2px 0 8px"><select class="ctrl" id="spotCorps"></select></div>
+        <div class="filters" style="margin:2px 0 8px"><div id="spotCorps"></div></div>
         <div class="chartwrap" id="spotChart"></div>
         ${CAP_KEY_NOTE}
       </div>
@@ -1232,8 +1259,6 @@
         ${CAP_KEY_NOTE}
       </div>`;
 
-    document.getElementById("capYear").value = String(year);
-    document.getElementById("capKey").value = capKey;
 
     let rows = [];
     let cls = "";
@@ -1250,13 +1275,19 @@
 
     function classesIn(rs) { return sortClasses([...new Set(rs.map(r => r[iCls()]))]); }
 
+    let ssCls = null;
     function renderClassTabs() {
-      const sel = document.getElementById("capCls");
       const cl = classesIn(rows);
-      sel.innerHTML = "";
-      cl.forEach(c => sel.add(new Option(c, c)));
-      sel.value = cls;
-      sel.onchange = () => { cls = sel.value; seedPick = true; update(); renderTitles(); };
+      const opts = cl.map(c => ({ value: c, label: c }));
+      if (!ssCls) {
+        ssCls = singleSelect(document.getElementById("capCls"), {
+          label: "Class", options: opts, value: cls,
+          onChange: v => { cls = v; seedPick = true; update(); renderTitles(); },
+        });
+      } else {
+        ssCls.setOptions(opts);
+        ssCls.set(cls);
+      }
     }
 
     function corpsSeries() {
@@ -1345,15 +1376,23 @@
     // caption-by-caption bars for one corps: latest show vs season best
     const SPOT_CAPS = [["ge1", "GE1"], ["ge2", "GE2"], ["vp", "VP"], ["va", "VA"],
       ["cg", "CG"], ["br", "BR"], ["ma", "MA"], ["pc", "PC"]];
+    let ssSpot = null;
+    let spotBoard = [];
     function renderSpot(board) {
-      const sel = document.getElementById("spotCorps");
-      if (!sel) return;
-      const prev = sel.value;
-      sel.innerHTML = "";
-      board.forEach(b => sel.add(new Option(b.corps, b.corps)));
-      if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
-      sel.onchange = () => renderSpot(board);
-      const corps = sel.value;
+      if (!document.getElementById("spotCorps")) return;
+      spotBoard = board;
+      const opts = board.map(b => ({ value: b.corps, label: b.corps, hint: `#${b.rank}` }));
+      if (!ssSpot) {
+        ssSpot = singleSelect(document.getElementById("spotCorps"), {
+          label: "Pick a corps…", searchable: board.length > 12, options: opts,
+          value: board.length ? board[0].corps : null,
+          onChange: () => renderSpot(spotBoard),
+        });
+      } else {
+        ssSpot.setOptions(opts);
+        if (!board.some(b => b.corps === ssSpot.get())) ssSpot.set(board.length ? board[0].corps : null);
+      }
+      const corps = ssSpot.get();
       const chartEl = document.getElementById("spotChart");
       if (!corps) { chartEl.innerHTML = "<div class='empty'>No corps in this class yet.</div>"; return; }
 
@@ -1450,10 +1489,18 @@
       collapseRows(document.getElementById("titleRows"), 5, titlesMode === "years" ? "seasons" : "corps");
     }
 
-    document.getElementById("capYear").onchange = e => { year = +e.target.value; seedPick = true; loadYear(); };
-    document.getElementById("capKey").onchange = e => { capKey = e.target.value; update(); };
     const _loadYear = loadYear;
     loadYear = async () => { await _loadYear(); renderTitles(); }; // year switch can reset the class
+    singleSelect(document.getElementById("capYear"), {
+      label: "Season", options: seasons.map(y => ({ value: String(y), label: String(y) })),
+      value: String(year),
+      onChange: v => { year = +v; seedPick = true; loadYear(); },
+    });
+    singleSelect(document.getElementById("capKey"), {
+      label: "Caption", options: CAPTION_DEFS.map(([k, l]) => ({ value: k, label: l })),
+      value: capKey,
+      onChange: v => { capKey = v; update(); },
+    });
     await loadYear();
   }
 
@@ -1497,10 +1544,10 @@
     setNav("database");
     app.innerHTML = `<h1 class="page">Database <span id="dbcount" class="kicker"></span></h1>
       <div class="filters" id="dbFilters">
-        <select class="ctrl" id="dbSet">${Object.entries(DB_SETS).map(([k, s]) => `<option value="${k}">${s.label}</option>`).join("")}</select>
+        <div id="dbSet"></div>
         <div id="dbCorps"></div>
         <div id="dbYears"></div>
-        <select class="ctrl" id="fcls"><option value="">All classes</option></select>
+        <div id="fcls"></div>
         <input class="ctrl" id="fq" placeholder="Search event…">
         <button class="tab" id="dbReset" title="Clear all filters">Reset</button>
         <button class="tab" id="csv">Export CSV</button>
@@ -1518,7 +1565,14 @@
     let msDbCorps = null, msDbYears = null;
     let dbGen = 0;
 
-    const fcls = document.getElementById("fcls");
+    let fclsVal = "";
+    let ssFcls = null;
+    const ssSet = singleSelect(document.getElementById("dbSet"), {
+      label: "Dataset",
+      options: Object.entries(DB_SETS).map(([k, v]) => ({ value: k, label: v.label })),
+      value: setKey,
+      onChange: v => { setKey = v; initDataset(); },
+    });
 
     async function initDataset() {
       const gen = ++dbGen;
@@ -1540,8 +1594,17 @@
       const years = [...new Set(rows.map(r => r[0]))].sort((a, b) => b - a);
       const classes = [...new Set(rows.map(r => r[cfg.clsIdx]).filter(Boolean))].sort();
       const corpsNames = [...new Set(rows.map(r => r[cfg.corpsIdx]).filter(Boolean))].sort();
-      fcls.innerHTML = '<option value="">All classes</option>';
-      classes.forEach(c => fcls.add(new Option(c, c)));
+      const clsOpts = [{ value: "", label: "All classes" }, ...classes.map(c => ({ value: c, label: c }))];
+      fclsVal = "";
+      if (!ssFcls) {
+        ssFcls = singleSelect(document.getElementById("fcls"), {
+          label: "All classes", options: clsOpts, value: "",
+          onChange: v => { fclsVal = v || ""; apply(); },
+        });
+      } else {
+        ssFcls.setOptions(clsOpts);
+        ssFcls.set("");
+      }
 
       const corpsOpts = corpsNames.map(n => ({ value: n, label: n }));
       const yearOpts = years.map(y => ({ value: String(y), label: String(y) }));
@@ -1566,7 +1629,7 @@
     function apply() {
       shown = CHUNK0;
       const q = document.getElementById("fq").value.trim().toLowerCase();
-      const cls = fcls.value;
+      const cls = fclsVal;
       filtered = rows.filter(r =>
         (!yearSet.size || yearSet.has(String(r[0]))) &&
         (!corpsSet.size || corpsSet.has(r[cfg.corpsIdx])) &&
@@ -1617,12 +1680,11 @@
       });
     }
 
-    document.getElementById("dbSet").onchange = e => { setKey = e.target.value; initDataset(); };
-    ["fq", "fcls"].forEach(id =>
-      document.getElementById(id).addEventListener(id === "fq" ? "input" : "change", apply));
+    document.getElementById("fq").addEventListener("input", apply);
     document.getElementById("dbReset").onclick = () => {
       corpsSet.clear(); yearSet.clear();
-      fcls.value = "";
+      fclsVal = "";
+      if (ssFcls) ssFcls.set("");
       document.getElementById("fq").value = "";
       if (msDbCorps) { msDbCorps.refresh(); msDbYears.refresh(); }
       apply();
@@ -1660,29 +1722,43 @@
     app.innerHTML = `
       <h1 class="page">Records <span class="kicker">· the all-time book</span></h1>
       <div class="filters">
-        <select class="ctrl" id="recCls"></select>
-        <select class="ctrl" id="recEra"></select>
+        <div id="recCls"></div>
+        <div id="recEra"></div>
         <div id="recCorps"></div>
       </div>
       <div id="recBody"></div>`;
 
-    const clsSel = document.getElementById("recCls");
-    classes.forEach(c => clsSel.add(new Option(c, c)));
-    clsSel.value = cls;
-    const eraSel = document.getElementById("recEra");
+    let era = "all";
     const corpsSet = new Set();
     let msCorps = null;
+    let ssEra = null;
+    const ssCls = singleSelect(document.getElementById("recCls"), {
+      label: "Class", options: classes.map(c => ({ value: c, label: c })), value: cls,
+      onChange: v => {
+        cls = v;
+        localStorage.setItem("dt-reccls", cls);
+        rebuildFilters();
+        render();
+      },
+    });
 
     function rebuildFilters() {
       const d = rec[cls];
       const ys = [...new Set([...d.top.map(r => r[0]), ...Object.keys(d.finals).map(Number)])].sort((a, b) => a - b);
-      const prevEra = eraSel.value;
-      eraSel.innerHTML = "";
-      eraSel.add(new Option("All-time", "all"));
-      if (ys.some(y => y >= 2013) && ys.some(y => y < 2013)) eraSel.add(new Option("Modern era (2013–now)", "modern"));
+      const eraOpts = [{ value: "all", label: "All-time" }];
+      if (ys.some(y => y >= 2013) && ys.some(y => y < 2013)) eraOpts.push({ value: "modern", label: "Modern era (2013–now)" });
       const decades = [...new Set(ys.map(y => Math.floor(y / 10) * 10))].sort((a, b) => b - a);
-      if (decades.length > 1) decades.forEach(dd => eraSel.add(new Option(`${dd}s`, String(dd))));
-      if ([...eraSel.options].some(o => o.value === prevEra)) eraSel.value = prevEra;
+      if (decades.length > 1) decades.forEach(dd => eraOpts.push({ value: String(dd), label: `${dd}s` }));
+      if (!eraOpts.some(o => o.value === era)) era = "all";
+      if (!ssEra) {
+        ssEra = singleSelect(document.getElementById("recEra"), {
+          label: "Era", options: eraOpts, value: era,
+          onChange: v => { era = v; render(); },
+        });
+      } else {
+        ssEra.setOptions(eraOpts);
+        ssEra.set(era);
+      }
       const names = [...new Set([
         ...d.top.map(r => r[2]),
         ...Object.values(d.finals).flat().map(r => r[0]),
@@ -1701,10 +1777,9 @@
     }
 
     const inEra = y => {
-      const v = eraSel.value;
-      if (v === "all") return true;
-      if (v === "modern") return y >= 2013;
-      return Math.floor(y / 10) * 10 === +v;
+      if (era === "all") return true;
+      if (era === "modern") return y >= 2013;
+      return Math.floor(y / 10) * 10 === +era;
     };
     const inCorps = n => !corpsSet.size || corpsSet.has(n);
     const yearLink = y => `<a href="#/season/${y}">${y}</a>`;
@@ -1840,13 +1915,6 @@
       });
     }
 
-    clsSel.onchange = () => {
-      cls = clsSel.value;
-      localStorage.setItem("dt-reccls", cls);
-      rebuildFilters();
-      render();
-    };
-    eraSel.onchange = render;
     rebuildFilters();
     render();
   }
