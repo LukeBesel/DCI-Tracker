@@ -207,6 +207,16 @@ th[data-sort] { cursor: pointer; user-select: none; }
 .rt td.num i { display: block; font-style: normal; font-size: 9.5px; line-height: 1.25; color: var(--muted); font-variant-numeric: tabular-nums; }
 .rt .gb { border-left: 2px solid var(--baseline); }
 .rt td:first-child { font-size: 13px; }
+/* caption winners strip — who won what, stated plainly */
+.capwins {
+  display: flex; flex-wrap: wrap; gap: 5px 16px; align-items: baseline;
+  margin: 0 0 10px; padding: 9px 12px; font-size: 12.5px;
+  background: var(--accent-wash); border-radius: 10px;
+}
+.capwins b { color: var(--link); font-weight: 700; margin-right: 3px; }
+.capwins .cw-main { font-weight: 650; }
+.capwins .cw-main b { text-transform: uppercase; letter-spacing: .4px; }
+
 .rjump { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 8px; }
 .rjbtn {
   border: 1px solid var(--baseline); background: var(--surface-1); color: var(--text-secondary);

@@ -1296,6 +1296,33 @@
     const iSub = cols.length; cols.push({ label: "Sub", kind: "sub" });
     const iPen = cols.length; cols.push({ label: "Pen", kind: "pen" });
     const iTot = cols.length; cols.push({ label: "Total", kind: "tot" });
+
+    // who won each caption — the sheet's headline, stated plainly.
+    // Always computed over the FULL sheet, not the filtered view.
+    const shortSub = n => n.replace(/^General Effect/, "GE")
+      .replace(/^Visual\s*[-–]\s*/, "Visual ").replace(/^Music\s*[-–]\s*Analysis/, "Music Analysis")
+      .replace(/^Music\s*[-–]\s*/, "");
+    const winnerOf = i => {
+      let hi = -1, names = [];
+      for (const r of cd.rows) {
+        const v = r[1][i];
+        if (v == null) continue;
+        if (v > hi) { hi = v; names = [r[0]]; }
+        else if (v === hi && !names.includes(r[0])) names.push(r[0]);
+      }
+      return hi > 0 ? names.join(" & ") : null;
+    };
+    const winChips = [];
+    for (const g of groups) {
+      const w = winnerOf(g.totI);
+      if (w) winChips.push(`<span class="cw-main"><b>${esc(g.n)}</b> ${esc(w)}</span>`);
+      for (const s of g.subs) {
+        const ws = winnerOf(s.totI);
+        if (ws) winChips.push(`<span><b>${esc(shortSub(s.n))}</b> ${esc(ws)}</span>`);
+      }
+    }
+    const winStrip = winChips.length
+      ? `<div class="capwins" title="Caption winners on this sheet">🏆 ${winChips.join("")}</div>` : "";
     // heavier rule where a caption group starts, so the blocks read at a glance
     const gb = new Set(groups.map(g => g.first));
     gb.add(iSub);
@@ -1315,7 +1342,7 @@
       // quick-jump chips: the sheet is wide, so hop straight to a caption block
       const chips = `<div class="rjump">${groups.map((g, gi) =>
         `<button type="button" class="rjbtn" data-g="${gi}">${esc(g.n)}</button>`).join("")}<button type="button" class="rjbtn" data-g="end">Totals</button></div>`;
-      host.innerHTML = `${chips}<div class="tscroll"><table class="t sticky1 rt"><thead>
+      host.innerHTML = `${winStrip}${chips}<div class="tscroll"><table class="t sticky1 rt"><thead>
         <tr><th rowspan="3">Corps</th>${groups.map(g =>
           `<th colspan="${g.span}" class="rgrp gb" data-c="${g.totI}">${esc(g.n)}</th>`).join("")}<th rowspan="3" class="num gb" data-c="${iSub}">Sub</th><th rowspan="3" class="num" data-c="${iPen}">Pen</th><th rowspan="3" class="num" data-c="${iTot}">Total</th></tr>
         <tr>${groups.map(g => g.subs.map(s =>
@@ -1386,7 +1413,13 @@
       // gold on each caption's best so the winner reads at a glance
       const best = {};
       CAP_HEAD.forEach(([k]) => { best[k] = Math.max(...rows.map(r => r[CIDX[k]] == null ? -1 : r[CIDX[k]])); });
+      const FLAT_WINS = [["ge", "GE"], ["vp", "Visual Prof."], ["va", "Visual Analysis"], ["cg", "Color Guard"], ["br", "Brass"], ["ma", "Music Analysis"], ["pc", "Percussion"]];
+      const winChips = FLAT_WINS.map(([k, label]) => {
+        const names = rows.filter(r => r[CIDX[k]] != null && r[CIDX[k]] === best[k] && best[k] > 0).map(r => r[CIDX.corps]);
+        return names.length ? `<span${k === "ge" ? ' class="cw-main"' : ""}><b>${esc(label)}</b> ${esc([...new Set(names)].join(" & "))}</span>` : "";
+      }).join("");
       return h`<h3 class="evcls" style="margin-top:14px">Caption Breakdown <span class="kicker">verified against the official recap · gold marks the caption winner · tap a column to sort</span></h3>
+        ${winChips ? `<div class="capwins">🏆 ${winChips}</div>` : ""}
         <div class="tscroll"><table class="t sticky1 capsort"><thead><tr><th>Corps</th>${CAP_HEAD.map(([k, l]) => `<th class="num" data-sort="${k}">${l}</th>`).join("")}</tr></thead><tbody class="evcap" data-ci="${ci}">
         ${rows.map(r => `<tr><td>${corpsLink(r[CIDX.corps])}</td>${CAP_HEAD.map(([k]) => {
           const v = r[CIDX[k]];
@@ -1616,7 +1649,13 @@
         const i = cols.indexOf(k);
         best[k] = Math.max(...sheet.map(r => r[i] == null ? -1 : r[i]));
       }
-      body.innerHTML = `<div class="tscroll"><table class="t sticky1 showcmp"><thead><tr><th>Corps</th>${HEAD.map(([k, l]) =>
+      const FLAT_WINS = [["ge", "GE"], ["vp", "Visual Prof."], ["va", "Visual Analysis"], ["cg", "Color Guard"], ["br", "Brass"], ["ma", "Music Analysis"], ["pc", "Percussion"]];
+      const winChips = FLAT_WINS.map(([k, label]) => {
+        const i = cols.indexOf(k);
+        const names = [...new Set(sheet.filter(r => r[i] != null && r[i] === best[k] && best[k] > 0).map(r => r[iCorps()]))];
+        return names.length ? `<span${k === "ge" ? ' class="cw-main"' : ""}><b>${esc(label)}</b> ${esc(names.join(" & "))}</span>` : "";
+      }).join("");
+      body.innerHTML = `${winChips ? `<div class="capwins">🏆 ${winChips}</div>` : ""}<div class="tscroll"><table class="t sticky1 showcmp"><thead><tr><th>Corps</th>${HEAD.map(([k, l]) =>
           `<th class="num" data-c="${cols.indexOf(k)}">${l}</th>`).join("")}</tr></thead><tbody>
         ${sheet.map(r => `<tr><td>${corpsLink(r[iCorps()])}</td>${HEAD.map(([k]) => {
           const i = cols.indexOf(k);

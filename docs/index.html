@@ -129,6 +129,37 @@ if ("serviceWorker" in navigator) {
     return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
   }
 
+  // self-healing: every app open re-registers the subscription (and fresh
+  // ★ favorites) with the relay; if the relay's push key rotated since we
+  // subscribed, silently resubscribe under the new key
+  async function syncSub() {
+    if (!canPush || Notification.permission !== "granted") return;
+    let reg, sub;
+    try {
+      reg = await navigator.serviceWorker.ready;
+      sub = await reg.pushManager.getSubscription();
+    } catch (e) { return; }
+    if (!sub) return; // alerts are off — respect that
+    let vapid;
+    try { vapid = (await (await fetch(PUSH_SERVER + "/vapid")).json()).key; } catch (e) { return; }
+    try {
+      const cur = sub.options.applicationServerKey
+        ? btoa(String.fromCharCode(...new Uint8Array(sub.options.applicationServerKey)))
+            .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
+        : null;
+      if (cur && cur !== vapid) {
+        await sub.unsubscribe();
+        sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToU8(vapid) });
+      }
+      let favs = [];
+      try { favs = JSON.parse(localStorage.getItem("cad-favs") || "[]"); } catch (e) {}
+      await fetch(PUSH_SERVER + "/subscribe", { method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ subscription: sub.toJSON(), favs }) });
+    } catch (e) { /* next open retries */ }
+  }
+  syncSub();
+
   btn.addEventListener("click", async e => {
     e.preventDefault();
     const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
