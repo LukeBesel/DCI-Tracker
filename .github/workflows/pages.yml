@@ -23,7 +23,12 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      # ref: main, NOT the run's trigger sha — when called after a data
+      # update, the trigger sha predates the data commit the update job
+      # just pushed, and deploying it would publish one-cycle-stale scores
       - uses: actions/checkout@v4
+        with:
+          ref: main
       - name: Enable & configure GitHub Pages
         uses: actions/configure-pages@v5
         with:
