@@ -126,6 +126,7 @@ def build_seasons(events):
             "name": ev.get("name"), "date": ev.get("date"),
             "date_display": ev.get("date_display"), "location": ev.get("location"),
             "url": ev.get("url"), "recap_url": ev.get("recap_url"),
+            "source": ev.get("source"),
             "classes": ev.get("classes"), "recap": ev.get("recap"),
         } for ev in evs]
         write_json(f"seasons/{year}.json", slim)

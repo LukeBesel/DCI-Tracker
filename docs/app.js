@@ -23,6 +23,11 @@
     const [y, m, d] = iso.split("-").map(Number);
     return `${MONTHS[m - 1]} ${d}`;
   }
+  function fmtDateY(iso) {
+    if (!iso) return "";
+    const [y, m, d] = iso.split("-").map(Number);
+    return `${MONTHS[m - 1]} ${d}, ${y}`;
+  }
   function dayOfSeason(iso) { // days since May 31 of that year
     const [y, m, d] = iso.split("-").map(Number);
     return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(y, 4, 31)) / 86400000);
@@ -306,7 +311,7 @@
     document.querySelectorAll(".sparkcell").forEach(elm => {
       sparkline(elm, elm.dataset.trend.split(",").map(Number).filter(n => !isNaN(n)), "#898781");
     });
-    collapseRows(document.querySelector("#standings tbody"), 10, "corps");
+    collapseRows(document.querySelector("#standings tbody"), 5, "corps");
 
     // Upcoming events with lineups
     const up = await data("upcoming.json").catch(() => []);
@@ -316,15 +321,23 @@
       upEl.innerHTML = `<h2>Upcoming events <span class="sub">who's performing next</span></h2>` +
         up.slice(0, 6).map(ev => {
           const lineup = ev.lineup || [];
-          const names = lineup.slice(0, 7).map(c => corpsLink(c)).join(", ");
-          const more = lineup.length > 7 ? ` <span class="kicker">+${lineup.length - 7} more</span>` : "";
+          const head = lineup.slice(0, 7).map(c => corpsLink(c)).join(", ");
+          const rest = lineup.slice(7).map(c => corpsLink(c)).join(", ");
+          const more = rest
+            ? `<span class="lineup-rest" hidden>, ${rest}</span> <button class="lineup-more" data-n="${lineup.length - 7}">+${lineup.length - 7} more ▾</button>`
+            : "";
           return h`<div class="upitem">
             <div><b>${esc(ev.name)}</b> <span class="kicker">${esc(fmtDate(ev.date))}</span></div>
             <div style="color:var(--muted);font-size:12px">${esc(ev.location || "")}</div>
-            ${lineup.length ? `<div class="lineup">${names}${more}</div>` : ""}
+            ${lineup.length ? `<div class="lineup">${head}${more}</div>` : ""}
           </div>`;
         }).join("") +
         `<div style="margin-top:8px"><a href="#/season/${rk.season}">All ${rk.season} results →</a></div>`;
+      upEl.querySelectorAll(".lineup-more").forEach(bt => bt.onclick = () => {
+        const rest = bt.previousElementSibling;
+        rest.hidden = !rest.hidden;
+        bt.textContent = rest.hidden ? `+${bt.dataset.n} more ▾` : "fewer ▴";
+      });
     } else {
       upEl.innerHTML = `<h2>Upcoming events</h2>
         <div class="empty" style="padding:12px 0">Schedule updates with the nightly data run.</div>
@@ -596,7 +609,7 @@
         msCorps.refresh();
         persist(); draw(); renderRows();
       });
-      collapseRows(rowsEl, 10, "corps");
+      collapseRows(rowsEl, 5, "corps");
     }
     document.getElementById("q").addEventListener("input", renderRows);
     document.querySelectorAll(".tab[data-f]").forEach(bt => bt.onclick = () => {
@@ -692,7 +705,7 @@
       document.getElementById("perfTable").innerHTML = `<div class="tscroll"><table class="t">
         <thead><tr><th>Date</th><th>Event</th><th>Class</th><th class="num">Place</th><th class="num">Score</th></tr></thead>
         <tbody>${list.slice(0, 400).map(p => h`<tr>
-          <td style="color:var(--muted);white-space:nowrap">${esc(fmtDate(p.d) || p.y)}</td>
+          <td style="color:var(--muted);white-space:nowrap">${esc(fmtDateY(p.d) || p.y)}</td>
           <td>${esc(p.ev || "")}</td>
           <td><span class="pill">${esc(p.cls || "")}</span></td>
           <td class="num">${p.p ?? "—"}</td><td class="num score">${score3(p.s)}</td></tr>`).join("")}</tbody></table></div>`;
@@ -776,9 +789,35 @@
     const clsList = sortClasses([...clsSet]);
     const monthList = [...monthSet].sort((a, b) => a - b);
 
+    // the season's outcome: championship finals podium, when scraped
+    const finalsIdx = events.reduce((best, e, i) => {
+      const n = (e.name || "").toLowerCase();
+      if (n.includes("championship") && n.includes("final")
+          && !/semi|prelim|quarter/.test(n) && !(e.source === "dcx" && !n.includes("dci"))) {
+        if (best < 0 || (e.date || "") > (events[best].date || "")) return i;
+      }
+      return best;
+    }, -1);
+    let finalsHtml = "";
+    if (finalsIdx >= 0) {
+      const fe = events[finalsIdx];
+      finalsHtml = h`<div class="card" style="margin-bottom:14px">
+        <h2>Final standings <span class="sub">${esc(fe.name)} · ${esc(fmtDate(fe.date) || fe.date_display || "")}</span></h2>
+        <div class="grid cols-tiles">
+        ${(fe.classes || []).map(c => h`<div>
+          <h3 class="evcls" style="margin-top:4px">${esc(c.class)}</h3>
+          <table class="t"><tbody>
+          ${(c.results || []).slice(0, 5).map(r => `<tr><td class="rank">${r.place ?? "—"}</td><td>${corpsLink(r.corps)}</td><td class="num score">${score3(r.score)}</td></tr>`).join("")}
+          </tbody></table></div>`).join("")}
+        </div>
+        <div style="margin-top:8px;font-size:13px"><a href="#/event/${year}/${finalsIdx}">Full finals results →</a></div>
+      </div>`;
+    }
+
     app.innerHTML = h`
       <div class="crumbs"><a href="#/seasons">Seasons</a> / ${year}</div>
       <h1 class="page">${year} season <span class="kicker">· ${events.length} events</span></h1>
+      ${finalsHtml}
       <div class="filters">
         <select class="ctrl" id="fCls"><option value="">All classes</option>
           ${clsList.map(c => `<option>${esc(c)}</option>`).join("")}</select>

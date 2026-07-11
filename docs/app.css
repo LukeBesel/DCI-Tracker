@@ -213,6 +213,11 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; }
 .upitem { padding: 8px 0; border-bottom: 1px solid var(--grid); font-size: 13px; }
 .upitem:last-of-type { border-bottom: 0; }
 .upitem .lineup { color: var(--text-secondary); font-size: 12px; margin-top: 3px; line-height: 1.5; }
+.lineup-more {
+  border: 0; background: none; color: var(--accent); cursor: pointer;
+  font-size: 12px; padding: 0 2px;
+}
+.lineup-more:hover { text-decoration: underline; }
 
 /* season event accordion */
 .evrow { padding: 0; margin-bottom: 10px; overflow: hidden; }
@@ -240,6 +245,15 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; }
   .updated { display: none; } /* keep the 4-tab nav on one sticky row */
 }
 @media (max-width: 640px) {
+  /* thin one-row header: icon-only brand + horizontally scrollable nav */
+  .topbar { flex-wrap: nowrap; gap: 8px; padding: 7px 10px; }
+  .brand span { display: none; }
+  #nav {
+    flex: 1; flex-wrap: nowrap; overflow-x: auto; gap: 0;
+    scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  }
+  #nav::-webkit-scrollbar { display: none; }
+  #nav a { padding: 6px 9px; font-size: 13px; white-space: nowrap; }
   main { padding: 14px 12px 50px; }
   h1.page { font-size: 21px; }
   .tile .value { font-size: 24px; }
