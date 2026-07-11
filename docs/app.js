@@ -2007,6 +2007,46 @@
     render();
   }
 
+  /* ============ SUGGESTIONS ============ */
+  const SUGGEST_REPO = "LukeBesel/DCI-Tracker";
+  async function viewSuggestions(_m, stale) {
+    setNav("");
+    app.innerHTML = `
+      <h1 class="page">Suggestions <span class="kicker">· help decide what gets built</span></h1>
+      <div class="card" style="margin-bottom:14px">
+        <h2>Have an Idea?</h2>
+        <p style="margin:0 0 12px;color:var(--text-secondary)">Missing a stat? Want a new view? Post it below — suggestions are public, and the most-wanted ideas get built first. A free GitHub account is all it takes.</p>
+        <a class="tab on" style="display:inline-block;text-decoration:none" href="https://github.com/${SUGGEST_REPO}/issues/new?template=suggestion.yml" target="_blank" rel="noopener">Post a suggestion →</a>
+      </div>
+      <div class="card"><h2>What People Are Asking For</h2><div id="sugList"><div class="loading">Loading…</div></div></div>
+      <p style="color:var(--muted);font-size:12.5px;margin:14px 2px 0">Created by Lucas Besel · suggestions live on <a href="https://github.com/${SUGGEST_REPO}/issues" target="_blank" rel="noopener">GitHub</a></p>`;
+    let items = [];
+    try {
+      const res = await fetch(`https://api.github.com/repos/${SUGGEST_REPO}/issues?labels=suggestion&state=open&sort=reactions-+1&per_page=50`);
+      if (!res.ok) throw new Error(res.status);
+      items = await res.json();
+    } catch (e) {
+      const el = document.getElementById("sugList");
+      if (!stale() && el) el.innerHTML = `<div class="empty">Couldn't load suggestions right now — <a href="https://github.com/${SUGGEST_REPO}/issues" target="_blank" rel="noopener">view them on GitHub →</a></div>`;
+      return;
+    }
+    const el = document.getElementById("sugList");
+    if (stale() || !el) return;
+    if (!items.length) {
+      el.innerHTML = "<div class='empty'>No suggestions yet — be the first!</div>";
+      return;
+    }
+    el.innerHTML = items.map(it => h`
+      <div style="padding:12px 2px;border-bottom:1px solid var(--grid)">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline">
+          <b>${esc(it.title)}</b>
+          <span class="kicker" style="white-space:nowrap">👍 ${(it.reactions && it.reactions["+1"]) || 0}</span>
+        </div>
+        ${it.body ? h`<div style="color:var(--text-secondary);font-size:13.5px;margin-top:4px">${esc(String(it.body).slice(0, 220))}${String(it.body).length > 220 ? "…" : ""}</div>` : ""}
+        <div class="kicker" style="margin-top:6px">${esc(it.user ? it.user.login : "")} · ${esc(fmtDateY(String(it.created_at || "").slice(0, 10)))} · <a href="${encodeURI(it.html_url)}" target="_blank" rel="noopener">discuss ↗</a></div>
+      </div>`).join("");
+  }
+
   /* ============ router ============ */
   const routes = [
     [/^#?\/?$/, viewRankings],
@@ -2021,6 +2061,7 @@
     [/^#\/event\/(\d{4})\/(\d+)$/, (m, st) => viewEvent(m[1], m[2], st)],
     [/^#\/captions(?:\?(.*))?$/, (m, st) => viewCaptions(m[1], st)],
     [/^#\/records$/, viewRecords],
+    [/^#\/suggestions$/, viewSuggestions],
     [/^#\/database$/, viewDatabase],
     // legacy routes from earlier versions
     [/^#\/(today|rankings)$/, viewRankings],
