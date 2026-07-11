@@ -208,7 +208,8 @@
       <h1 class="page">${esc(String(rk.season))} Rankings</h1>
       <div class="filters" id="classTabs"></div>
       <div class="card">
-        <h2 id="trendTitle">Season progression <span class="sub">score by date, top 8 — <a href="#/corps">full compare →</a></span></h2>
+        <h2 id="trendTitle">Season progression <span class="sub" id="trendSub">score by date · top 12</span></h2>
+        <div class="filters" style="margin:2px 0 8px"><div id="trendCorpsSel"></div><button class="tab" id="trendReset" hidden>Top 12</button></div>
         <div class="chartwrap" id="trendChart"></div>
       </div>
       <div class="grid cols-2" style="margin-top:14px">
@@ -234,12 +235,36 @@
     });
 
     const block = rk.standings[cls];
-    const top = block.rows.slice(0, 8);
-    lineChart(document.getElementById("trendChart"), {
-      linearX: true,
-      series: top.map(r => ({ name: r.corps, points: r.trend.map(t => ({ x: dayOfSeason(t[0]), y: t[1] })) })),
-      height: 340, xFmt: dayLabel, yFmt: v => v.toFixed(1),
+
+    // progression chart: top 12 by default, or the corps the viewer picks
+    const trendPick = new Set();
+    function drawTrend() {
+      const el = document.getElementById("trendChart");
+      if (!el) return;
+      const rows = trendPick.size
+        ? block.rows.filter(r => trendPick.has(r.corps))
+        : block.rows.slice(0, 12);
+      document.getElementById("trendSub").textContent =
+        trendPick.size ? `score by date · ${rows.length} selected` : "score by date · top 12";
+      document.getElementById("trendReset").hidden = !trendPick.size;
+      lineChart(el, {
+        linearX: true,
+        series: rows.map(r => ({ name: r.corps, points: r.trend.map(t => ({ x: dayOfSeason(t[0]), y: t[1] })) })),
+        height: 340, xFmt: dayLabel, yFmt: v => v.toFixed(1),
+      });
+    }
+    const msTrend = multiSelect(document.getElementById("trendCorpsSel"), {
+      label: "Pick corps to chart…", searchable: block.rows.length > 12,
+      options: block.rows.map(r => ({ value: r.corps, label: r.corps, hint: `#${r.rank}` })),
+      selected: trendPick,
+      onChange: drawTrend,
     });
+    document.getElementById("trendReset").onclick = () => {
+      trendPick.clear();
+      msTrend.refresh();
+      drawTrend();
+    };
+    drawTrend();
 
     document.getElementById("standTitle").innerHTML =
       `${esc(cls)} standings <span class="sub">each corps' most recent score</span>`;
@@ -321,12 +346,15 @@
     const allYears = meta.seasons.map(s => s.year).sort((a, b) => b - a);
     const bySlug = new Map(idx.map(c => [c.slug, c]));
 
-    // corps "type" = the class it most recently competed in
+    // corps "type" = the class it most recently competed in, folded into the
+    // major families (historical junior divisions etc. group under Historical)
+    const TYPE_FAMILIES = ["World Class", "Open Class", "All-Age", "International"];
     const corpsClass = c => {
       for (let i = (c.series || []).length - 1; i >= 0; i--) {
-        if (c.series[i][2]) return c.series[i][2];
+        const k = c.series[i][2];
+        if (k) return TYPE_FAMILIES.includes(k) ? k : "Historical";
       }
-      return "Other";
+      return "Historical";
     };
     const classList = sortClasses([...new Set(idx.map(corpsClass))]);
     const savedCls = localStorage.getItem("dt-corpsclass");

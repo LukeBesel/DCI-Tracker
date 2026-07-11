@@ -38,12 +38,24 @@ def iso_date(ev) -> str | None:
 
 
 CLASS_CANON = [
-    (re.compile(r"all[- ]?age", re.I), "All-Age"),
+    (re.compile(r"all[- ]?age|^sr\.?$|^senior", re.I), "All-Age"),
     (re.compile(r"world class|division i\b", re.I), "World Class"),
     (re.compile(r"open class|division ii", re.I), "Open Class"),
     (re.compile(r"international", re.I), "International"),
-    (re.compile(r"exhibition|soundsport|mini", re.I), "Exhibition"),
+    (re.compile(r"exhibition|soundsport|mini|^exh\.?$|rained", re.I), "Exhibition"),
+    # historical junior-corps division systems (pre-DCI-class era)
+    (re.compile(r"^(class\s*)?a$|^junior a$", re.I), "Class A"),
+    (re.compile(r"^(class\s*)?b$|^junior b$", re.I), "Class B"),
+    (re.compile(r"^(class\s*)?c$|^junior c$", re.I), "Class C"),
+    (re.compile(r"all[- ]?girl", re.I), "All-Girl"),
+    (re.compile(r"^(jr\.?|junior)$", re.I), "Junior"),
 ]
+
+# Individual & Ensemble contest categories — people, not corps. These must
+# never reach corps pages, rankings, or the database.
+IE_CLASS = re.compile(
+    r"^(brass|woodwind|percussion|visual|vocal|mixed|color ?guard)\s*[-–—]"
+    r"|solo\b|ensemble\b|individual", re.I)
 
 
 def canon_class(name: str) -> str:
@@ -80,6 +92,8 @@ def load_events():
         ev["date"] = ev.get("date") or iso_date(ev)
         classes = []
         for c in ev["classes"]:
+            if IE_CLASS.search(norm_space(c.get("class") or "")):
+                continue  # individual/ensemble category, not corps competition
             cc = canon_class(c.get("class"))
             results = [dict(r, corps=canon_corps(r["corps"])) for r in c["results"] if r.get("corps")]
             if not results or cc == "Exhibition":
