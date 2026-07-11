@@ -41,17 +41,20 @@ def iso_date(ev) -> str | None:
 
 
 CLASS_CANON = [
-    (re.compile(r"all[- ]?age|^sr\.?$|^senior", re.I), "All-Age"),
+    (re.compile(r"all\s*-?\s*age|^sr\.?$|^senior", re.I), "All-Age"),
     (re.compile(r"world class|division i\b", re.I), "World Class"),
     (re.compile(r"open class|division ii", re.I), "Open Class"),
     (re.compile(r"international", re.I), "International"),
-    (re.compile(r"exhibition|soundsport|mini|^exh\.?$|rained", re.I), "Exhibition"),
+    (re.compile(r"ex[h]?ib|soundsport|mini|^exh\.?$|rain(ed)?\s*-?\s*out|^rainout$", re.I), "Exhibition"),
     # historical junior-corps division systems (pre-DCI-class era)
-    (re.compile(r"^(class\s*)?a$|^junior a$", re.I), "Class A"),
-    (re.compile(r"^(class\s*)?b$|^junior b$", re.I), "Class B"),
-    (re.compile(r"^(class\s*)?c$|^junior c$", re.I), "Class C"),
+    (re.compile(r"^(class\s*)?a$|^a\s+class$|^junior a$", re.I), "Class A"),
+    (re.compile(r"^(class\s*)?b$|^b\s+class$|^junior b$", re.I), "Class B"),
+    (re.compile(r"^(class\s*)?c$|^c\s+class$|^junior c$", re.I), "Class C"),
     (re.compile(r"all[- ]?girl", re.I), "All-Girl"),
-    (re.compile(r"^(jr\.?|junior)$", re.I), "Junior"),
+    (re.compile(r"^(jr\.?|junior)s?(\s+class)?$", re.I), "Junior"),
+    # bare division numerals from archive listings
+    (re.compile(r"^(div\.?|division|us)?\s*(i|1)$|^dci$", re.I), "World Class"),
+    (re.compile(r"^(div\.?|division|us)?\s*(ii|2|iii|3|iv|4)$|^ii\s*/?\s*iii$|^us ii/iii$", re.I), "Open Class"),
 ]
 
 # Individual & Ensemble contest categories — people, not corps. These must
@@ -87,10 +90,13 @@ def load_events():
     if not events:
         log("no parsed events — nothing to build")
         return []
+    NON_FIELD = re.compile(r"mini-?corps|individual\s*&\s*ensemble|\bi\s*&\s*e\b|mca championship", re.I)
     out = []
     for ev in events:
         if not ev.get("year") or not ev.get("classes") or ev.get("non_corps"):
             continue
+        if NON_FIELD.search(ev.get("name") or ""):
+            continue  # standstill/ensemble contests are not field competition
         ev = dict(ev)
         ev["date"] = ev.get("date") or iso_date(ev)
         classes = []
@@ -100,6 +106,17 @@ def load_events():
             raw_label = norm_space(c.get("class") or "")
             cc = canon_class(raw_label)
             results = [dict(r, corps=canon_corps(r["corps"])) for r in c["results"] if r.get("corps")]
+            # junk rows: bare numbers, unknown/tba placeholders
+            results = [r for r in results
+                       if not re.fullmatch(r"\d+", r["corps"])
+                       and r["corps"].lower().strip("()") not in ("unknown", "tba", "tbd", "n/a")]
+            # a corps listed twice in one group keeps its best-scored row
+            best_row: dict[str, dict] = {}
+            for r in results:
+                cur = best_row.get(r["corps"])
+                if cur is None or (r.get("score") or -1) > (cur.get("score") or -1):
+                    best_row[r["corps"]] = r
+            results = [r for r in results if best_row[r["corps"]] is r]
             if not results or cc == "Exhibition":
                 continue
             entry = {"class": cc, "results": results}
@@ -122,16 +139,74 @@ def load_events():
         if ev["classes"]:
             out.append(ev)
 
+    # placeholder archive names become honest labels
+    for ev in out:
+        nm = ev.get("name") or ""
+        m2 = re.fullmatch(r"Show (#\d+)", nm)
+        if m2:
+            ev["name"] = f"Unidentified Show {m2.group(1)}"
+        elif nm.isupper() and len(nm) > 5:
+            ev["name"] = re.sub(r"\b(dci|dca|dcm|dce|dcw|vfw|gsc)\b",
+                                lambda mm: mm.group(1).upper(), nm.title(), flags=re.I)
+
+    # duplicate archive listings of the same show (same year, identical
+    # scorelines): keep the dated / better-named copy
+    def scoreline(ev):
+        cells = []
+        for c in ev["classes"]:
+            for r in c["results"]:
+                if r.get("score"):
+                    cells.append((r["corps"], r["score"]))
+        return frozenset(cells)
+    by_line = defaultdict(list)
+    for ev in out:
+        if ev.get("source") == "dcx":
+            line = scoreline(ev)
+            if len(line) >= 3:
+                by_line[(ev["year"], line)].append(ev)
+    drop_ids = set()
+    for evs in by_line.values():
+        if len(evs) < 2:
+            continue
+        dates = {e.get("date") for e in evs}
+        if len([d for d in dates if d]) > 1:
+            continue  # different dated shows that happen to share a scoreline
+        generic = re.compile(r"^unidentified show|show$", re.I)
+        evs.sort(key=lambda e: (e.get("date") is None, bool(generic.search(e.get("name") or ""))))
+        keep = evs[0]
+        for e in evs[1:]:
+            if not keep.get("location") and e.get("location"):
+                keep["location"] = e["location"]
+            drop_ids.add(id(e))
+    if drop_ids:
+        out = [e for e in out if id(e) not in drop_ids]
+        log(f"deduped {len(drop_ids)} duplicate archive listings")
+
     # The archive's year listings mix the senior (DCA) circuit into the junior
     # divisions. Corps that appear at DCA-named shows in a year are senior
     # corps — every archive result of theirs that year belongs to All-Age,
-    # not the DCI World/Open Class record.
+    # not the DCI World/Open Class record. A curated list catches years where
+    # no DCA-named show made the listing.
+    KNOWN_ALLAGE = {
+        "Reading Buccaneers", "Empire Statesmen", "Minnesota Brass",
+        "Connecticut Hurricanes", "Hawthorne Caballeros", "Syracuse Brigadiers",
+        "Skyliners", "Sunrisers", "Bushwackers", "Hurricanes",
+        "Steel City Ambassadors", "Rochester Crusaders", "Chops, Inc.",
+        "Govenaires", "Fitchburg Kingsmen", "White Sabers", "Fusion Core",
+        "Cincinnati Tradition", "Atlanta CorpsVets", "Carolina Gold",
+    }
     seniors_by_year: dict[int, set] = defaultdict(set)
     for ev in out:
         if ev.get("source") == "dcx" and "dca" in (ev.get("name") or "").lower():
             for c in ev["classes"]:
                 for r in c["results"]:
                     seniors_by_year[ev["year"]].add(r["corps"])
+    for ev in out:
+        if ev.get("source") == "dcx" and "dci" not in (ev.get("name") or "").lower():
+            for c in ev["classes"]:
+                for r in c["results"]:
+                    if r["corps"] in KNOWN_ALLAGE:
+                        seniors_by_year[ev["year"]].add(r["corps"])
     moved = 0
     for ev in out:
         if ev.get("source") != "dcx":
@@ -172,13 +247,15 @@ def build_seasons(events):
         by[ev["year"]].append(ev)
     season_index = []
     for year, evs in sorted(by.items()):
-        evs.sort(key=lambda e: (e.get("date") or f"{year}-12-31", e.get("name") or ""))
+        evs.sort(key=lambda e: (e.get("date") or "9999-99-99", e.get("name") or ""))
         # raw recap tables ship no more: their nested-header dumps rendered
         # scrambled; the verified caption breakdown (captions/<year>.json)
         # is the readable, arithmetically-checked version of the same data
         slim = [{
             "name": ev.get("name"), "date": ev.get("date"),
-            "date_display": ev.get("date_display"), "location": ev.get("location"),
+            "date_display": ev.get("date_display"),
+            "location": (None if (ev.get("name") or "").lower().startswith((ev.get("location") or "~").lower())
+                         else ev.get("location")),
             "url": ev.get("url"), "recap_url": ev.get("recap_url"),
             "source": ev.get("source"),
             "classes": ev.get("classes"),
@@ -200,11 +277,15 @@ def is_champ_finals(ev) -> bool:
     n = (ev.get("name") or "").lower()
     if "semi" in n or "prelim" in n or "quarter" in n:
         return False
-    if ev.get("source") == "dcx" and "dci" not in n:
-        return False
     # side championships crown their own divisions, not the DCI title —
     # the archive labels their sections as the top division, so exclude by name
     if re.search(r"class a\b|all[- ]?girl|division i{2,3}\b", n):
+        return False
+    # some archive years name the finals bare "World Class Finals" — that
+    # phrasing is DCI's own, so it clears the non-DCI-circuit guard
+    if re.fullmatch(r"(dci\s+)?(world|open) class finals", n):
+        return True
+    if ev.get("source") == "dcx" and "dci" not in n:
         return False
     return "world championship" in n or "dci championship" in n
 
