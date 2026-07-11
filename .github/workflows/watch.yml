@@ -4,7 +4,8 @@ name: Show-night live watcher
 # half-hourly cron. One long job per evening; exits early on no-show days.
 on:
   schedule:
-    - cron: "20 23 * 6-8 *"   # 7:20 PM ET, June–August
+    - cron: "20 23 * 5-8 *"   # first shift: 7:20 PM ET, May–August
+    - cron: "0 5 * 5-8 *"     # second shift: 1 AM ET — West Coast finishes
   workflow_dispatch:
 concurrency:
   group: scrape
@@ -33,8 +34,9 @@ jobs:
               up = json.load(open("docs/data/upcoming.json"))
           except Exception:
               sys.exit(1)
-          today = datetime.datetime.utcnow().strftime("%Y-%m-%d")
-          sys.exit(0 if any(e.get("date") == today for e in up) else 1)
+          now = datetime.datetime.utcnow()
+          days = {now.strftime("%Y-%m-%d"), (now - datetime.timedelta(days=1)).strftime("%Y-%m-%d")}
+          sys.exit(0 if any(e.get("date") in days for e in up) else 1)
           PY
           git config user.name "dci-tracker-bot"
           git config user.email "actions@users.noreply.github.com"

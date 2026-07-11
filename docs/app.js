@@ -2215,19 +2215,38 @@
       };
       document.body.appendChild(toast);
     }
-    async function check() {
+    function applyNow(newStamp) {
+      cache.clear();
+      stamp = newStamp;
+      const upd = document.getElementById("updated");
+      if (upd) upd.textContent = "Updated " + newStamp;
+      if (toast) { toast.remove(); toast = null; }
+      route();
+      // a quiet flash so the swap doesn't go unnoticed
+      const flash = document.createElement("div");
+      flash.id = "liveToast";
+      flash.style.pointerEvents = "none";
+      flash.innerHTML = "✓ <b>Scores updated</b>";
+      document.body.appendChild(flash);
+      setTimeout(() => flash.remove(), 2500);
+    }
+    async function check(auto) {
       if (document.hidden) return;
       try {
         const r = await fetch("data/meta.json", { cache: "no-cache" });
         if (!r.ok) return;
         const m = await r.json();
-        if (stamp && m.updated !== stamp) offer(m.updated);
-        else stamp = m.updated;
+        if (stamp && m.updated !== stamp) {
+          // returning to the app: swap in fresh scores immediately;
+          // mid-read: offer a tap so the page isn't yanked away
+          if (auto) applyNow(m.updated);
+          else offer(m.updated);
+        } else stamp = m.updated;
       } catch (e) { /* offline — try again next tick */ }
     }
-    setInterval(check, 3 * 60 * 1000);
-    document.addEventListener("visibilitychange", () => { if (!document.hidden) check(); });
-    check();
+    setInterval(() => check(false), 3 * 60 * 1000);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) check(true); });
+    check(false);
   })();
 
   window.CadRedraw = route; // theme toggle re-renders the current view
