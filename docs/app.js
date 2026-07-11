@@ -998,8 +998,8 @@
     if (ev.future) {
       const mapLink = (ev.location
         ? `<p style="font-size:12.5px;color:var(--muted);margin:8px 0 0"><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((ev.name || "") + " " + ev.location)}" target="_blank" rel="noopener">Venue map ↗</a></p>`
-        : "") + (ev.bag_policy
-        ? `<p style="font-size:12.5px;color:var(--muted);margin:6px 0 0">🎒 <b>Bag policy:</b> ${esc(ev.bag_policy)}</p>`
+        : "") + (ev.url
+        ? `<p style="font-size:12.5px;color:var(--muted);margin:6px 0 0"><a href="${encodeURI(ev.url)}" target="_blank" rel="noopener">🎒 Venue info — bag policy, tickets, parking ↗</a></p>`
         : "");
       if (ev.schedule && ev.schedule.length) {
         return h`<h3 class="evcls">Schedule <span class="kicker">${ev.lineup.length} corps · venue time</span></h3>
@@ -1081,7 +1081,7 @@
         if (!u.date || !String(u.date).startsWith(String(year))) continue;
         if (seen.has(u.date + "|" + (u.name || "").toLowerCase())) continue;
         events.push({ name: u.name, date: u.date, location: u.location,
-          lineup: u.lineup || [], schedule: u.schedule, bag_policy: u.bag_policy, future: true });
+          lineup: u.lineup || [], schedule: u.schedule, url: u.url, future: true });
       }
     }
 
