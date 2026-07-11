@@ -207,7 +207,11 @@
     app.innerHTML = h`
       <h1 class="page">${esc(String(rk.season))} Rankings</h1>
       <div class="filters" id="classTabs"></div>
-      <div class="grid cols-2">
+      <div class="card">
+        <h2 id="trendTitle">Season progression <span class="sub">score by date, top 8 — <a href="#/corps">full compare →</a></span></h2>
+        <div class="chartwrap" id="trendChart"></div>
+      </div>
+      <div class="grid cols-2" style="margin-top:14px">
         <div class="card">
           <h2 id="standTitle"></h2>
           <div id="standings"></div>
@@ -217,10 +221,6 @@
           <div class="card" id="moveCard"></div>
           <div class="card" id="battleCard"></div>
         </div>
-      </div>
-      <div class="card" style="margin-top:14px">
-        <h2 id="trendTitle">Season progression <span class="sub">score by date, top 8 — <a href="#/corps">full compare →</a></span></h2>
-        <div class="chartwrap" id="trendChart"></div>
       </div>
       <p class="pagenote">Each corps' most recent official score, movement since their last show, and the season race. Updated nightly from DCI.org (last: ${esc(rk.generated)}).</p>`;
 
@@ -654,15 +654,16 @@
     if (stale()) return;
     const years = meta.seasons.slice().sort((a, b) => b.year - a.year);
     app.innerHTML = h`
-      <h1 class="page">Seasons</h1>
-      <div class="card"><div class="years">
+      <h1 class="page">Season History</h1>
+      <div class="card"><h2>Past champions <span class="sub">World Championship Finals winners</span></h2>
+      <div class="tscroll dense"><table class="t" id="champT"></table></div></div>
+      <div class="card" style="margin-top:14px"><h2>Browse a season <span class="sub">every show of that summer — who performed, and every score</span></h2>
+      <div class="years">
         ${years.map(s => {
           const c = champs[String(s.year)] && (champs[String(s.year)]["World Class"] || {}).corps;
           return `<a class="year" href="#/season/${s.year}">${s.year}<small>${s.events} events${c ? " · 🏆 " + esc(c) : ""}</small></a>`;
         }).join("")}
       </div></div>
-      <div class="card" style="margin-top:14px"><h2>Champions <span class="sub">World Championship Finals winners in the archive</span></h2>
-      <div class="tscroll dense"><table class="t" id="champT"></table></div></div>
       <p class="pagenote">Open a year to see each show that happened — who performed, in what class, and every score — with caption recaps where DCI published them.</p>`;
     const clsSet = new Set();
     Object.values(champs).forEach(byCls => Object.keys(byCls).forEach(c => clsSet.add(c)));
@@ -834,16 +835,17 @@
 
   async function viewDatabase(_m, stale) {
     setNav("database");
-    app.innerHTML = `<h1 class="page">Database <span id="dbcount" class="kicker"></span></h1>
-      <div class="filters">
-        <input class="ctrl" id="fq" placeholder="Search corps or event…">
+    app.innerHTML = `<h1 class="page">Score database <span id="dbcount" class="kicker"></span></h1>
+      <div class="filters" id="dbFilters">
+        <div id="dbCorps"></div>
+        <div id="dbYears"></div>
         <select class="ctrl" id="fcls"><option value="">All classes</option></select>
-        <select class="ctrl" id="fy1"></select>
-        <select class="ctrl" id="fy2"></select>
+        <input class="ctrl" id="fq" placeholder="Search event…">
+        <button class="tab" id="dbReset" title="Clear all filters">Reset</button>
         <button class="tab" id="csv">Export CSV</button>
       </div>
       <div class="card"><div id="dbtable"><div class="loading">Loading…</div></div></div>
-      <p class="pagenote">Every scored performance as one big table. Sort by any column, stack filters, search anything, and export the result to CSV.</p>`;
+      <p class="pagenote">Every scored performance on record, as one sortable table. Combine the corps, season, and class filters, search events, click any column to sort, and export exactly what you've filtered to CSV.</p>`;
     let rows;
     try { rows = await loadDb(); }
     catch (e) {
@@ -853,24 +855,39 @@
     }
     if (stale() || !document.getElementById("dbtable")) return;
 
-    const years = [...new Set(rows.map(r => r[0]))].sort();
+    const years = [...new Set(rows.map(r => r[0]))].sort((a, b) => b - a);
     const classes = [...new Set(rows.map(r => r[4]).filter(Boolean))].sort();
-    const fy1 = document.getElementById("fy1"), fy2 = document.getElementById("fy2");
-    years.forEach(y => { fy1.add(new Option(y, y)); fy2.add(new Option(y, y)); });
-    fy1.value = years[0]; fy2.value = years[years.length - 1];
+    const corpsNames = [...new Set(rows.map(r => r[3]).filter(Boolean))].sort();
     const fcls = document.getElementById("fcls");
     classes.forEach(c => fcls.add(new Option(c, c)));
+
+    const corpsSet = new Set();
+    const yearSet = new Set();
+    const msDbCorps = multiSelect(document.getElementById("dbCorps"), {
+      label: "All corps", searchable: true,
+      options: corpsNames.map(n => ({ value: n, label: n })),
+      selected: corpsSet,
+      onChange: apply,
+    });
+    const msDbYears = multiSelect(document.getElementById("dbYears"), {
+      label: "All seasons", searchable: years.length > 15, bulk: true,
+      presets: [{ label: "Past 5", values: () => years.slice(0, 5) }],
+      options: years.map(y => ({ value: String(y), label: String(y) })),
+      selected: yearSet,
+      onChange: apply,
+    });
 
     const COLS = ["Year", "Date", "Event", "Corps", "Class", "Place", "Score"];
     let filtered = rows;
 
     function apply() {
-      const q = document.getElementById("fq").value.toLowerCase();
+      const q = document.getElementById("fq").value.trim().toLowerCase();
       const cls = fcls.value;
-      const y1 = +fy1.value, y2 = +fy2.value;
       filtered = rows.filter(r =>
-        r[0] >= y1 && r[0] <= y2 && (!cls || r[4] === cls) &&
-        (!q || (r[3] || "").toLowerCase().includes(q) || (r[2] || "").toLowerCase().includes(q)));
+        (!yearSet.size || yearSet.has(String(r[0]))) &&
+        (!corpsSet.size || corpsSet.has(r[3])) &&
+        (!cls || r[4] === cls) &&
+        (!q || (r[2] || "").toLowerCase().includes(q)));
       const [ci, dir] = DB.sort;
       filtered = filtered.slice().sort((a, b) => {
         const av = a[ci], bv = b[ci];
@@ -881,6 +898,14 @@
       });
       render();
     }
+
+    document.getElementById("dbReset").onclick = () => {
+      corpsSet.clear(); yearSet.clear();
+      fcls.value = "";
+      document.getElementById("fq").value = "";
+      msDbCorps.refresh(); msDbYears.refresh();
+      apply();
+    };
 
     function render() {
       const LIMIT = 800;
@@ -905,7 +930,7 @@
       });
     }
 
-    ["fq", "fcls", "fy1", "fy2"].forEach(id =>
+    ["fq", "fcls"].forEach(id =>
       document.getElementById(id).addEventListener(id === "fq" ? "input" : "change", apply));
     document.getElementById("csv").onclick = () => {
       const lines = [COLS.join(",")].concat(filtered.map(r =>
