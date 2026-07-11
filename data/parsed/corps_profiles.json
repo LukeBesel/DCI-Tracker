@@ -1,39 +1,9 @@
 {
  "27th-lancers": {},
  "3rd-glasgow-boys-brigade": {},
- "3rd-regiment": {
-  "wiki": "https://en.wikipedia.org/wiki/Phantom_Regiment_Drum_and_Bugle_Corps",
-  "title": "Phantom Regiment Drum and Bugle Corps",
-  "summary": "Phantom Regiment Drum and Bugle Corps is a World Class competitive junior drum and bugle corps based in Rockford, Illinois, USA. The corps is a long-standing member of Drum Corps International (DCI), having been a DCI World Championship Top Twelve Finalist every year since 1974 and DCI World Champions in 1996 (tie) and 2008.",
-  "img": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/PR_Logo.png/330px-PR_Logo.png",
-  "location": "Rockford, Illinois",
-  "division": "World Class",
-  "founded": "1956",
-  "director": "Dwight Emmert"
- },
- "7th-regiment": {
-  "wiki": "https://en.wikipedia.org/wiki/Phantom_Regiment_Drum_and_Bugle_Corps",
-  "title": "Phantom Regiment Drum and Bugle Corps",
-  "summary": "Phantom Regiment Drum and Bugle Corps is a World Class competitive junior drum and bugle corps based in Rockford, Illinois, USA. The corps is a long-standing member of Drum Corps International (DCI), having been a DCI World Championship Top Twelve Finalist every year since 1974 and DCI World Champions in 1996 (tie) and 2008.",
-  "img": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/PR_Logo.png/330px-PR_Logo.png",
-  "location": "Rockford, Illinois",
-  "division": "World Class",
-  "founded": "1956",
-  "director": "Dwight Emmert"
- },
  "academie-musicale": {},
  "allegiance-elite": {},
  "alliance": {},
- "alliance-drum-corps": {
-  "wiki": "https://en.wikipedia.org/wiki/Boston_Crusaders_Drum_and_Bugle_Corps",
-  "title": "Boston Crusaders Drum and Bugle Corps",
-  "summary": "The Boston Crusaders Drum and Bugle Corps is a competitive World Class drum and bugle corps. Based in Boston, Massachusetts, the Boston Crusaders are a charter member of Drum Corps International (DCI), and are the current DCI World Class Champions, winning the title for the first time in 2025.",
-  "img": "https://upload.wikimedia.org/wikipedia/en/thumb/f/f7/Boston_Crusaders_Logo.svg/330px-Boston_Crusaders_Logo.svg.png",
-  "location": "Boston, Massachusetts",
-  "division": "World Class",
-  "director": "Chris Holland",
-  "website": "https://inspirearts.org/ https://bostoncrusaders.org/"
- },
  "americanos": {},
  "anchormen": {},
  "argonne-rebels": {},
@@ -51,26 +21,6 @@
  "bayonne-raiders": {},
  "beatrix": {},
  "beijing-57-high-school": {},
- "black-gold": {
-  "wiki": "https://en.wikipedia.org/wiki/Gold_Drum_and_Bugle_Corps",
-  "title": "Gold Drum and Bugle Corps",
-  "summary": "The Gold Drum and Bugle Corps is an Open Class competitive junior drum and bugle corps. Based in Oceanside, California, Gold performs in Drum Corps International (DCI) competitions.",
-  "img": "https://upload.wikimedia.org/wikipedia/en/7/7f/NEW_Gold_Drum_and_Bugle_Corps_Logo.jpg",
-  "location": "Oceanside, California",
-  "division": "Open Class",
-  "founded": "2005",
-  "website": "http://golddrumcorps.org/"
- },
- "black-knights": {
-  "wiki": "https://en.wikipedia.org/wiki/Blue_Knights_Drum_and_Bugle_Corps",
-  "title": "Blue Knights Drum and Bugle Corps",
-  "summary": "The Blue Knights Drum and Bugle Corps is a World Class competitive junior drum and bugle corps. Based in Denver, Colorado, the Blue Knights are a member corps of Drum Corps International (DCI).",
-  "location": "Denver, Colorado",
-  "division": "World Class",
-  "founded": "1958",
-  "director": "Mark Arnold",
-  "website": "https://ascendperformingarts.org"
- },
  "black-knights-uk": {},
  "black-watch-nj": {},
  "blue-devils": {
@@ -713,5 +663,85 @@
   "division": "Open Class",
   "founded": "1938"
  },
- "taipei-yuehfu": {}
+ "taipei-yuehfu": {},
+ "tampa-bay-thunder": {},
+ "tarheel-sun": {},
+ "teal-sound": {},
+ "the-academy": {
+  "wiki": "https://en.wikipedia.org/wiki/The_Academy_Drum_and_Bugle_Corps",
+  "title": "The Academy Drum and Bugle Corps",
+  "summary": "The Academy Drum and Bugle Corps is a World Class junior competitive drum and bugle corps based in Tempe, Arizona. The corps is a member of Drum Corps International (DCI).",
+  "img": "https://upload.wikimedia.org/wikipedia/en/2/25/The_Academy_Drum_and_Bugle_Corps.png"
+ },
+ "the-battalion": {
+  "wiki": "https://en.wikipedia.org/wiki/The_Battalion_Drum_and_Bugle_Corps",
+  "title": "The Battalion Drum and Bugle Corps",
+  "summary": "The Battalion Drum and Bugle Corps is a junior drum and bugle corps based in Salt Lake City, Utah. The ensemble competes in the Open Class division of Drum Corps International (DCI).",
+  "img": "https://upload.wikimedia.org/wikipedia/en/8/89/The_Battalion_Drum_and_Bugle_Corps_logo.jpg",
+  "location": "Salt Lake City, Utah, U.S.",
+  "founded": "2014",
+  "director": "Tyler Hess",
+  "division": "DCI Open Class",
+  "website": "[https://www.battalioncorps.org battalioncorps.org]"
+ },
+ "the-cadets": {
+  "wiki": "https://en.wikipedia.org/wiki/The_Cadets_Drum_and_Bugle_Corps",
+  "title": "The Cadets Drum and Bugle Corps",
+  "summary": "The Cadets Drum and Bugle Corps was a junior drum and bugle corps that operated from 1934 to 2024.",
+  "img": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d7/Cadets_annapolis.jpg/330px-Cadets_annapolis.jpg"
+ },
+ "the-cavaliers": {
+  "wiki": "https://en.wikipedia.org/wiki/The_Cavaliers_Drum_and_Bugle_Corps",
+  "title": "The Cavaliers Drum and Bugle Corps",
+  "summary": "The Cavaliers Drum and Bugle Corps is a World Class competitive junior drum and bugle corps based in Rosemont, Illinois. The Cavaliers were one of the thirteen founding member corps of Drum Corps International and is a seven-time DCI World Champion. The Cavaliers are the only active all-male corps remaining in the activity.",
+  "img": "https://upload.wikimedia.org/wikipedia/en/2/2c/CavaliersStandingMan.png",
+  "location": "Rosemont, Illinois",
+  "division": "World Class",
+  "director": "Daniel Belcher",
+  "website": "https://cavaliers.org/"
+ },
+ "the-company": {},
+ "the-phoenix": {},
+ "the-yokohama-scouts": {},
+ "thunder": {},
+ "tivoli-gardens": {},
+ "troopers": {
+  "wiki": "https://en.wikipedia.org/wiki/Troopers_Drum_and_Bugle_Corps",
+  "title": "Troopers Drum and Bugle Corps",
+  "summary": "The Troopers Drum and Bugle Corps is a World Class competitive junior drum and bugle corps. Based in Casper, Wyoming, the Troopers was one of the thirteen founding member corps of Drum Corps International (DCI).",
+  "img": "https://upload.wikimedia.org/wikipedia/en/thumb/c/c5/New_Troopers_logo.png/330px-New_Troopers_logo.png",
+  "location": "Casper, Wyoming",
+  "division": "World Class",
+  "founded": "1957",
+  "director": "Mary Duerkop",
+  "website": "https://troopersdrumcorps.org"
+ },
+ "valley-sound": {},
+ "vanguard-cadets": {},
+ "velvet-knights": {},
+ "ventures": {},
+ "vessel": {},
+ "vigilantes": {},
+ "watchmen": {},
+ "west-sayville-golden-eagles-minicorps": {},
+ "westshoremen": {},
+ "white-sabers": {
+  "wiki": "https://en.wikipedia.org/wiki/White_Sabers_Drum_and_Bugle_Corps",
+  "title": "White Sabers Drum and Bugle Corps",
+  "summary": "White Sabers Drum & Bugle Corps is an all-age competitive drum and bugle corps based in Gates, NY. Founded in 1928, the corps has a long history as a parade corps. White Sabers is a two-time DCA Class A World Champion, a perennial DCA Open Class finalist - achieving 4th place in 2019. The Corps began competing in DCA's new World Class in 2022.",
+  "img": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2d/WhiteSabers.jpg/330px-WhiteSabers.jpg",
+  "location": "Gates, NY",
+  "division": "Class A (2005–14) Open Class (2015–2021, 2023-Present) World Class (2022)",
+  "website": "whitesabers.org"
+ },
+ "windsor-regiment": {},
+ "yamato": {},
+ "yokohama-inspires": {},
+ "yokohama-scouts": {},
+ "zephyrus": {},
+ "3rd-regiment": {},
+ "7th-regiment": {},
+ "alliance-drum-corps": {},
+ "black-gold": {},
+ "black-knights": {}
 }

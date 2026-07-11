@@ -27,7 +27,8 @@ That's it. `GET /` shows a status JSON (subscriber count, last check, pushes sen
 
 ## API
 
-- `GET /` — status
+- `GET /` — redirects to the Cadence app (humans land somewhere useful)
+- `GET /status` — status JSON (subscriber count, last check, pushes sent)
 - `GET /vapid` — public key for the browser's `pushManager.subscribe`
 - `POST /subscribe` — `{subscription, favs: ["Bluecoats", …]}`
 - `POST /unsubscribe` — `{endpoint}`

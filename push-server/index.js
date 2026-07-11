@@ -141,6 +141,10 @@ http.createServer(async (req, res) => {
   try { json = body ? JSON.parse(body) : {}; } catch {}
 
   if (req.method === "GET" && url.pathname === "/") {
+    // humans who click the relay's URL should land on the app itself
+    return res.writeHead(302, { Location: SITE, ...CORS }).end();
+  }
+  if (req.method === "GET" && url.pathname === "/status") {
     return send(res, 200, { ok: true, service: "cadence-push", subscribers: subs.size, ...status });
   }
   if (req.method === "GET" && url.pathname === "/vapid") {
