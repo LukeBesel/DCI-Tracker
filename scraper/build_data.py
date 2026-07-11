@@ -97,18 +97,25 @@ def load_events():
         for c in ev["classes"]:
             if IE_CLASS.search(norm_space(c.get("class") or "")):
                 continue  # individual/ensemble category, not corps competition
-            cc = canon_class(c.get("class"))
+            raw_label = norm_space(c.get("class") or "")
+            cc = canon_class(raw_label)
             results = [dict(r, corps=canon_corps(r["corps"])) for r in c["results"] if r.get("corps")]
             if not results or cc == "Exhibition":
                 continue
-            classes.append({"class": cc, "results": results})
-        # merge duplicate canonical classes
-        merged: dict[str, dict] = {}
+            entry = {"class": cc, "results": results}
+            # sub-divisions ("All-Age - World Class") keep their own group and
+            # label so placements stay truthful; aggregations use the canon class
+            if raw_label and raw_label != cc:
+                entry["label"] = raw_label
+            classes.append(entry)
+        # merge duplicate groups only when the displayed label also matches
+        merged: dict[tuple, dict] = {}
         for c in classes:
-            if c["class"] in merged:
-                merged[c["class"]]["results"].extend(c["results"])
+            key = (c["class"], c.get("label") or "")
+            if key in merged:
+                merged[key]["results"].extend(c["results"])
             else:
-                merged[c["class"]] = c
+                merged[key] = c
         for c in merged.values():
             c["results"].sort(key=lambda r: (r["place"] if r["place"] is not None else 99, -(r["score"] or 0)))
         ev["classes"] = list(merged.values())
@@ -166,12 +173,16 @@ def build_seasons(events):
     season_index = []
     for year, evs in sorted(by.items()):
         evs.sort(key=lambda e: (e.get("date") or f"{year}-12-31", e.get("name") or ""))
+        # raw recap tables ship no more: their nested-header dumps rendered
+        # scrambled; the verified caption breakdown (captions/<year>.json)
+        # is the readable, arithmetically-checked version of the same data
         slim = [{
             "name": ev.get("name"), "date": ev.get("date"),
             "date_display": ev.get("date_display"), "location": ev.get("location"),
             "url": ev.get("url"), "recap_url": ev.get("recap_url"),
             "source": ev.get("source"),
-            "classes": ev.get("classes"), "recap": ev.get("recap"),
+            "classes": ev.get("classes"),
+            "has_recap": bool(ev.get("recap")),
         } for ev in evs]
         write_json(f"seasons/{year}.json", slim)
         season_index.append({"year": year, "events": len(evs)})
@@ -378,8 +389,10 @@ def _ge_readings(ts, tot):
         cands = [((ts[0] + ts[1]) / 2, (ts[2] + ts[3]) / 2)]
     else:
         return []
-    return [(round(g1, 3), round(g2, 3)) for g1, g2 in cands
-            if abs(g1 + g2 - tot) < EPS]
+    ok = [(round(g1, 3), round(g2, 3), abs(g1 + g2 - tot)) for g1, g2 in cands
+          if abs(g1 + g2 - tot) < EPS]
+    exact = [c[:2] for c in ok if c[2] < 5e-4]
+    return exact if exact else [c[:2] for c in ok]
 
 
 def _capt_readings(ts, tot):
@@ -393,8 +406,10 @@ def _capt_readings(ts, tot):
                  (ts[0], ts[1], (ts[2] + ts[3]) / 2)]
     else:
         return []
-    return [tuple(round(x, 3) for x in c) for c in cands
-            if abs(sum(c) / 2 - tot) < EPS]
+    ok = [(tuple(round(x, 3) for x in c), abs(sum(c) / 2 - tot)) for c in cands
+          if abs(sum(c) / 2 - tot) < EPS]
+    exact = [c for c, d in ok if d < 5e-4]
+    return exact if exact else [c for c, d in ok]
 
 
 def _parse_full_panel(a):
@@ -436,10 +451,21 @@ def _parse_full_panel(a):
                                 [ge1, ge2, round(ge_tot, 3), vp, va, cg,
                                  round(vis_tot, 3), br, ma, pc,
                                  round(mus_tot, 3), pen, tot], sub))
-    distinct = {tuple(r[0]) for r in results}
-    if len(distinct) != 1:
-        return None  # unparseable or ambiguous — never guess
-    return results[0]
+    if not results:
+        return None
+    subs = {round(r[1], 3) for r in results}
+    if len(subs) != 1:
+        return None  # layouts disagree on the subtotal — reject outright
+    # element-wise consensus: agreed values publish; a caption the sheet's
+    # arithmetic can't pin down goes null instead of sinking the whole row
+    consensus = []
+    for pos in range(13):
+        vs = {r[0][pos] for r in results}
+        consensus.append(vs.pop() if len(vs) == 1 else None)
+    # totals must never be ambiguous
+    if any(consensus[i] is None for i in (2, 6, 10, 11, 12)):
+        return None
+    return consensus, results[0][1]
 
 
 def _layout_19(a):  # reduced panel: judge assignments vary and sub-caption
@@ -529,6 +555,14 @@ def build_captions(events):
             return 1
         return 3                              # finals (or single-day championship)
     title_keys = CAPTION_COLS[:-2]          # every judged caption; no pen/tot
+    # participants per (year, event, class) from the scoreboard, to catch
+    # recaps that dropped finalists during verification
+    participants = defaultdict(set)
+    for ev in events:
+        for c in ev.get("classes") or []:
+            for r in c.get("results") or []:
+                if r.get("score"):
+                    participants[(ev["year"], ev.get("name"), c["class"])].add(r["corps"])
     titles_out = defaultdict(list)
     for year, rows in by_year.items():
         pick = {}                            # cls -> best (tier, date, event)
@@ -540,23 +574,33 @@ def build_captions(events):
                     pick[r[2]] = cand
         for cls, (tier, d, evname) in pick.items():
             best = {}
+            nulls = defaultdict(int)   # corps whose value for a caption is unverifiable
             for r in rows:
                 if r[2] != cls or r[1] != evname or (r[0] or "") != d:
                     continue
                 for i, k in enumerate(title_keys):
                     v = r[4 + i]
                     if v is None:
+                        nulls[k] += 1
                         continue
                     if k not in best or v > best[k][1]:
                         best[k] = ([r[3]], v)
                     elif v == best[k][1] and r[3] not in best[k][0]:
                         best[k][0].append(r[3])
             if best:
-                titles_out[cls].append({
+                have = {r[3] for r in rows if r[2] == cls and r[1] == evname and (r[0] or "") == d}
+                missing = participants.get((year, evname, cls), set()) - have
+                # a winner is only certain when every competitor's value for
+                # that caption verified; otherwise it carries an asterisk
+                entry = {
                     "y": year, "d": d or None, "event": evname,
                     "round": {3: "finals", 2: "semifinals", 1: "prelims"}[tier],
-                    "w": {k: [" & ".join(ns), v] for k, (ns, v) in best.items()},
-                })
+                    "w": {k: [" & ".join(ns), v] + ([1] if (nulls.get(k) or missing) else [])
+                          for k, (ns, v) in best.items()},
+                }
+                if missing:
+                    entry["partial"] = sorted(missing)
+                titles_out[cls].append(entry)
     for cls in titles_out:
         titles_out[cls].sort(key=lambda e: e["y"])
     write_json("caption_titles.json", dict(titles_out))
@@ -701,7 +745,6 @@ def main():
     rankings = build_rankings(events)
     build_captions(events)
     build_records(events)
-    build_pace(events, champions)
     build_upcoming()
 
     write_json("champions.json", champions)

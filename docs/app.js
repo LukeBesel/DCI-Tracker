@@ -432,7 +432,7 @@
         <tr><td class="rank">${b.rb}</td><td>${corpsLink(b.b)}</td><td class="num score">${score3(b.sb)}</td></tr>
       </table>
       <div style="margin-top:8px;font-size:13px;color:var(--text-secondary)">Gap: <b style="color:var(--bad)">${b.gap.toFixed(3)}</b></div>`
-      : "<h2>Closest Battle</h2><div class='empty'>—</div>";
+      : "<h2>Closest Battle</h2><div class='empty'>Needs two corps within striking distance.</div>";
   }
 
   /* ============ CORPS HUB (directory + compare) ============ */
@@ -801,9 +801,9 @@
       <div class="card" style="margin-top:14px"><h2 id="perfTitle">Performance Log</h2>
         <div id="perfTable"></div></div>
       <div class="grid cols-tiles" style="margin-top:14px">
-        <div class="tile"><div class="label">Performances</div><div class="value">${perfs.length}</div><div class="sub">${years[0]}–${years[years.length - 1]}</div></div>
+        <div class="tile"><div class="label">Performances</div><div class="value">${perfs.length}</div><div class="sub">${years.length} seasons in the database</div></div>
         <div class="tile"><div class="label">Best score</div><div class="value">${scored.length ? score3(Math.max(...scored.map(p => p.s))) : "—"}</div></div>
-        <div class="tile"><div class="label">Titles</div><div class="value">${titles.length}</div><div class="sub">${esc(titles.slice(-3).join(" · ") || "—")}</div></div>
+        <div class="tile"><div class="label">Titles</div><div class="value">${titles.length}</div><div class="sub">${esc(titles.length <= 6 ? titles.join(" · ") || "—" : titles.slice(-3).join(" · ") + ` · +${titles.length - 3} more`)}</div></div>
       </div>`;
 
     // the year filter drives BOTH the chart and the log; one year shows the
@@ -835,7 +835,7 @@
       // so years the corps didn't march show as real gaps and an in-progress
       // season sits as its own point instead of dragging the line
       const range = sel.length ? `${sel[0]}–${sel[sel.length - 1]}` : "";
-      title.innerHTML = `Top Score by Year${range ? ` — ${range}` : ""} <span class="sub">gaps = seasons not marched · <a href="#/compare?c=${slug}&y=${cmpYears}">compare seasons →</a></span>`;
+      title.innerHTML = `Top Score by Year${range ? ` — ${range}` : ""} <span class="sub">gaps = seasons not yet in the database · <a href="#/compare?c=${slug}&y=${cmpYears}">compare seasons →</a></span>`;
       const ptsAll = years.map((y, i) => ({ x: y, y: bestByYear[i] }))
         .filter(p => p.y && (!sel.length || yearSet.has(String(p.x))));
       const segs = [];
@@ -985,7 +985,7 @@
   function eventBodyHtml(ev, year, i) {
     if (ev.future) {
       return (ev.lineup || []).length
-        ? h`<h3 class="evcls">Scheduled lineup <span class="kicker">${ev.lineup.length} corps</span></h3>
+        ? h`<h3 class="evcls">Scheduled Lineup <span class="kicker">${ev.lineup.length} corps</span></h3>
             <table class="t"><tbody>
             ${ev.lineup.map(c => `<tr><td>${corpsLink(c)}</td><td class="num" style="color:var(--muted)">upcoming</td></tr>`).join("")}
             </tbody></table>`
@@ -993,12 +993,12 @@
     }
     return h`
       ${(ev.classes || []).map(c => h`
-        <h3 class="evcls">${esc(c.class)} <span class="kicker">${c.results.length} corps</span></h3>
+        <h3 class="evcls">${esc(c.label || c.class)} <span class="kicker">${c.results.length} corps</span></h3>
         <table class="t"><tbody>
         ${c.results.map(r => `<tr><td class="rank">${r.place ?? "—"}</td><td>${corpsLink(r.corps)}</td><td class="num score">${score3(r.score)}</td></tr>`).join("")}
         </tbody></table>`).join("")}
       <div style="margin-top:10px;font-size:13px">
-        <a href="#/event/${year}/${i}">${(ev.recap && ev.recap.length) ? "Caption recap & full page →" : "Event page →"}</a>
+        <a href="#/event/${year}/${i}">${ev.has_recap ? "Caption breakdown & full page →" : "Event page →"}</a>
       </div>`;
   }
 
@@ -1051,7 +1051,7 @@
         <h2>Final Standings <span class="sub">${esc(fe.name)} · ${esc(fmtDateY(fe.date) || fe.date_display || "")}</span></h2>
         <div class="grid cols-tiles">
         ${(fe.classes || []).map(c => h`<div>
-          <h3 class="evcls" style="margin-top:4px">${esc(c.class)}</h3>
+          <h3 class="evcls" style="margin-top:4px">${esc(c.label || c.class)}</h3>
           <table class="t"><tbody>
           ${(c.results || []).slice(0, 5).map(r => `<tr><td class="rank">${r.place ?? "—"}</td><td>${corpsLink(r.corps)}</td><td class="num score">${score3(r.score)}</td></tr>`).join("")}
           </tbody></table></div>`).join("")}
@@ -1105,33 +1105,46 @@
       const cls = fClsVal;
       const q = document.getElementById("fQ").value.trim().toLowerCase();
       const idxs = events.map((ev, i) => [ev, i]).filter(([ev]) => matches(ev, cls, q));
-      // reading order for "what's happening": next show first, then the
+      // reading order for "what's happening": the next few shows, then the
       // most recent results, back through the season
       idxs.sort(([a], [b]) => {
         if (!!a.future !== !!b.future) return a.future ? -1 : 1;
         const cmpd = (a.date || "").localeCompare(b.date || "");
         return a.future ? cmpd : -cmpd;
       });
+      const futureN = idxs.filter(([e]) => e.future).length;
+      const upCap = upOpen ? Infinity : 5;
+      let upSeen = 0;
+      const shownIdxs = idxs.filter(([e]) => !e.future || upSeen++ < upCap);
       document.getElementById("evcount").textContent =
         idxs.length === events.length ? "" : `${idxs.length} of ${events.length} events match`;
-      list.innerHTML = idxs.map(([ev, i]) => {
+      list.innerHTML = shownIdxs.map(([ev, i]) => {
         const winner = eventWinner(ev);
         return h`<div class="evrow card" data-i="${i}">
           <button class="evhead" aria-expanded="false">
             <span class="evwhen">${fmtDate2(ev.date, ev.date_display)}</span>
-            <span class="evmain"><b>${esc(ev.name)}${(ev.recap && ev.recap.length) ? ' <span class="pill evpill">recap</span>' : ""}</b><span class="evloc">${esc(ev.location || "")}</span></span>
+            <span class="evmain"><b>${esc(ev.name)}${ev.has_recap ? ' <span class="pill evpill">recap</span>' : ""}</b><span class="evloc">${esc(ev.location || "")}</span></span>
             <span class="evwin">${ev.future ? '<span class="pill">upcoming</span>' : winner ? h`${esc(winner.corps)}<b>${score3(winner.score)}</b>` : ""}</span>
             <span class="caret">▸</span>
           </button>
           <div class="evbody" hidden></div>
         </div>`;
       }).join("") || "<div class='card'><div class='empty'>No events match those filters.</div></div>";
+      if (futureN > upCap) {
+        const btn = document.createElement("button");
+        btn.className = "tab";
+        btn.style.cssText = "display:block;margin:2px auto 12px";
+        btn.textContent = `Show all ${futureN} upcoming ▾`;
+        btn.onclick = () => { upOpen = true; render(); };
+        list.insertBefore(btn, list.children[Math.min(5, list.children.length)] || null);
+      }
       list.querySelectorAll(".evrow").forEach(row => {
         row.querySelector(".evhead").onclick = () => toggle(row);
       });
     }
 
     let allOpen = false;
+    let upOpen = false;
     let fClsVal = "";
     singleSelect(document.getElementById("fCls"), {
       label: "All classes",
@@ -1158,10 +1171,13 @@
     if (!ev) { app.innerHTML = "<div class='empty'>Event not found.</div>"; return; }
 
     // verified caption breakdown for this show, when available
+    // (recaps only exist for the DCI.org era — skip the fetch for old years)
     let capRows = [];
     try {
-      const all = await data(`captions/${year}.json`);
-      capRows = all.filter(r => r[1] === ev.name && (!ev.date || r[0] === ev.date));
+      if (+year >= 2013) {
+        const all = await data(`captions/${year}.json`);
+        capRows = all.filter(r => r[1] === ev.name && (!ev.date || r[0] === ev.date));
+      }
     } catch (e) { /* captions not built for this season */ }
     if (stale()) return; // bail whether the captions fetch succeeded or not
     const capByClass = new Map();
@@ -1172,11 +1188,11 @@
     });
     const CAP_HEAD = [["ge", "GE"], ["vp", "VP"], ["va", "VA"], ["cg", "CG"], ["br", "BR"], ["ma", "MA"], ["pc", "PC"], ["tot", "Total"]];
     const CIDX = { date: 0, event: 1, cls: 2, corps: 3, ge1: 4, ge2: 5, ge: 6, vp: 7, va: 8, cg: 9, vis: 10, br: 11, ma: 12, pc: 13, mus: 14, pen: 15, tot: 16 };
-    const capTable = cls => {
+    const capTable = (cls, ci) => {
       const rows = (capByClass.get(cls) || []).slice().sort((a, b) => b[CIDX.tot] - a[CIDX.tot]);
       if (!rows.length) return "";
-      return h`<h3 class="evcls" style="margin-top:14px">Caption breakdown <span class="kicker">verified against the official recap</span></h3>
-        <div class="tscroll"><table class="t"><thead><tr><th>Corps</th>${CAP_HEAD.map(([, l]) => `<th class="num">${l}</th>`).join("")}</tr></thead><tbody>
+      return h`<h3 class="evcls" style="margin-top:14px">Caption Breakdown <span class="kicker">verified against the official recap</span></h3>
+        <div class="tscroll"><table class="t"><thead><tr><th>Corps</th>${CAP_HEAD.map(([, l]) => `<th class="num">${l}</th>`).join("")}</tr></thead><tbody class="evcap" data-ci="${ci}">
         ${rows.map(r => `<tr><td>${corpsLink(r[CIDX.corps])}</td>${CAP_HEAD.map(([k]) =>
           `<td class="num${k === "tot" ? " score" : ""}">${r[CIDX[k]] == null ? "—" : (+r[CIDX[k]]).toFixed(k === "tot" ? 3 : 2)}</td>`).join("")}</tr>`).join("")}
         </tbody></table></div>${CAP_KEY_NOTE}`;
@@ -1186,20 +1202,14 @@
       <div class="crumbs"><a href="#/seasons">Seasons</a> / <a href="#/season/${year}">${year}</a> / ${esc(ev.name)}</div>
       <h1 class="page">${esc(ev.name)}</h1>
       <p class="lede">${esc(fmtDateY(ev.date) || ev.date_display || "")}${ev.location ? " · " + esc(ev.location) : ""}${ev.url ? h` · <a href="${encodeURI(ev.url)}" target="_blank" rel="noopener">source ↗</a>` : ""}</p>
-      ${(ev.classes || []).map(c => h`
-        <div class="card" style="margin-bottom:14px"><h2>${esc(c.class)}</h2>
-        <table class="t"><thead><tr><th>#</th><th>Corps</th><th class="num">Score</th></tr></thead><tbody>
+      ${(ev.classes || []).map((c, ci) => h`
+        <div class="card" style="margin-bottom:14px"><h2>${esc(c.label || c.class)}</h2>
+        <div class="tscroll"><table class="t"><thead><tr><th>#</th><th>Corps</th><th class="num">Score</th></tr></thead><tbody class="evres" data-ci="${ci}">
         ${c.results.map(r => `<tr><td class="rank">${r.place ?? "—"}</td><td>${corpsLink(r.corps)}</td><td class="num score">${score3(r.score)}</td></tr>`).join("")}
-        </tbody></table>
-        ${capTable(c.class)}</div>`).join("")}
-      ${(ev.recap || []).map(rc => h`
-        <div class="card" style="margin-bottom:14px"><h2>Caption Recap — ${esc(rc.class)}</h2>
-        <div class="tscroll dense"><table class="t">
-          ${(rc.captions || []).length ? `<thead><tr>${rc.captions.map(c => `<th>${esc(c)}</th>`).join("")}</tr></thead>` : ""}
-          <tbody>${rc.rows.map(r => `<tr>${r.cells.map(c => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody>
-        </table></div>
-        ${ev.recap_url ? `<div style="margin-top:8px;font-size:12.5px"><a href="${encodeURI(ev.recap_url)}" target="_blank" rel="noopener">Official recap ↗</a></div>` : ""}
-        </div>`).join("")}`;
+        </tbody></table></div>
+        ${capTable(c.class, ci)}</div>`).join("")}
+      ${ev.recap_url ? `<p style="font-size:12.5px;color:var(--muted)"><a href="${encodeURI(ev.recap_url)}" target="_blank" rel="noopener">Official recap on DCI.org ↗</a></p>` : ""}`;
+    document.querySelectorAll(".evres, .evcap").forEach(tb => collapseRows(tb, 5, "corps"));
   }
 
   /* ============ CAPTIONS ============ */
@@ -1257,6 +1267,7 @@
         </div>
         <div id="titlesBody"><div class="loading">Loading…</div></div>
         ${CAP_KEY_NOTE}
+        <p class="capkey">* one or more recap rows for that night couldn't be fully verified — the winner shown leads among verified scores</p>
       </div>`;
 
 
@@ -1345,7 +1356,7 @@
           <td class="rank">${b.rank}</td>
           <td>${corpsLink(b.corps)}</td>
           <td class="num score">${score3(b.best)}</td>
-          <td style="color:var(--muted);font-size:12.5px">${esc(b.bestEv)} · ${esc(fmtDateY(b.bestD))}</td>
+          <td style="color:var(--muted);font-size:12.5px;white-space:nowrap">${esc(b.bestEv)} · ${esc(fmtDateY(b.bestD))}</td>
           <td class="num col-high">${score3(b.latest)}</td>
           <td class="num col-perfs">${b.n}</td></tr>`).join("")}
         </tbody></table>` : "<div class='empty'>No recap data for this caption yet — it fills in as recaps are scraped.</div>";
@@ -1466,8 +1477,8 @@
       }
       if (titlesMode === "years") {
         el.innerHTML = `<div class="tscroll"><table class="t"><thead><tr><th>Year</th>${capsShown.map(([, l]) => `<th>${l}</th>`).join("")}</tr></thead><tbody id="titleRows">
-          ${list.map(e => `<tr><td style="white-space:nowrap"><a href="#/season/${e.y}"><b>${e.y}</b></a>${e.round !== "finals" ? ` <span class="kicker">${esc(e.round)}</span>` : ""}</td>
-            ${capsShown.map(([k]) => { const w = e.w[k]; return w ? `<td><b>${esc(w[0])}</b> <span class="kicker">${(+w[1]).toFixed(2)}</span></td>` : "<td style='color:var(--muted)'>—</td>"; }).join("")}</tr>`).join("")}
+          ${list.map(e => `<tr><td style="white-space:nowrap"><a href="#/season/${e.y}"><b>${e.y}</b></a>${e.round !== "finals" ? ` <span class="kicker">${esc(e.round)}</span>` : ""}${e.partial ? ` <span class="kicker" title="recap missing: ${esc(e.partial.join(", "))}">partial</span>` : ""}</td>
+            ${capsShown.map(([k]) => { const w = e.w[k]; return w ? `<td style="white-space:nowrap"><b>${esc(w[0])}</b> <span class="kicker">${(+w[1]).toFixed(2)}${w[2] ? "*" : ""}</span></td>` : "<td style='color:var(--muted)'>—</td>"; }).join("")}</tr>`).join("")}
         </tbody></table></div>`;
       } else {
         const count = new Map();
@@ -1499,7 +1510,7 @@
     singleSelect(document.getElementById("capKey"), {
       label: "Caption", options: CAPTION_DEFS.map(([k, l]) => ({ value: k, label: l })),
       value: capKey,
-      onChange: v => { capKey = v; update(); },
+      onChange: v => { capKey = v; seedPick = true; update(); },
     });
     await loadYear();
   }
@@ -1592,7 +1603,7 @@
       document.getElementById("fq").value = "";
 
       const years = [...new Set(rows.map(r => r[0]))].sort((a, b) => b - a);
-      const classes = [...new Set(rows.map(r => r[cfg.clsIdx]).filter(Boolean))].sort();
+      const classes = sortClasses([...new Set(rows.map(r => r[cfg.clsIdx]).filter(Boolean))]);
       const corpsNames = [...new Set(rows.map(r => r[cfg.corpsIdx]).filter(Boolean))].sort();
       const clsOpts = [{ value: "", label: "All classes" }, ...classes.map(c => ({ value: c, label: c }))];
       fclsVal = "";
@@ -1647,7 +1658,7 @@
     }
 
     function cellHtml(r, i) {
-      if (i === 0) return `<td class="num" style="text-align:left">${r[0]}</td>`;
+      if (i === 0) return `<td class="num m-hide" style="text-align:left">${r[0]}</td>`;
       if (i === cfg.dateIdx) return `<td style="color:var(--muted);white-space:nowrap">${fmtDate2(r[i])}</td>`;
       if (i === cfg.corpsIdx) return `<td>${corpsLink(r[i])}</td>`;
       if (i === cfg.clsIdx) return `<td><span class="pill">${esc(r[i] || "")}</span></td>`;
@@ -1667,7 +1678,7 @@
       const more = filtered.length - shown;
       document.getElementById("dbtable").innerHTML =
         `<div class="tscroll dense"><table class="t"><thead><tr>${cfg.cols.map((c, i) =>
-          `<th style="cursor:pointer;user-select:none" data-c="${i}">${c}${i === ci ? (dir > 0 ? " ↑" : " ↓") : ""}</th>`).join("")}</tr></thead><tbody>
+          `<th style="cursor:pointer;user-select:none" class="${i === 0 ? "m-hide" : ""}" data-c="${i}">${c}${i === ci ? (dir > 0 ? " ↑" : " ↓") : ""}</th>`).join("")}</tr></thead><tbody>
         ${filtered.slice(0, shown).map(r =>
           `<tr>${cfg.cols.map((c, i) => cellHtml(r, i)).join("")}</tr>`).join("")}</tbody></table></div>` +
         (more > 0 ? `<div class="expandwrap"><button class="tab" id="dbMore">Show ${Math.min(100, more).toLocaleString()} more ▾ <span class="kicker">(${(shown).toLocaleString()} of ${filtered.length.toLocaleString()})</span></button></div>` : "");
@@ -1675,7 +1686,9 @@
       if (mb) mb.onclick = () => { shown += 100; render(); };
       document.querySelectorAll("#dbtable th").forEach(th => th.onclick = () => {
         const c = +th.dataset.c;
-        DB.sort = DB.sort[0] === c ? [c, -DB.sort[1]] : [c, c === 0 || c >= 5 ? -1 : 1];
+        DB.sort = DB.sort[0] === c
+          ? [c, -DB.sort[1]]
+          : [c, c === 0 || c === cfg.dateIdx || cfg.scoreCols.includes(c) ? -1 : 1];
         apply();
       });
     }
@@ -1953,7 +1966,7 @@
           app.innerHTML = firstBuildPending
             ? `<div class="card" style="text-align:center;padding:48px 20px">
                  <div style="font-size:40px;margin-bottom:10px">🥁</div>
-                 <h2 style="margin:0 0 8px">First data build in progress</h2>
+                 <h2 style="margin:0 0 8px">First Data Build in Progress</h2>
                  <p style="color:var(--text-secondary);max-width:52ch;margin:0 auto">Scores are being pulled from DCI.org right now. This page fills in automatically when it finishes.</p>
                </div>`
             : `<div class="card"><div class="empty">Couldn't load this view (${CCViz.esc(e.message)}). Data may be mid-update — try again in a minute.</div></div>`;
