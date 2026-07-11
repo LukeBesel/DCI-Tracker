@@ -227,7 +227,13 @@
           cb.checked = cfg.selected.has(String(o.value));
           cb.onchange = () => {
             const k = String(o.value);
-            cb.checked ? cfg.selected.add(k) : cfg.selected.delete(k);
+            if (cfg.single) {
+              cfg.selected.clear();
+              cfg.selected.add(k);
+              closeMsels();
+            } else {
+              cb.checked ? cfg.selected.add(k) : cfg.selected.delete(k);
+            }
             renderBtn();
             cfg.onChange([...cfg.selected]);
           };
@@ -425,24 +431,24 @@
     return out;
   }
 
+  // corps "type" = the class it most recently competed in, folded into the
+  // major families (historical junior divisions etc. group under Historical)
+  const TYPE_FAMILIES = ["World Class", "Open Class", "All-Age", "International"];
+  const corpsClass = c => {
+    for (let i = (c.series || []).length - 1; i >= 0; i--) {
+      const k = c.series[i][2];
+      if (k) return TYPE_FAMILIES.includes(k) ? k : "Historical";
+    }
+    return "Historical";
+  };
+
   async function viewCorpsHub(qs, stale) {
-    setNav("corps");
+    setNav("compare");
     const [meta, idx, rk] = await Promise.all([
       data("meta.json"), data("corps_index.json"), data("rankings.json").catch(() => null)]);
     if (stale()) return;
     const allYears = meta.seasons.map(s => s.year).sort((a, b) => b - a);
     const bySlug = new Map(idx.map(c => [c.slug, c]));
-
-    // corps "type" = the class it most recently competed in, folded into the
-    // major families (historical junior divisions etc. group under Historical)
-    const TYPE_FAMILIES = ["World Class", "Open Class", "All-Age", "International"];
-    const corpsClass = c => {
-      for (let i = (c.series || []).length - 1; i >= 0; i--) {
-        const k = c.series[i][2];
-        if (k) return TYPE_FAMILIES.includes(k) ? k : "Historical";
-      }
-      return "Historical";
-    };
     const classList = sortClasses([...new Set(idx.map(corpsClass))]);
     const savedCls = localStorage.getItem("dt-corpsclass");
     let clsFilter = savedCls != null && (savedCls === "" || classList.includes(savedCls))
@@ -485,11 +491,11 @@
       sessionStorage.setItem("cmp-corps", JSON.stringify(corpsSel));
       sessionStorage.setItem("cmp-years", JSON.stringify(yearsSel));
       const q = `c=${corpsSel.join(",")}&y=${yearsSel.slice().sort((a, b) => b - a).join(",")}`;
-      history.replaceState(null, "", `#/corps?${q}`);
+      history.replaceState(null, "", `#/compare?${q}`);
     }
 
     app.innerHTML = `
-      <h1 class="page">Corps</h1>
+      <h1 class="page">Compare <span class="kicker">· any corps, any seasons</span></h1>
       <div class="card">
         <h2>Compare <span class="sub">any corps, any seasons, one chart</span></h2>
         <div class="filters" style="margin-bottom:10px">
@@ -671,20 +677,90 @@
     draw();
   }
 
-  /* ============ CORPS DETAIL ============ */
-  async function viewCorps(slug, stale) {
+  /* ============ CORPS (single-corps tab) ============ */
+  async function viewCorpsPage(slug, stale) {
     setNav("corps");
+    const [idx, rk] = await Promise.all([
+      data("corps_index.json"), data("rankings.json").catch(() => null)]);
+    if (stale()) return;
+    const bySlug = new Map(idx.map(c => [c.slug, c]));
+    const classList = sortClasses([...new Set(idx.map(corpsClass))]);
+    const savedCls = localStorage.getItem("dt-corpsclass");
+    let clsFilter = savedCls != null && (savedCls === "" || classList.includes(savedCls))
+      ? savedCls
+      : (classList.includes("World Class") ? "World Class" : "");
+
+    // default corps: the deep-linked one, else the current leader
+    let current = slug && bySlug.has(slug) ? slug : null;
+    if (!current && rk && rk.standings) {
+      const rows = (rk.standings["World Class"] || Object.values(rk.standings)[0] || {}).rows || [];
+      current = rows.length ? slugOf(rows[0].corps) : null;
+      if (current && !bySlug.has(current)) current = null;
+    }
+    if (!current) current = idx[0] && idx[0].slug;
+    // the deep-linked corps drives the type filter, not vice versa
+    if (slug && bySlug.has(slug)) {
+      const t = corpsClass(bySlug.get(slug));
+      if (clsFilter && t !== clsFilter) clsFilter = t;
+    }
+
+    app.innerHTML = `
+      <h1 class="page" id="corpsPageTitle">Corps</h1>
+      <div class="filters">
+        <select class="ctrl" id="cpCls" title="Corps type"></select>
+        <div id="cpCorps"></div>
+      </div>
+      <div id="corpsDetail"><div class="loading">Loading…</div></div>`;
+
+    const cpCls = document.getElementById("cpCls");
+    cpCls.add(new Option("All types", ""));
+    classList.forEach(c => cpCls.add(new Option(c, c)));
+    cpCls.value = clsFilter;
+
+    const corpsOpts = () => idx
+      .filter(c => !clsFilter || corpsClass(c) === clsFilter)
+      .sort((a, b) => b.last - a.last || a.name.localeCompare(b.name))
+      .map(c => ({ value: c.slug, label: c.name, hint: c.first === c.last ? String(c.first) : `${c.first}–${c.last}` }));
+    const pickSet = new Set(current ? [current] : []);
+    const msPick = multiSelect(document.getElementById("cpCorps"), {
+      label: "Pick a corps…", searchable: true, single: true,
+      labelFor: v => (bySlug.get(v) || { name: v }).name,
+      options: corpsOpts(),
+      selected: pickSet,
+      onChange: v => { if (v[0] && v[0] !== current) { current = v[0]; load(); } },
+    });
+    cpCls.onchange = () => {
+      clsFilter = cpCls.value;
+      localStorage.setItem("dt-corpsclass", clsFilter);
+      msPick.setOptions(corpsOpts());
+    };
+
+    let detailGen = 0;
+    async function load() {
+      const gen = ++detailGen;
+      const mount = document.getElementById("corpsDetail");
+      if (!mount) return;
+      mount.innerHTML = "<div class='loading'>Loading…</div>";
+      history.replaceState(null, "", `#/corps/${current}`);
+      await renderCorpsDetail(current, () => stale() || gen !== detailGen);
+    }
+    if (current) await load();
+    else document.getElementById("corpsDetail").innerHTML = "<div class='card'><div class='empty'>No corps on record yet.</div></div>";
+  }
+
+  async function renderCorpsDetail(slug, stale) {
+    const mount = () => document.getElementById("corpsDetail");
     let detail;
     try { detail = await data(`corps/${slug}.json`); }
     catch (e) {
-      if (stale()) return;
-      app.innerHTML = `<div class="card" style="text-align:center;padding:36px 20px">
+      if (stale() || !mount()) return;
+      mount().innerHTML = `<div class="card" style="text-align:center;padding:36px 20px">
         <div class="empty" style="padding:0 0 10px">No scores on record for this corps yet.</div>
-        <a href="#/corps">Browse all corps →</a></div>`;
+        <a href="#/compare">Browse all corps →</a></div>`;
       return;
     }
     const champs = await data("champions.json").catch(() => ({}));
-    if (stale()) return;
+    if (stale() || !mount()) return;
     const perfs = detail.performances;
     const titles = [];
     for (const [yr, byCls] of Object.entries(champs))
@@ -697,9 +773,9 @@
     const scored = perfs.filter(p => p.s);
     const cmpYears = years.slice(-3).reverse().join(",");
 
-    app.innerHTML = h`
-      <div class="crumbs"><a href="#/corps">Corps</a> / ${esc(detail.name)}</div>
-      <h1 class="page">${esc(detail.name)}</h1>
+    const pt = document.getElementById("corpsPageTitle");
+    if (pt) pt.textContent = detail.name;
+    mount().innerHTML = h`
       <div class="filters"><div id="yearSel2"></div></div>
       <div class="card"><h2 id="corpsChartTitle"></h2><div class="chartwrap" id="corpsChart"></div></div>
       <div class="card" style="margin-top:14px"><h2 id="perfTitle">Performance Log</h2>
@@ -726,7 +802,7 @@
       const title = document.getElementById("corpsChartTitle");
       if (sel.length === 1) {
         const yv = sel[0];
-        title.innerHTML = `${yv} Season Progression <span class="sub">score by date · <a href="#/corps?c=${slug}&y=${cmpYears}">compare seasons →</a></span>`;
+        title.innerHTML = `${yv} Season Progression <span class="sub">score by date · <a href="#/compare?c=${slug}&y=${cmpYears}">compare seasons →</a></span>`;
         const pts = (byYear.get(yv) || []).filter(p => p.s && p.d)
           .map(p => ({ x: dayOfSeason(p.d), y: p.s })).sort((a, b) => a.x - b.x);
         lineChart(document.getElementById("corpsChart"), {
@@ -739,7 +815,7 @@
       // so years the corps didn't march show as real gaps and an in-progress
       // season sits as its own point instead of dragging the line
       const range = sel.length ? `${sel[0]}–${sel[sel.length - 1]}` : "";
-      title.innerHTML = `Top Score by Year${range ? ` — ${range}` : ""} <span class="sub">gaps = seasons not marched · <a href="#/corps?c=${slug}&y=${cmpYears}">compare seasons →</a></span>`;
+      title.innerHTML = `Top Score by Year${range ? ` — ${range}` : ""} <span class="sub">gaps = seasons not marched · <a href="#/compare?c=${slug}&y=${cmpYears}">compare seasons →</a></span>`;
       const ptsAll = years.map((y, i) => ({ x: y, y: bestByYear[i] }))
         .filter(p => p.y && (!sel.length || yearSet.has(String(p.x))));
       const segs = [];
@@ -794,7 +870,7 @@
       <h1 class="page">Season History <span class="kicker">· the record book</span></h1>
       <div class="card"><h2>Past Champions <span class="sub" id="champSub"></span></h2>
       <div class="filters" style="margin-bottom:8px"><select class="ctrl" id="champCls"></select></div>
-      <table class="t" id="champT"></table>
+      <div class="tscroll"><table class="t" id="champT"></table></div>
       <p style="color:var(--muted);font-size:12.5px;margin:10px 2px 0">Tap a year for that season — every show, every score, full recaps.</p>
       <div id="champChartWrap" hidden style="margin-top:16px">
         <h2>Winning Score by Year <span class="sub" id="champChartSub"></span></h2>
@@ -819,10 +895,15 @@
       const withChamp = new Set(Object.keys(champs).filter(y => champs[y][champCls]).map(Number));
       const rowsList = [];
       years.forEach(s => {
-        if (s.covid) { rowsList.push({ y: s.year, covid: true }); return; }
+        if (s.covid) return; // inserted after, only if this class spans the gap
         const w = champs[String(s.year)] && champs[String(s.year)][champCls];
         if (champCls === "World Class" || w || s.year === currentYear)
           rowsList.push({ y: s.year, w, events: s.events });
+      });
+      const clsYears = rowsList.map(r => r.y);
+      [2020, 2021].forEach(cy => {
+        if (clsYears.some(y => y > cy) && clsYears.some(y => y < cy))
+          rowsList.push({ y: cy, covid: true });
       });
       rowsList.sort((a, b) => b.y - a.y);
       document.getElementById("champT").innerHTML = `
@@ -913,6 +994,7 @@
 
     // running season: the schedule's future events join the list, marked
     // "upcoming" — the season page is the one place with the whole summer
+    events = events.slice(); // never mutate the array shared by the data() cache
     if (+year === new Date().getFullYear()) {
       const up = await data("upcoming.json").catch(() => []);
       if (stale()) return;
@@ -932,6 +1014,7 @@
 
     // the season's outcome: championship finals podium, when scraped
     const finalsIdx = events.reduce((best, e, i) => {
+      if (e.future) return best; // a scheduled finals is not a result
       const n = (e.name || "").toLowerCase();
       if (n.includes("championship") && n.includes("final")
           && !/semi|prelim|quarter/.test(n) && !(e.source === "dcx" && !n.includes("dci"))) {
@@ -957,7 +1040,7 @@
 
     app.innerHTML = h`
       <div class="crumbs"><a href="#/seasons">Seasons</a> / ${year}</div>
-      <h1 class="page">${year} Season <span class="kicker">· ${events.length} events</span></h1>
+      <h1 class="page">${year} Season <span class="kicker">· ${events.filter(e => !e.future).length} events${events.some(e => e.future) ? ` · ${events.filter(e => e.future).length} upcoming` : ""}</span></h1>
       ${finalsHtml}
       <div class="filters">
         <select class="ctrl" id="fCls"><option value="">All classes</option>
@@ -1369,8 +1452,9 @@
 
     document.getElementById("capYear").onchange = e => { year = +e.target.value; seedPick = true; loadYear(); };
     document.getElementById("capKey").onchange = e => { capKey = e.target.value; update(); };
+    const _loadYear = loadYear;
+    loadYear = async () => { await _loadYear(); renderTitles(); }; // year switch can reset the class
     await loadYear();
-    renderTitles();
   }
 
   /* ============ DATABASE ============ */
@@ -1643,7 +1727,7 @@
 
       // 1 — highest single-show scores
       const top = d.top.filter(r => inEra(r[0]) && inCorps(r[2])).slice(0, 100);
-      const topHtml = top.length ? `<div class="tscroll"><table class="t"><thead><tr><th>#</th><th>Corps</th><th class="num">Score</th><th>Event</th><th>Date</th></tr></thead><tbody id="recTop">
+      const topHtml = top.length ? `<div class="tscroll"><table class="t"><thead><tr><th>#</th><th>Corps</th><th class="num">Score</th><th class="m-hide">Event</th><th>Date</th></tr></thead><tbody id="recTop">
         ${top.map((r, i) => `<tr><td class="rank">${i + 1}</td><td>${corpsLink(r[2])}</td><td class="num score">${score3(r[3])}</td><td class="m-hide" style="color:var(--muted);font-size:12.5px">${esc(r[4] || "")}</td><td style="white-space:nowrap">${fmtDate2(r[1], r[0])}</td></tr>`).join("")}
       </tbody></table></div>` : emptyNote;
 
@@ -1698,8 +1782,8 @@
         if (!inCorps(c.name)) continue;
         const series = (c.series || []).slice().sort((a, b) => a[0] - b[0]);
         for (let i = 1; i < series.length; i++) {
-          const [y1, b1] = series[i - 1], [y2, b2, k2] = series[i];
-          if (y2 !== y1 + 1 || k2 !== cls || b1 == null || b2 == null || !inEra(y2)) continue;
+          const [y1, b1, k1] = series[i - 1], [y2, b2, k2] = series[i];
+          if (y2 !== y1 + 1 || k2 !== cls || k1 !== cls || b1 == null || b2 == null || !inEra(y2)) continue;
           const dlt = +(b2 - b1).toFixed(3);
           if (dlt > 0) leaps.push({ corps: c.name, y1, y2, b1, b2, d: dlt });
         }
@@ -1770,8 +1854,10 @@
   /* ============ router ============ */
   const routes = [
     [/^#?\/?$/, viewRankings],
-    [/^#\/corps(?:\?(.*))?$/, (m, st) => viewCorpsHub(m[1], st)],
-    [/^#\/corps\/([a-z0-9-]+)$/, (m, st) => viewCorps(m[1], st)],
+    [/^#\/compare(?:\?(.*))?$/, (m, st) => viewCorpsHub(m[1], st)],
+    [/^#\/corps\?(.*)$/, m => { location.replace(`#/compare?${m[1]}`); }],
+    [/^#\/corps$/, (m, st) => viewCorpsPage(null, st)],
+    [/^#\/corps\/([a-z0-9-]+)$/, (m, st) => viewCorpsPage(m[1], st)],
     [/^#\/seasons$/, viewSeasons],
     [/^#\/season\/(\d{4})$/, (m, st) => viewSeason(m[1], st)],
     [/^#\/event\/(\d{4})\/(\d+)$/, (m, st) => viewEvent(m[1], m[2], st)],
@@ -1779,7 +1865,6 @@
     [/^#\/records$/, viewRecords],
     [/^#\/database$/, viewDatabase],
     // legacy routes from earlier versions
-    [/^#\/compare(?:\?.*)?$/, () => { location.replace("#/corps"); }],
     [/^#\/(today|rankings)$/, viewRankings],
     [/^#\/season\/dci\/(\d{4})$/, (m, st) => viewSeason(m[1], st)],
   ];

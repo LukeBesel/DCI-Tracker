@@ -112,6 +112,9 @@ def norm_space(s: str) -> str:
 # Canonical corps-name normalization: map common variants to one display name
 # so per-corps history threads correctly across 50 years of typography.
 CORPS_ALIASES = {
+    "new york skyliners": "Skyliners",
+    "anaheim kingsmen": "Kingsmen",
+    "long island sunrisers": "Sunrisers",
     "the cadets": "The Cadets",
     "cadets": "The Cadets",
     "holy name cadets": "The Cadets",

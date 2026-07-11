@@ -114,6 +114,47 @@ def load_events():
         ev["classes"] = list(merged.values())
         if ev["classes"]:
             out.append(ev)
+
+    # The archive's year listings mix the senior (DCA) circuit into the junior
+    # divisions. Corps that appear at DCA-named shows in a year are senior
+    # corps — every archive result of theirs that year belongs to All-Age,
+    # not the DCI World/Open Class record.
+    seniors_by_year: dict[int, set] = defaultdict(set)
+    for ev in out:
+        if ev.get("source") == "dcx" and "dca" in (ev.get("name") or "").lower():
+            for c in ev["classes"]:
+                for r in c["results"]:
+                    seniors_by_year[ev["year"]].add(r["corps"])
+    moved = 0
+    for ev in out:
+        if ev.get("source") != "dcx":
+            continue
+        seniors = seniors_by_year.get(ev["year"])
+        if not seniors:
+            continue
+        extra = None
+        for c in ev["classes"]:
+            if c["class"] not in ("World Class", "Open Class"):
+                continue
+            sen = [r for r in c["results"] if r["corps"] in seniors]
+            if not sen:
+                continue
+            c["results"] = [r for r in c["results"] if r["corps"] not in seniors]
+            extra = extra or {"class": "All-Age", "results": []}
+            extra["results"].extend(sen)
+            moved += len(sen)
+        if extra:
+            ev["classes"] = [c for c in ev["classes"] if c["results"]]
+            existing = next((c for c in ev["classes"] if c["class"] == "All-Age"), None)
+            if existing:
+                existing["results"].extend(extra["results"])
+            else:
+                ev["classes"].append(extra)
+        ev["classes"] = [c for c in ev["classes"] if c["results"]]
+    if moved:
+        log(f"reclassified {moved} senior-circuit results to All-Age")
+    out = [ev for ev in out if ev["classes"]]
+
     log(f"loaded {len(out)} usable events")
     return out
 
@@ -138,18 +179,19 @@ def build_seasons(events):
 
 
 def is_champ_finals(ev) -> bool:
-    """True when this event crowns a champion: a championship FINALS, or the
-    single-day All-Age World Championship (named without a "Finals" token).
-    Archive-sourced events cover other circuits (VFW, DCA...) — only a DCI
-    championship counts for DCI records."""
+    """True when this event crowns a champion. Requires the real
+    championships ("World Championship..." / "DCI Championship...") — July
+    regionals that borrow the words "Championship Finals" don't count — and
+    excludes semis/prelims. The archive's finals are often named plain
+    "DCI World Championships" with no "Finals" token, so finals wording is
+    not required. Archive events from other circuits (VFW, DCA...) only
+    count when DCI is in the name."""
     n = (ev.get("name") or "").lower()
-    if "championship" not in n:
-        return False
     if "semi" in n or "prelim" in n or "quarter" in n:
         return False
     if ev.get("source") == "dcx" and "dci" not in n:
         return False
-    return "final" in n or "all age" in n or "all-age" in n
+    return "world championship" in n or "dci championship" in n
 
 
 def build_champions(events):
@@ -479,12 +521,8 @@ def build_captions(events):
     # in, and the entry says which round decided it.
     def _title_tier(name):
         n = (name or "").lower()
-        if "championship" not in n:
-            return 0
-        champ_week = ("world championship" in n or "final" in n
-                      or "semi" in n or "prelim" in n)
-        if not champ_week:
-            return 0                          # regionals like "Southwestern Championship"
+        if "world championship" not in n and "dci championship" not in n:
+            return 0                          # regionals don't decide titles
         if "semi" in n:
             return 2
         if "prelim" in n:
@@ -574,8 +612,17 @@ def build_records(events):
     for cls in main_classes:
         top = []
         for year, entries in per_year[cls].items():
-            entries.sort(key=lambda e: -(e[3] or 0))
-            top.extend(entries[:10])
+            # duplicate archive listings of the same show: keep the dated copy
+            entries.sort(key=lambda e: (-(e[3] or 0), e[1] is None))
+            seen = set()
+            deduped = []
+            for e in entries:
+                k = (e[2], round(e[3] or 0, 3))
+                if k in seen:
+                    continue
+                seen.add(k)
+                deduped.append(e)
+            top.extend(deduped[:10])
         top.sort(key=lambda e: (-(e[3] or 0), e[0]))
         f = {str(y): v for y, v in sorted(finals[cls].items())}
         if top or f:
