@@ -298,10 +298,12 @@
         el("rect", { x: x.toFixed(1), y: y.toFixed(1), width: bw.toFixed(1),
                      height: (m.top + ih - y).toFixed(1), rx: 2,
                      fill: b.color || PALETTE[bi % 8] }, svg);
-        const t = el("text", { x: (x + bw / 2).toFixed(1), y: (y - 4).toFixed(1),
-                               "text-anchor": "middle", fill: "#2c3a55",
-                               "font-size": 9.5, "font-weight": 650 }, svg);
-        t.textContent = fmt(b.value);
+        if (bw >= 18) { // labels collide on very thin paired bars
+          const t = el("text", { x: (x + bw / 2).toFixed(1), y: (y - 4).toFixed(1),
+                                 "text-anchor": "middle", fill: "#2c3a55",
+                                 "font-size": 9.5, "font-weight": 650 }, svg);
+          t.textContent = fmt(b.value);
+        }
       });
       const lb = el("text", { x: (m.left + gi * gw + gw / 2).toFixed(1), y: H - (g.sub ? 16 : 9),
                               "text-anchor": "middle", fill: "#74808f", "font-size": 10.5 }, svg);

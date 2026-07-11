@@ -1293,7 +1293,7 @@
       </div>
       <div class="card" style="margin-top:14px">
         <h2 id="spotTitle">Corps Spotlight</h2>
-        <div class="filters" style="margin:2px 0 8px"><div id="spotCorps"></div></div>
+        <div class="filters" style="margin:2px 0 8px"><div id="spotCorps"></div><div id="spotVs"></div></div>
         <div class="chartwrap" id="spotChart"></div>
         ${CAP_KEY_NOTE}
       </div>
@@ -1429,6 +1429,7 @@
     const SPOT_CAPS = [["ge1", "GE1"], ["ge2", "GE2"], ["vp", "VP"], ["va", "VA"],
       ["cg", "CG"], ["br", "BR"], ["ma", "MA"], ["pc", "PC"]];
     let ssSpot = null;
+    let ssVs = null;
     let spotBoard = [];
     function renderSpot(board) {
       if (!document.getElementById("spotCorps")) return;
@@ -1444,19 +1445,34 @@
         ssSpot.setOptions(opts);
         if (!board.some(b => b.corps === ssSpot.get())) ssSpot.set(board.length ? board[0].corps : null);
       }
+      const vsOpts = [{ value: "", label: "No comparison" }, ...opts];
+      if (!ssVs) {
+        ssVs = singleSelect(document.getElementById("spotVs"), {
+          label: "Compare vs…", searchable: board.length > 12, options: vsOpts, value: "",
+          onChange: () => renderSpot(spotBoard),
+        });
+      } else {
+        ssVs.setOptions(vsOpts);
+        if (ssVs.get() && !board.some(b => b.corps === ssVs.get())) ssVs.set("");
+      }
       const corps = ssSpot.get();
       const chartEl = document.getElementById("spotChart");
       if (!corps) { chartEl.innerHTML = "<div class='empty'>No corps in this class yet.</div>"; return; }
+      const vs = ssVs.get() && ssVs.get() !== corps ? ssVs.get() : "";
 
-      const mine = rows.filter(r => r[iCls()] === cls && r[iCorps()] === corps && r[iDate()])
-        .sort((a, b) => a[iDate()].localeCompare(b[iDate()]));
-      if (!mine.length) { chartEl.innerHTML = "<div class='empty'>No verified recap for this corps yet.</div>"; return; }
-      const latest = mine[mine.length - 1];
-      document.getElementById("spotTitle").innerHTML =
-        `${esc(corps)} — Caption Scores <span class="sub">${esc(latest[iEv()])} · ${esc(fmtDateY(latest[iDate()]))} · each caption out of 20</span>`;
+      const latestOf = name => {
+        const perf = rows.filter(r => r[iCls()] === cls && r[iCorps()] === name && r[iDate()])
+          .sort((a, b) => a[iDate()].localeCompare(b[iDate()]));
+        return perf.length ? perf[perf.length - 1] : null;
+      };
+      const latest = latestOf(corps);
+      if (!latest) { chartEl.innerHTML = "<div class='empty'>No verified recap for this corps yet.</div>"; return; }
+      const vsLatest = vs ? latestOf(vs) : null;
+      document.getElementById("spotTitle").innerHTML = vsLatest
+        ? `${esc(corps)} vs ${esc(vs)} <span class="sub">latest recap of each · every caption out of 20</span>`
+        : `${esc(corps)} — Caption Scores <span class="sub">${esc(latest[iEv()])} · ${esc(fmtDateY(latest[iDate()]))} · each caption out of 20</span>`;
       // per-caption rank within the class (by season best)
-      const bestBy = {};
-      for (const [k] of SPOT_CAPS) {
+      const rankOf = (k, name) => {
         const ki = cols.indexOf(k);
         const bests = new Map();
         for (const r of rows) {
@@ -1464,13 +1480,19 @@
           const cur = bests.get(r[iCorps()]);
           if (cur == null || r[ki] > cur) bests.set(r[iCorps()], r[ki]);
         }
-        const order = [...bests.entries()].sort((a, b) => b[1] - a[1]).map(e => e[0]);
-        bestBy[k] = order.indexOf(corps) + 1;
-      }
+        return [...bests.entries()].sort((a, b) => b[1] - a[1]).map(e => e[0]).indexOf(name) + 1;
+      };
       const groups = SPOT_CAPS.map(([k, label]) => {
         const ki = cols.indexOf(k);
-        return { label, sub: bestBy[k] > 0 ? `#${bestBy[k]}` : "",
-                 bars: [{ name: "Score", value: latest[ki], color: corpsColor(corps) }] };
+        const rA = rankOf(k, corps);
+        const bars = [{ name: corps, value: latest[ki], color: corpsColor(corps) }];
+        let sub = rA > 0 ? `#${rA}` : "";
+        if (vsLatest) {
+          const rB = rankOf(k, vs);
+          bars.push({ name: vs, value: vsLatest[ki], color: corpsColor(vs) });
+          sub = rA > 0 && rB > 0 ? `#${rA}·#${rB}` : sub;
+        }
+        return { label, sub, bars };
       });
       CCViz.barChart(chartEl, { groups, height: 280, yMax: 20, track: true, yFmt: v => v.toFixed(1) });
     }
