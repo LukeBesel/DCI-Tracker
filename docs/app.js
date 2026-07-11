@@ -718,11 +718,23 @@
   /* ============ SEASONS ============ */
   async function viewSeasons(_m, stale) {
     setNav("seasons");
-    const [meta, champs] = await Promise.all([data("meta.json"), data("champions.json").catch(() => ({}))]);
+    const [meta, champs, thisweek] = await Promise.all([
+      data("meta.json"), data("champions.json").catch(() => ({})),
+      data("thisweek.json").catch(() => [])]);
     if (stale()) return;
     const years = meta.seasons.slice().sort((a, b) => b.year - a.year);
     app.innerHTML = h`
-      <h1 class="page">Season History</h1>
+      <h1 class="page">Season History <span class="kicker">· the record book</span></h1>
+      <p class="lede">Every champion ever crowned, and the complete results of every season on record — open any year and drill down to the individual show, corps and score.</p>
+      ${thisweek.length ? `
+      <div class="card" style="margin-bottom:14px"><h2>This week in DCI history <span class="sub">shows from this calendar week, across the years</span></h2>
+      <table class="t"><tbody id="twRows">
+        ${thisweek.map(t => h`<tr>
+          <td class="rank" style="width:52px"><a href="#/season/${t.y}">${t.y}</a></td>
+          <td><b>${esc(t.name)}</b><div style="font-size:12px;color:var(--muted)">${esc(fmtDate(t.date))}${t.location ? " · " + esc(t.location) : ""}</div></td>
+          <td style="white-space:nowrap">${t.winner ? h`🏆 ${esc(t.winner.corps)} <span class="score">${score3(t.winner.score)}</span>` : ""}</td>
+        </tr>`).join("")}
+      </tbody></table></div>` : ""}
       <div class="card"><h2>Past champions <span class="sub">World Championship Finals winners</span></h2>
       <div class="tscroll dense"><table class="t" id="champT"></table></div></div>
       <div class="card" style="margin-top:14px"><h2>Browse a season <span class="sub">every show of that summer — who performed, and every score</span></h2>
@@ -733,6 +745,8 @@
         }).join("")}
       </div></div>
       <p class="pagenote">Open a year to see each show that happened — who performed, in what class, and every score — with caption recaps where DCI published them.</p>`;
+    const tw = document.getElementById("twRows");
+    if (tw) collapseRows(tw, 6, "shows");
     const clsSet = new Set();
     Object.values(champs).forEach(byCls => Object.keys(byCls).forEach(c => clsSet.add(c)));
     const clsList = sortClasses([...clsSet]);
@@ -1057,7 +1071,7 @@
         `${esc(label)} leaders <span class="sub">best single-show score, ${esc(String(year))} ${esc(cls)}</span>`;
       document.getElementById("capBoard").innerHTML = board.length ? `
         <table class="t"><thead><tr><th>#</th><th>Corps</th><th class="num">Best</th><th>At</th><th class="num col-high">Latest</th><th class="num col-perfs">Scored shows</th></tr></thead><tbody>
-        ${board.slice(0, 20).map(b => h`<tr>
+        ${board.map(b => h`<tr>
           <td class="rank">${b.rank}</td>
           <td>${corpsLink(b.corps)}</td>
           <td class="num score">${score3(b.best)}</td>
@@ -1065,6 +1079,7 @@
           <td class="num col-high">${score3(b.latest)}</td>
           <td class="num col-perfs">${b.n}</td></tr>`).join("")}
         </tbody></table>` : "<div class='empty'>No recap data for this caption yet — it fills in as recaps are scraped.</div>";
+      if (board.length) collapseRows(document.querySelector("#capBoard tbody"), 10, "corps");
 
       renderSpot(board);
 
@@ -1138,19 +1153,46 @@
   }
 
   /* ============ DATABASE ============ */
-  const DB = { rows: null, sort: [0, -1] };
-  async function loadDb() {
-    if (DB.rows) return DB.rows;
+  const DB = { scores: null, captions: null, sort: [0, -1] };
+  async function loadScores() {
+    if (DB.scores) return DB.scores;
     const idx = await data("db/index.json");
     const parts = await Promise.all(idx.map(d => data(`db/perfs_${d.decade}.json`)));
-    DB.rows = parts.flat();
-    return DB.rows;
+    DB.scores = parts.flat();
+    return DB.scores;
   }
+  async function loadCaptionRows() {
+    if (DB.captions) return DB.captions;
+    const idx = await data("captions/index.json");
+    const parts = await Promise.all(idx.seasons.map(s =>
+      data(`captions/${s.year}.json`).then(rows => rows.map(r => [s.year, ...r]))));
+    DB.captions = parts.flat();
+    return DB.captions;
+  }
+
+  // dataset configs: column labels, key row indices, loader
+  const DB_SETS = {
+    scores: {
+      label: "Scores",
+      cols: ["Year", "Date", "Event", "Corps", "Class", "Place", "Score"],
+      corpsIdx: 3, clsIdx: 4, evIdx: 2, dateIdx: 1, scoreCols: [6],
+      load: loadScores,
+    },
+    captions: {
+      label: "Caption scores",
+      cols: ["Year", "Date", "Event", "Class", "Corps",
+             "GE1", "GE2", "GE", "VisProf", "VisAnal", "Guard", "Visual",
+             "Brass", "MusAnal", "Perc", "Music", "Pen", "Total"],
+      corpsIdx: 4, clsIdx: 3, evIdx: 2, dateIdx: 1, scoreCols: [17],
+      load: loadCaptionRows,
+    },
+  };
 
   async function viewDatabase(_m, stale) {
     setNav("database");
-    app.innerHTML = `<h1 class="page">Score database <span id="dbcount" class="kicker"></span></h1>
+    app.innerHTML = `<h1 class="page">Database <span id="dbcount" class="kicker"></span></h1>
       <div class="filters" id="dbFilters">
+        <select class="ctrl" id="dbSet">${Object.entries(DB_SETS).map(([k, s]) => `<option value="${k}">${s.label}</option>`).join("")}</select>
         <div id="dbCorps"></div>
         <div id="dbYears"></div>
         <select class="ctrl" id="fcls"><option value="">All classes</option></select>
@@ -1159,49 +1201,69 @@
         <button class="tab" id="csv">Export CSV</button>
       </div>
       <div class="card"><div id="dbtable"><div class="loading">Loading…</div></div></div>
-      <p class="pagenote">Every scored performance on record, as one sortable table. Combine the corps, season, and class filters, search events, click any column to sort, and export exactly what you've filtered to CSV.</p>`;
-    let rows;
-    try { rows = await loadDb(); }
-    catch (e) {
-      const el = document.getElementById("dbtable");
-      if (!stale() && el) el.innerHTML = "<div class='empty'>Database builds with the next data run.</div>";
-      return;
-    }
-    if (stale() || !document.getElementById("dbtable")) return;
+      <p class="pagenote">Everything on record as sortable tables — pick the dataset (raw scores, or verified judge-by-judge caption scores), stack corps/season/class filters, click any column to sort, and export exactly what you've filtered to CSV.</p>`;
 
-    const years = [...new Set(rows.map(r => r[0]))].sort((a, b) => b - a);
-    const classes = [...new Set(rows.map(r => r[4]).filter(Boolean))].sort();
-    const corpsNames = [...new Set(rows.map(r => r[3]).filter(Boolean))].sort();
-    const fcls = document.getElementById("fcls");
-    classes.forEach(c => fcls.add(new Option(c, c)));
-
+    let setKey = "scores";
+    let cfg = DB_SETS[setKey];
+    let rows = [];
+    let filtered = [];
     const corpsSet = new Set();
     const yearSet = new Set();
-    const msDbCorps = multiSelect(document.getElementById("dbCorps"), {
-      label: "All corps", searchable: true,
-      options: corpsNames.map(n => ({ value: n, label: n })),
-      selected: corpsSet,
-      onChange: apply,
-    });
-    const msDbYears = multiSelect(document.getElementById("dbYears"), {
-      label: "All seasons", searchable: years.length > 15, bulk: true,
-      presets: [{ label: "Past 5", values: () => years.slice(0, 5) }],
-      options: years.map(y => ({ value: String(y), label: String(y) })),
-      selected: yearSet,
-      onChange: apply,
-    });
+    let msDbCorps = null, msDbYears = null;
+    let dbGen = 0;
 
-    const COLS = ["Year", "Date", "Event", "Corps", "Class", "Place", "Score"];
-    let filtered = rows;
+    const fcls = document.getElementById("fcls");
+
+    async function initDataset() {
+      const gen = ++dbGen;
+      document.getElementById("dbtable").innerHTML = "<div class='loading'>Loading…</div>";
+      cfg = DB_SETS[setKey];
+      let got;
+      try { got = await cfg.load(); }
+      catch (e) {
+        const el = document.getElementById("dbtable");
+        if (!stale() && el && gen === dbGen) el.innerHTML = "<div class='empty'>This dataset builds with the next data run.</div>";
+        return;
+      }
+      if (stale() || gen !== dbGen || !document.getElementById("dbtable")) return;
+      rows = got;
+      DB.sort = [0, -1];
+      corpsSet.clear(); yearSet.clear();
+      document.getElementById("fq").value = "";
+
+      const years = [...new Set(rows.map(r => r[0]))].sort((a, b) => b - a);
+      const classes = [...new Set(rows.map(r => r[cfg.clsIdx]).filter(Boolean))].sort();
+      const corpsNames = [...new Set(rows.map(r => r[cfg.corpsIdx]).filter(Boolean))].sort();
+      fcls.innerHTML = '<option value="">All classes</option>';
+      classes.forEach(c => fcls.add(new Option(c, c)));
+
+      const corpsOpts = corpsNames.map(n => ({ value: n, label: n }));
+      const yearOpts = years.map(y => ({ value: String(y), label: String(y) }));
+      if (!msDbCorps) {
+        msDbCorps = multiSelect(document.getElementById("dbCorps"), {
+          label: "All corps", searchable: true, options: corpsOpts, selected: corpsSet, onChange: apply,
+        });
+        msDbYears = multiSelect(document.getElementById("dbYears"), {
+          label: "All seasons", searchable: years.length > 15, bulk: true,
+          presets: [{ label: "Past 5", values: () => years.slice(0, 5) }],
+          options: yearOpts, selected: yearSet, onChange: apply,
+        });
+      } else {
+        msDbCorps.setOptions(corpsOpts);
+        msDbYears.setOptions(yearOpts);
+        msDbCorps.refresh(); msDbYears.refresh();
+      }
+      apply();
+    }
 
     function apply() {
       const q = document.getElementById("fq").value.trim().toLowerCase();
       const cls = fcls.value;
       filtered = rows.filter(r =>
         (!yearSet.size || yearSet.has(String(r[0]))) &&
-        (!corpsSet.size || corpsSet.has(r[3])) &&
-        (!cls || r[4] === cls) &&
-        (!q || (r[2] || "").toLowerCase().includes(q)));
+        (!corpsSet.size || corpsSet.has(r[cfg.corpsIdx])) &&
+        (!cls || r[cfg.clsIdx] === cls) &&
+        (!q || (r[cfg.evIdx] || "").toLowerCase().includes(q)));
       const [ci, dir] = DB.sort;
       filtered = filtered.slice().sort((a, b) => {
         const av = a[ci], bv = b[ci];
@@ -1213,13 +1275,19 @@
       render();
     }
 
-    document.getElementById("dbReset").onclick = () => {
-      corpsSet.clear(); yearSet.clear();
-      fcls.value = "";
-      document.getElementById("fq").value = "";
-      msDbCorps.refresh(); msDbYears.refresh();
-      apply();
-    };
+    function cellHtml(r, i) {
+      if (i === 0) return `<td class="num" style="text-align:left">${r[0]}</td>`;
+      if (i === cfg.dateIdx) return `<td style="color:var(--muted);white-space:nowrap">${esc(fmtDate(r[i]))}</td>`;
+      if (i === cfg.corpsIdx) return `<td>${corpsLink(r[i])}</td>`;
+      if (i === cfg.clsIdx) return `<td><span class="pill">${esc(r[i] || "")}</span></td>`;
+      if (i === cfg.evIdx) return `<td>${esc(r[i] || "")}</td>`;
+      const v = r[i];
+      if (typeof v === "number") {
+        const strong = cfg.scoreCols.includes(i) ? " score" : "";
+        return `<td class="num${strong}">${cfg.scoreCols.includes(i) ? score3(v) : v.toFixed(v % 1 ? 2 : 0)}</td>`;
+      }
+      return `<td class="num">${v ?? "—"}</td>`;
+    }
 
     function render() {
       const LIMIT = 800;
@@ -1227,36 +1295,41 @@
         `· ${filtered.length.toLocaleString()} rows${filtered.length > LIMIT ? ` (showing ${LIMIT} — narrow filters or export CSV)` : ""}`;
       const [ci, dir] = DB.sort;
       document.getElementById("dbtable").innerHTML =
-        `<div class="tscroll dense"><table class="t"><thead><tr>${COLS.map((c, i) =>
+        `<div class="tscroll dense"><table class="t"><thead><tr>${cfg.cols.map((c, i) =>
           `<th style="cursor:pointer;user-select:none" data-c="${i}">${c}${i === ci ? (dir > 0 ? " ↑" : " ↓") : ""}</th>`).join("")}</tr></thead><tbody>
-        ${filtered.slice(0, LIMIT).map(r => h`<tr>
-          <td class="num" style="text-align:left">${r[0]}</td>
-          <td style="color:var(--muted);white-space:nowrap">${esc(fmtDate(r[1]))}</td>
-          <td>${esc(r[2] || "")}</td>
-          <td>${corpsLink(r[3])}</td>
-          <td><span class="pill">${esc(r[4] || "")}</span></td>
-          <td class="num">${r[5] ?? "—"}</td>
-          <td class="num score">${score3(r[6])}</td></tr>`).join("")}</tbody></table></div>`;
+        ${filtered.slice(0, LIMIT).map(r =>
+          `<tr>${cfg.cols.map((c, i) => cellHtml(r, i)).join("")}</tr>`).join("")}</tbody></table></div>`;
       document.querySelectorAll("#dbtable th").forEach(th => th.onclick = () => {
         const c = +th.dataset.c;
-        DB.sort = DB.sort[0] === c ? [c, -DB.sort[1]] : [c, c >= 5 || c === 0 ? -1 : 1];
+        DB.sort = DB.sort[0] === c ? [c, -DB.sort[1]] : [c, c === 0 || c >= 5 ? -1 : 1];
         apply();
       });
     }
 
+    document.getElementById("dbSet").onchange = e => { setKey = e.target.value; initDataset(); };
     ["fq", "fcls"].forEach(id =>
       document.getElementById(id).addEventListener(id === "fq" ? "input" : "change", apply));
+    document.getElementById("dbReset").onclick = () => {
+      corpsSet.clear(); yearSet.clear();
+      fcls.value = "";
+      document.getElementById("fq").value = "";
+      if (msDbCorps) { msDbCorps.refresh(); msDbYears.refresh(); }
+      apply();
+    };
     document.getElementById("csv").onclick = () => {
-      const lines = [COLS.join(",")].concat(filtered.map(r =>
-        r.map(v => v == null ? "" : /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v)).join(",")));
+      const lines = [cfg.cols.join(",")].concat(filtered.map(r =>
+        cfg.cols.map((c, i) => {
+          const v = r[i];
+          return v == null ? "" : /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
+        }).join(",")));
       const blob = new Blob([lines.join("\n")], { type: "text/csv" });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = "dci-tracker-database.csv";
+      a.download = `dci-tracker-${setKey}.csv`;
       a.click();
       URL.revokeObjectURL(a.href);
     };
-    apply();
+    await initDataset();
   }
 
   /* ============ router ============ */

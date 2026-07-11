@@ -440,6 +440,38 @@ def build_captions(events):
     return index
 
 
+def build_thisweek(events):
+    """docs/data/thisweek.json — shows from this calendar week across all
+    past seasons, newest first. Gives Season History a live 'on this week
+    in DCI history' angle; rebuilt nightly so it tracks the calendar."""
+    now = datetime.now(timezone.utc)
+    this_year = now.year
+    window = set()
+    for off in range(-3, 4):
+        d = now.timetuple().tm_yday + off
+        window.add(d)
+    rows = []
+    for ev in events:
+        if not ev.get("date") or ev["year"] >= this_year:
+            continue
+        try:
+            dt = datetime.strptime(ev["date"], "%Y-%m-%d")
+        except ValueError:
+            continue
+        if dt.timetuple().tm_yday not in window:
+            continue
+        winner = None
+        for c in ev["classes"]:
+            res = [r for r in c["results"] if r.get("score")]
+            res.sort(key=lambda r: -(r["score"] or 0))
+            if res and (winner is None or (res[0]["score"] or 0) > (winner["score"] or 0)):
+                winner = {"corps": res[0]["corps"], "score": res[0]["score"]}
+        rows.append({"y": ev["year"], "name": ev.get("name"), "date": ev["date"],
+                     "location": ev.get("location"), "winner": winner})
+    rows.sort(key=lambda r: (-r["y"], r["date"]))
+    write_json("thisweek.json", rows[:80])
+
+
 def build_upcoming():
     """docs/data/upcoming.json from data/parsed/dci_upcoming.json (events
     calendar scrape): future events with lineups for the homepage."""
@@ -471,6 +503,7 @@ def main():
     corps_index = build_corps(events)
     rankings = build_rankings(events)
     build_captions(events)
+    build_thisweek(events)
     build_upcoming()
 
     write_json("champions.json", champions)
