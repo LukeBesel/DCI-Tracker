@@ -40,6 +40,10 @@ jobs:
           #    it must never be merged — it is rebuilt from merged inputs below.
           git add -A data
           git diff --cached --quiet || git commit -m "Data update: $(date -u +'%F %H:%M') UTC (inputs)"
+          # the scrape-time build left docs/data modified in the working tree;
+          # drop those changes (docs/data regenerates from merged inputs below)
+          git checkout -- . 2>/dev/null || true
+          git clean -fd docs/data 2>/dev/null || true
           for i in 1 2 3 4; do
             if ! git pull --rebase -X theirs origin main; then
               git rebase --abort 2>/dev/null || true
