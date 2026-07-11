@@ -504,8 +504,6 @@
         <h2>All corps <span class="sub">tap a corps for its full history · ⊕ adds it to the chart</span></h2>
         <div class="filters">
           <input class="ctrl" id="q" placeholder="Search corps…">
-          <button class="tab on" data-f="all">All</button>
-          <button class="tab" data-f="active">Active (last 2 yrs)</button>
         </div>
         <div class="tscroll"><table class="t"><thead>
           <tr><th></th><th>Corps</th><th class="num">Seasons</th><th>Years</th><th class="num">Best score</th></tr>
@@ -633,14 +631,11 @@
 
     // --- directory ---
     const rowsEl = document.getElementById("rows");
-    const nowYear = new Date().getFullYear();
-    let filter = "all";
     function renderRows() {
       const q = (document.getElementById("q").value || "").toLowerCase();
       const list = idx.filter(c =>
         classMatch(c) &&
-        (!q || c.name.toLowerCase().includes(q)) &&
-        (filter !== "active" || c.last >= nowYear - 1))
+        (!q || c.name.toLowerCase().includes(q)))
         .sort((a, b) => b.last - a.last || (b.best || 0) - (a.best || 0));
       rowsEl.innerHTML = list.map(c => h`
         <tr class="rowlink" data-slug="${c.slug}">
@@ -665,11 +660,6 @@
       collapseRows(rowsEl, 5, "corps");
     }
     document.getElementById("q").addEventListener("input", renderRows);
-    document.querySelectorAll(".tab[data-f]").forEach(bt => bt.onclick = () => {
-      filter = bt.dataset.f;
-      document.querySelectorAll(".tab[data-f]").forEach(x => x.classList.toggle("on", x === bt));
-      renderRows();
-    });
 
     persist();
     renderRows();
@@ -776,6 +766,13 @@
       data("meta.json"), data("champions.json").catch(() => ({}))]);
     if (stale()) return;
     const years = meta.seasons.slice().sort((a, b) => b.year - a.year);
+    // COVID years appear as labeled rows inside the era they interrupt
+    const yrNums = years.map(s => s.year);
+    [2020, 2021].forEach(cy => {
+      if (yrNums.some(n => n > cy) && yrNums.some(n => n < cy))
+        years.push({ year: cy, covid: true });
+    });
+    years.sort((a, b) => b.year - a.year);
     app.innerHTML = h`
       <h1 class="page">Season History <span class="kicker">· the record book</span></h1>
             <div class="card"><h2>Past champions <span class="sub" id="champSub"></span></h2>
@@ -785,6 +782,11 @@
       <table class="t"><thead><tr><th>Season</th><th class="num">Events</th><th>World Class champion</th></tr></thead>
       <tbody id="seasonRows">
         ${years.map(s => {
+          if (s.covid) return h`<tr>
+            <td style="color:var(--muted)"><b>${s.year}</b></td>
+            <td class="num" style="color:var(--muted)">—</td>
+            <td style="color:var(--muted)">COVID-19 — ${s.year === 2020 ? "season canceled" : "no competitive tour"}</td>
+          </tr>`;
           const w = (champs[String(s.year)] || {})["World Class"];
           return h`<tr class="rowlink" data-y="${s.year}">
             <td><b>${s.year}</b></td>
@@ -805,13 +807,20 @@
       sel.value = champCls;
       sel.onchange = () => { champCls = sel.value; renderChamps(); };
       document.getElementById("champSub").textContent = `${champCls} · World Championship Finals winners`;
-      const yearsWith = Object.keys(champs).filter(y => champs[y][champCls]).sort((a, b) => b - a);
+      const yearsWith = Object.keys(champs).filter(y => champs[y][champCls]).map(Number);
+      // the COVID years sit inside the record as labeled rows, not silent gaps
+      const rowsList = yearsWith.map(y => ({ y, w: champs[y][champCls] }));
+      [2020, 2021].forEach(cy => {
+        if (yearsWith.some(n => n > cy) && yearsWith.some(n => n < cy))
+          rowsList.push({ y: cy, covid: true });
+      });
+      rowsList.sort((a, b) => b.y - a.y);
       document.getElementById("champT").innerHTML = `
         <thead><tr><th>Year</th><th>Champion</th><th class="num">Score</th></tr></thead><tbody id="champRows">
-        ${yearsWith.map(y => {
-          const w = champs[y][champCls];
-          return `<tr><td><a href="#/season/${y}">${y}</a></td><td><b>${esc(w.corps)}</b></td><td class="num score">${score3(w.score)}</td></tr>`;
-        }).join("")}</tbody>`;
+        ${rowsList.map(r => r.covid
+          ? `<tr><td style="color:var(--muted)">${r.y}</td><td colspan="2" style="color:var(--muted)">COVID-19 — ${r.y === 2020 ? "season canceled, no championships" : "no championships held"}</td></tr>`
+          : `<tr><td><a href="#/season/${r.y}">${r.y}</a></td><td><b>${esc(r.w.corps)}</b></td><td class="num score">${score3(r.w.score)}</td></tr>`
+        ).join("")}</tbody>`;
       collapseRows(document.getElementById("champRows"), 5, "seasons");
     }
     renderChamps();
