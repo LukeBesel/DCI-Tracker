@@ -187,15 +187,32 @@
       const t = el("text", { x: X(tx), y: H - 8, "text-anchor": "middle", fill: "#898781", "font-size": 11 }, svg);
       t.textContent = xFmt(tx);
     }
-    for (const s of series) {
+    const numbered = series.length >= 2 && !opts.noLegend;
+    const badges = [];
+    series.forEach((s, si) => {
       const pts = s.points.filter(p => p.y != null).sort((a, b) => a.x - b.x);
-      if (!pts.length) continue;
+      if (!pts.length) return;
       const d = pts.map((p, j) => (j ? "L" : "M") + X(p.x).toFixed(1) + " " + Y(p.y).toFixed(1)).join(" ");
       const attrs = { d, fill: "none", stroke: s.color, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" };
       if (s.dash) attrs["stroke-dasharray"] = s.dash;
       el("path", attrs, svg);
       const last = pts[pts.length - 1];
       el("circle", { cx: X(last.x), cy: Y(last.y), r: 4, fill: s.color, stroke: "#fcfcfb", "stroke-width": 2 }, svg);
+      if (numbered) badges.push({ x: X(last.x), y: Y(last.y), color: s.color, num: si + 1 });
+    });
+    // numbered chips beside each line's endpoint (de-overlapped vertically)
+    if (badges.length) {
+      badges.sort((a, b) => a.y - b.y);
+      for (let i = 1; i < badges.length; i++) {
+        if (badges[i].y - badges[i - 1].y < 16) badges[i].y = badges[i - 1].y + 16;
+      }
+      for (const b of badges) {
+        const by = Math.min(Math.max(b.y, m.top + 7), m.top + ih + 4);
+        el("circle", { cx: b.x + 12, cy: by, r: 7.5, fill: b.color, stroke: "#fcfcfb", "stroke-width": 1.5 }, svg);
+        const t = el("text", { x: b.x + 12, y: by + 3.2, "text-anchor": "middle", fill: "#fff",
+                               "font-size": 9.5, "font-weight": 700 }, svg);
+        t.textContent = b.num;
+      }
     }
     // hover: snap to nearest x present in any series
     const xsSet = [...new Set(allPts.map(p => p.x))].sort((a, b) => a - b);
@@ -208,9 +225,9 @@
       for (const c of xsSet) if (Math.abs(c - vx) < Math.abs(best - vx)) best = c;
       cross.setAttribute("x1", X(best)); cross.setAttribute("x2", X(best));
       cross.setAttribute("opacity", 1);
-      const rows = series.map(s => {
+      const rows = series.map((s, si) => {
         const p = s.points.find(q => q.x === best && q.y != null);
-        return p ? `<div class="tt-row"><span class="tt-key" style="background:${s.color}"></span><span class="tt-val">${esc(yFmt(p.y))}</span> <span class="tt-name">${esc(s.name)}</span></div>` : "";
+        return p ? `<div class="tt-row"><span class="tt-key" style="background:${s.color}"></span><span class="tt-val">${esc(yFmt(p.y))}</span> <span class="tt-name">${esc((numbered ? (si + 1) + " · " : "") + s.name)}</span></div>` : "";
       }).join("");
       showTip(`<div class="tt-title">${esc(xFmt(best))}</div>${rows}`, evt.clientX, evt.clientY);
     });
@@ -219,9 +236,14 @@
     if (series.length >= 2 && !opts.noLegend) {
       const lg = document.createElement("div");
       lg.className = "legend";
-      series.forEach(s => {
+      series.forEach((s, si) => {
         const k = document.createElement("span");
         k.className = "key";
+        const nb = document.createElement("span");
+        nb.className = "legend-num";
+        nb.style.background = s.color;
+        nb.textContent = si + 1;
+        k.appendChild(nb);
         const sw = document.createElement("span");
         sw.className = "swatch-line";
         if (s.dash) {
