@@ -26,10 +26,16 @@ if [ "$MODE" = "backfill" ]; then
   # History backfill in bounded chunks: each run fetches up to MAX_FETCHES
   # uncached pages (older seasons first stay cached forever once fetched).
   run "dci.org backfill chunk" python scraper/scrape_dci.py --max-fetches "${MAX_FETCHES:-600}"
+elif [ "$MODE" = "history" ]; then
+  # Pre-2013 archive (dcxmuseum.org), in bounded chunks
+  run "dcx history chunk" python scraper/scrape_history.py --max-fetches "${MAX_FETCHES:-2000}"
+  run "wiki champions"    python scraper/scrape_wiki_champions.py
 else
   run "dci.org current season" python scraper/scrape_dci.py --season "$YEAR" --force
-  # opportunistically continue the history backfill a little each night
+  run "upcoming events"        python scraper/scrape_upcoming.py
+  # opportunistically continue both history backfills a little each night
   run "dci.org history chunk"  python scraper/scrape_dci.py --max-fetches 150
+  run "dcx history chunk"      python scraper/scrape_history.py --max-fetches 150
 fi
 
 run "build site data" python scraper/build_data.py

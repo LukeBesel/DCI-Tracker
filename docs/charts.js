@@ -57,9 +57,16 @@
     return lineChartLabels(container, opts);
   }
 
+  // Size the drawing to the mounted container so text stays legible on
+  // phones (SVG scales the viewBox; a narrower viewBox = larger glyphs).
+  function fitWidth(container) {
+    const w = container.getBoundingClientRect().width || 860;
+    return Math.max(360, Math.min(860, Math.round(w)));
+  }
+
   function lineChartLabels(container, opts) {
     container.innerHTML = "";
-    const W = 860, H = opts.height || 320;
+    const W = fitWidth(container), H = opts.height || 320;
     const m = { top: 14, right: 24, bottom: 26, left: 46 };
     const iw = W - m.left - m.right, ih = H - m.top - m.bottom;
     const series = opts.series.map((s, i) => ({ ...s, color: s.color || PALETTE[i % 8] }));
@@ -151,7 +158,7 @@
   /* Linear-x variant: x values are real numbers (years). */
   function lineChartLinear(container, opts) {
     container.innerHTML = "";
-    const W = 860, H = opts.height || 320;
+    const W = fitWidth(container), H = opts.height || 320;
     const m = { top: 14, right: 30, bottom: 26, left: 46 };
     const iw = W - m.left - m.right, ih = H - m.top - m.bottom;
     const series = opts.series.map((s, i) => ({ ...s, color: s.color || PALETTE[i % 8] }));
@@ -184,7 +191,9 @@
       const pts = s.points.filter(p => p.y != null).sort((a, b) => a.x - b.x);
       if (!pts.length) continue;
       const d = pts.map((p, j) => (j ? "L" : "M") + X(p.x).toFixed(1) + " " + Y(p.y).toFixed(1)).join(" ");
-      el("path", { d, fill: "none", stroke: s.color, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
+      const attrs = { d, fill: "none", stroke: s.color, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" };
+      if (s.dash) attrs["stroke-dasharray"] = s.dash;
+      el("path", attrs, svg);
       const last = pts[pts.length - 1];
       el("circle", { cx: X(last.x), cy: Y(last.y), r: 4, fill: s.color, stroke: "#fcfcfb", "stroke-width": 2 }, svg);
     }
@@ -215,7 +224,11 @@
         k.className = "key";
         const sw = document.createElement("span");
         sw.className = "swatch-line";
-        sw.style.background = s.color;
+        if (s.dash) {
+          sw.style.background = `repeating-linear-gradient(90deg, ${s.color} 0 4px, transparent 4px 7px)`;
+        } else {
+          sw.style.background = s.color;
+        }
         k.appendChild(sw);
         k.appendChild(document.createTextNode(s.name));
         lg.appendChild(k);

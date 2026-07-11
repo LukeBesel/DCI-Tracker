@@ -55,17 +55,29 @@ def canon_class(name: str) -> str:
 
 
 def load_events():
+    """dci_events.json (DCI.org, 2013+) merged with history_events.json
+    (pre-2013 archive scrape, same schema). History only contributes years
+    the official source doesn't cover, so DCI.org stays authoritative."""
+    events = []
     p = PARSED / "dci_events.json"
-    if not p.exists():
-        log("no dci_events.json — nothing to build")
+    if p.exists():
+        events = json.loads(p.read_text())
+    dci_years = {e.get("year") for e in events}
+    hp = PARSED / "history_events.json"
+    if hp.exists():
+        hist = [e for e in json.loads(hp.read_text())
+                if e.get("year") and (e["year"] < 2013 or e["year"] not in dci_years)]
+        events += hist
+        log(f"merged {len(hist)} historical events")
+    if not events:
+        log("no parsed events — nothing to build")
         return []
-    events = json.loads(p.read_text())
     out = []
     for ev in events:
         if not ev.get("year") or not ev.get("classes") or ev.get("non_corps"):
             continue
         ev = dict(ev)
-        ev["date"] = iso_date(ev)
+        ev["date"] = ev.get("date") or iso_date(ev)
         classes = []
         for c in ev["classes"]:
             cc = canon_class(c.get("class"))
@@ -113,6 +125,10 @@ def build_champions(events):
         n = (ev.get("name") or "").lower()
         if "championship" not in n or "final" not in n or "semi" in n or "prelim" in n or "quarter" in n:
             continue
+        # archive-sourced events cover other circuits too (VFW, DCA …):
+        # only a DCI championship crowns a DCI champion
+        if ev.get("source") == "dcx" and "dci" not in n:
+            continue
         for c in ev["classes"]:
             res = [r for r in c["results"] if r.get("score")]
             if not res:
@@ -126,6 +142,19 @@ def build_champions(events):
             cur = champs[ev["year"]].get(cls)
             if cur is None or (res[0]["score"] or 0) > (cur["score"] or 0):
                 champs[ev["year"]][cls] = {"corps": res[0]["corps"], "score": res[0]["score"]}
+
+    # fall back to the documented public record (Wikipedia) for seasons
+    # where no championship-finals event has been scraped
+    wp = PARSED / "wiki_champions.json"
+    if wp.exists():
+        filled = 0
+        for year, w in json.loads(wp.read_text()).items():
+            if "World Class" not in champs[int(year)] and w.get("corps"):
+                champs[int(year)]["World Class"] = {"corps": w["corps"], "score": w.get("score")}
+                filled += 1
+        if filled:
+            log(f"champions: filled {filled} seasons from public record")
+    champs = {y: v for y, v in champs.items() if v}
     return {str(y): v for y, v in sorted(champs.items())}
 
 
@@ -233,6 +262,25 @@ def build_rankings(events):
     }
 
 
+def build_upcoming():
+    """docs/data/upcoming.json from data/parsed/dci_upcoming.json (events
+    calendar scrape): future events with lineups for the homepage."""
+    p = PARSED / "dci_upcoming.json"
+    rows = []
+    if p.exists():
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        for ev in json.loads(p.read_text()):
+            if ev.get("date") and ev["date"] >= today:
+                rows.append({
+                    "name": ev.get("name"), "date": ev["date"],
+                    "date_display": ev.get("date_display"),
+                    "location": ev.get("location"), "url": ev.get("url"),
+                    "lineup": [canon_corps(c) for c in (ev.get("lineup") or [])],
+                })
+        rows.sort(key=lambda e: (e["date"], e.get("name") or ""))
+    write_json("upcoming.json", rows[:60])
+
+
 def main():
     # wipe output dir so removed features never leave stale files behind
     if OUT.exists():
@@ -244,6 +292,7 @@ def main():
     champions = build_champions(events)
     corps_index = build_corps(events)
     rankings = build_rankings(events)
+    build_upcoming()
 
     write_json("champions.json", champions)
     write_json("rankings.json", rankings)

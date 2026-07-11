@@ -196,7 +196,8 @@ CORPS_ALIASES = {
 def canon_corps(name: str) -> str:
     n = norm_space(name)
     n = re.sub(r"\s*\((?:World|Open|All[- ]Age|Int'l|International|Class A|Exhibition)[^)]*\)\s*$", "", n, flags=re.I)
-    n = n.rstrip("*+^~ ")
+    n = re.sub(r'["“”]', "", n)  # Blue Devils "B" → Blue Devils B
+    n = norm_space(n.rstrip("*+^~ "))
     key = n.lower().strip()
     return CORPS_ALIASES.get(key, n)
 
