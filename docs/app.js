@@ -43,6 +43,41 @@
     return `<span class="delta ${d > 0 ? "up" : "down"}">${d > 0 ? "▲" : "▼"} ${Math.abs(d).toFixed(2)}</span>`;
   }
   const slugOf = name => String(name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+
+  /* ===== stable per-corps colors =====
+     Identity-informed for the marquee corps (blues separated into navy /
+     cyan / indigo, reds into scarlet / crimson so nothing reads alike),
+     stable hash into a spread 16-color palette for everyone else.
+     The same corps gets the same color on every page, chart and filter. */
+  const CORPS_COLORS = {
+    "Blue Devils": "#1c4a99",        // navy
+    "Bluecoats": "#0c8599",          // cyan-teal
+    "Blue Knights": "#3b5bdb",       // indigo
+    "Carolina Crown": "#9c36b5",     // crown purple
+    "Santa Clara Vanguard": "#f03e3e", // scarlet
+    "Boston Crusaders": "#a61e1e",   // dark crimson
+    "The Cavaliers": "#2f9e44",      // kelly green
+    "Madison Scouts": "#1e6b30",     // forest green
+    "Phantom Regiment": "#343a40",   // graphite (black & white corps)
+    "The Cadets": "#85144b",         // maroon
+    "Mandarins": "#e8590c",          // orange
+    "Colts": "#b35c00",              // burgundy-brown
+    "Blue Stars": "#d6336c",         // red side of their red/blue
+    "Crossmen": "#846358",           // bronze
+    "Blue Devils B": "#356fc4",      // lighter than the A corps
+  };
+  const EXT_PALETTE = [
+    "#e8590c", "#1971c2", "#2f9e44", "#6741d9", "#c2255c", "#0c8599",
+    "#a61e4d", "#495057", "#b35c00", "#66a80f", "#f03e3e", "#9c36b5",
+    "#3b5bdb", "#d6336c", "#087f5b", "#846358",
+  ];
+  function corpsColor(name) {
+    const n = String(name || "");
+    if (CORPS_COLORS[n]) return CORPS_COLORS[n];
+    let hsum = 0;
+    for (let i = 0; i < n.length; i++) hsum = (hsum * 31 + n.charCodeAt(i)) >>> 0;
+    return EXT_PALETTE[hsum % EXT_PALETTE.length];
+  }
   function corpsLink(name) {
     return `<a href="#/corps/${slugOf(name)}">${esc(name)}</a>`;
   }
@@ -279,7 +314,8 @@
       document.getElementById("trendReset").hidden = !trendPick.size;
       lineChart(el, {
         linearX: true,
-        series: rows.map(r => ({ name: r.corps, points: r.trend.map(t => ({ x: dayOfSeason(t[0]), y: t[1] })) })),
+        series: rows.map(r => ({ name: r.corps, color: corpsColor(r.corps),
+          points: r.trend.map(t => ({ x: dayOfSeason(t[0]), y: t[1] })) })),
         height: 340, xFmt: dayLabel, yFmt: v => v.toFixed(1),
       });
     }
@@ -549,7 +585,7 @@
           const label = multiYears || !multiCorps ? `${name} ’${String(years[yi]).slice(2)}` : name;
           series.push({
             name: label, points: pts,
-            color: PALETTE[(multiCorps ? ci : yi) % PALETTE.length],
+            color: multiCorps ? corpsColor(name) : PALETTE[yi % PALETTE.length],
             dash: multiCorps && multiYears ? YEAR_DASHES[yi % YEAR_DASHES.length] : "",
           });
           const scores = pts.map(p => p.y);
@@ -672,7 +708,7 @@
         const pts = (byYear.get(+yv) || []).filter(p => p.s && p.d)
           .map(p => ({ x: dayOfSeason(p.d), y: p.s })).sort((a, b) => a.x - b.x);
         lineChart(document.getElementById("corpsChart"), {
-          linearX: true, series: [{ name: yv, points: pts }],
+          linearX: true, series: [{ name: yv, points: pts, color: corpsColor(detail.name) }],
           height: 260, xFmt: dayLabel, yFmt: v => v.toFixed(1),
         });
         return;
@@ -691,7 +727,7 @@
       if (cur.length) segs.push(cur);
       lineChart(document.getElementById("corpsChart"), {
         linearX: true, noLegend: true,
-        series: segs.map(pts => ({ name: "Top score", points: pts, color: PALETTE[0] })),
+        series: segs.map(pts => ({ name: "Top score", points: pts, color: corpsColor(detail.name) })),
         height: 260, yFmt: v => v.toFixed(0), xFmt: v => String(Math.round(v)),
       });
     }
@@ -1061,7 +1097,7 @@
       lineChart(document.getElementById("capChart"), {
         linearX: true,
         series: chosen.map(b => ({
-          name: b.corps,
+          name: b.corps, color: corpsColor(b.corps),
           points: per.get(b.corps).map(p => ({ x: dayOfSeason(p.d), y: p.v })),
         })),
         height: 330, xFmt: dayLabel, yFmt: v => v.toFixed(1),
@@ -1127,7 +1163,7 @@
         return {
           label,
           bars: [
-            { name: "Latest show", value: latest[ki], color: PALETTE[0] },
+            { name: "Latest show", value: latest[ki], color: corpsColor(corps) },
             { name: "Season best", value: best < 0 ? null : best, color: "#8f8672" },
           ],
         };
