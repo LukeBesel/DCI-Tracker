@@ -84,16 +84,16 @@
     // grid + y ticks
     for (const tv of niceTicks(yMin, yMax, 5)) {
       if (tv < yMin || tv > yMax) continue;
-      el("line", { x1: m.left, x2: W - m.right, y1: Y(tv), y2: Y(tv), stroke: "#ddd5c2", "stroke-width": 1 }, svg);
-      const t = el("text", { x: m.left - 8, y: Y(tv) + 4, "text-anchor": "end", fill: "#8a7f66", "font-size": 11 }, svg);
+      el("line", { x1: m.left, x2: W - m.right, y1: Y(tv), y2: Y(tv), stroke: "#d5c9ab", "stroke-width": 1 }, svg);
+      const t = el("text", { x: m.left - 8, y: Y(tv) + 4, "text-anchor": "end", fill: "#857a5f", "font-size": 11 }, svg);
       t.textContent = fmt(tv);
     }
-    el("line", { x1: m.left, x2: W - m.right, y1: m.top + ih, y2: m.top + ih, stroke: "#b3a98e", "stroke-width": 1 }, svg);
+    el("line", { x1: m.left, x2: W - m.right, y1: m.top + ih, y2: m.top + ih, stroke: "#a99c7d", "stroke-width": 1 }, svg);
     // x labels (thin out)
     const every = Math.ceil(nX / Math.floor(iw / 70));
     opts.xLabels.forEach((lb, i) => {
       if (i % every !== 0 && i !== nX - 1) return;
-      const t = el("text", { x: X(i), y: H - 8, "text-anchor": "middle", fill: "#8a7f66", "font-size": 11 }, svg);
+      const t = el("text", { x: X(i), y: H - 8, "text-anchor": "middle", fill: "#857a5f", "font-size": 11 }, svg);
       t.textContent = lb;
     });
 
@@ -103,7 +103,7 @@
       const d = pts.map((p, j) => (j ? "L" : "M") + X(p.x).toFixed(1) + " " + Y(p.y).toFixed(1)).join(" ");
       el("path", { d, fill: "none", stroke: s.color, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
       const last = pts[pts.length - 1];
-      el("circle", { cx: X(last.x), cy: Y(last.y), r: 4, fill: s.color, stroke: "#faf6ec", "stroke-width": 2 }, svg);
+      el("circle", { cx: X(last.x), cy: Y(last.y), r: 4, fill: s.color, stroke: "#f4eddc", "stroke-width": 2 }, svg);
     }
     // selective direct labels: first series endpoint value
     if (series.length <= 4) {
@@ -111,7 +111,7 @@
         const pts = s.points.filter(p => p.y != null);
         if (!pts.length) return;
         const last = pts[pts.length - 1];
-        const t = el("text", { x: Math.min(X(last.x) + 8, W - 2), y: Y(last.y) + 4, fill: "#4a4437", "font-size": 11 }, svg);
+        const t = el("text", { x: Math.min(X(last.x) + 8, W - 2), y: Y(last.y) + 4, fill: "#453f30", "font-size": 11 }, svg);
         t.textContent = fmt(last.y);
       });
     }
@@ -177,14 +177,14 @@
     const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img" }, container);
     for (const tv of niceTicks(yMin, yMax, 5)) {
       if (tv < yMin || tv > yMax) continue;
-      el("line", { x1: m.left, x2: W - m.right, y1: Y(tv), y2: Y(tv), stroke: "#ddd5c2", "stroke-width": 1 }, svg);
-      const t = el("text", { x: m.left - 8, y: Y(tv) + 4, "text-anchor": "end", fill: "#8a7f66", "font-size": 11 }, svg);
+      el("line", { x1: m.left, x2: W - m.right, y1: Y(tv), y2: Y(tv), stroke: "#d5c9ab", "stroke-width": 1 }, svg);
+      const t = el("text", { x: m.left - 8, y: Y(tv) + 4, "text-anchor": "end", fill: "#857a5f", "font-size": 11 }, svg);
       t.textContent = yFmt(tv);
     }
-    el("line", { x1: m.left, x2: W - m.right, y1: m.top + ih, y2: m.top + ih, stroke: "#b3a98e", "stroke-width": 1 }, svg);
+    el("line", { x1: m.left, x2: W - m.right, y1: m.top + ih, y2: m.top + ih, stroke: "#a99c7d", "stroke-width": 1 }, svg);
     for (const tx of niceTicks(xMin, xMax, Math.min(10, Math.floor(iw / 80)))) {
       if (tx < xMin || tx > xMax) continue;
-      const t = el("text", { x: X(tx), y: H - 8, "text-anchor": "middle", fill: "#8a7f66", "font-size": 11 }, svg);
+      const t = el("text", { x: X(tx), y: H - 8, "text-anchor": "middle", fill: "#857a5f", "font-size": 11 }, svg);
       t.textContent = xFmt(tx);
     }
     const numbered = series.length >= 2 && !opts.noLegend;
@@ -197,7 +197,7 @@
       if (s.dash) attrs["stroke-dasharray"] = s.dash;
       el("path", attrs, svg);
       const last = pts[pts.length - 1];
-      el("circle", { cx: X(last.x), cy: Y(last.y), r: 4, fill: s.color, stroke: "#faf6ec", "stroke-width": 2 }, svg);
+      el("circle", { cx: X(last.x), cy: Y(last.y), r: 4, fill: s.color, stroke: "#f4eddc", "stroke-width": 2 }, svg);
       if (numbered) badges.push({ x: X(last.x), y: Y(last.y), color: s.color, num: si + 1 });
     });
     // numbered chips beside each line's endpoint (de-overlapped vertically)
@@ -208,7 +208,7 @@
       }
       for (const b of badges) {
         const by = Math.min(Math.max(b.y, m.top + 7), m.top + ih + 4);
-        el("circle", { cx: b.x + 12, cy: by, r: 7.5, fill: b.color, stroke: "#faf6ec", "stroke-width": 1.5 }, svg);
+        el("circle", { cx: b.x + 12, cy: by, r: 7.5, fill: b.color, stroke: "#f4eddc", "stroke-width": 1.5 }, svg);
         const t = el("text", { x: b.x + 12, y: by + 3.2, "text-anchor": "middle", fill: "#fff",
                                "font-size": 9.5, "font-weight": 700 }, svg);
         t.textContent = b.num;
@@ -276,11 +276,11 @@
     const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img" }, container);
     for (const tv of niceTicks(0, yMax, 4)) {
       if (tv > yMax) continue;
-      el("line", { x1: m.left, x2: W - m.right, y1: Y(tv), y2: Y(tv), stroke: "#ddd5c2", "stroke-width": 1 }, svg);
-      const t = el("text", { x: m.left - 7, y: Y(tv) + 4, "text-anchor": "end", fill: "#8a7f66", "font-size": 11 }, svg);
+      el("line", { x1: m.left, x2: W - m.right, y1: Y(tv), y2: Y(tv), stroke: "#d5c9ab", "stroke-width": 1 }, svg);
+      const t = el("text", { x: m.left - 7, y: Y(tv) + 4, "text-anchor": "end", fill: "#857a5f", "font-size": 11 }, svg);
       t.textContent = String(+tv.toFixed(2));
     }
-    el("line", { x1: m.left, x2: W - m.right, y1: m.top + ih, y2: m.top + ih, stroke: "#b3a98e", "stroke-width": 1 }, svg);
+    el("line", { x1: m.left, x2: W - m.right, y1: m.top + ih, y2: m.top + ih, stroke: "#a99c7d", "stroke-width": 1 }, svg);
 
     const gw = iw / groups.length;
     const nBars = Math.max(...groups.map(g => g.bars.length));
@@ -295,12 +295,12 @@
                      height: (m.top + ih - y).toFixed(1), rx: 2,
                      fill: b.color || PALETTE[bi % 8] }, svg);
         const t = el("text", { x: (x + bw / 2).toFixed(1), y: (y - 4).toFixed(1),
-                               "text-anchor": "middle", fill: "#4a4437",
+                               "text-anchor": "middle", fill: "#453f30",
                                "font-size": 9.5, "font-weight": 650 }, svg);
         t.textContent = fmt(b.value);
       });
       const lb = el("text", { x: (m.left + gi * gw + gw / 2).toFixed(1), y: H - 9,
-                              "text-anchor": "middle", fill: "#8a7f66", "font-size": 10.5 }, svg);
+                              "text-anchor": "middle", fill: "#857a5f", "font-size": 10.5 }, svg);
       lb.textContent = g.label;
     });
 
