@@ -2497,6 +2497,26 @@
 
   // live scores: on show nights the pipeline lands new data every half hour —
   // poll the stamp while the tab is open and offer a one-tap refresh
+  // the top-bar stamp reads as "how fresh", not a raw timestamp — it
+  // re-renders every half minute and rolls forward whenever data applies
+  function paintUpdated(metaStamp) {
+    const el = document.getElementById("updated");
+    if (!el) return;
+    if (metaStamp) el.dataset.stamp = metaStamp;
+    const s = el.dataset.stamp;
+    if (!s) return;
+    const t = Date.parse(s.replace(" UTC", "Z").replace(" ", "T"));
+    if (isNaN(t)) { el.textContent = "Updated " + s; return; }
+    const mins = Math.max(0, Math.round((Date.now() - t) / 60000));
+    const ago = mins < 1 ? "just now"
+      : mins < 60 ? `${mins} min ago`
+      : mins < 36 * 60 ? `${Math.round(mins / 60)} h ago`
+      : `${Math.round(mins / 1440)} d ago`;
+    el.textContent = `Updated ${ago}`;
+    el.title = `Data from ${s} — refreshes every 30 min, every 3 min on show nights`;
+  }
+  setInterval(() => paintUpdated(), 30 * 1000);
+
   (() => {
     let stamp = null;
     let toast = null;
@@ -2510,8 +2530,7 @@
         toast.remove();
         toast = null;
         stamp = newStamp;
-        const upd = document.getElementById("updated");
-        if (upd) upd.textContent = "Updated " + newStamp;
+        paintUpdated(newStamp);
         route();
       };
       document.body.appendChild(toast);
@@ -2519,8 +2538,7 @@
     function applyNow(newStamp) {
       cache.clear();
       stamp = newStamp;
-      const upd = document.getElementById("updated");
-      if (upd) upd.textContent = "Updated " + newStamp;
+      paintUpdated(newStamp);
       if (toast) { toast.remove(); toast = null; }
       route();
       // a quiet flash so the swap doesn't go unnoticed
@@ -2563,7 +2581,7 @@
   });
 
   data("meta.json").then(m => {
-    document.getElementById("updated").textContent = "Updated " + m.updated.replace(" UTC", " UTC");
+    paintUpdated(m.updated);
     route();
   }).catch(() => {
     firstBuildPending = true;
