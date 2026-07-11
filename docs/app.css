@@ -158,6 +158,7 @@ p.capkey { color: var(--muted); font-size: 11.5px; margin: 10px 2px 0; line-heig
 
 .lastev { font-size: 11.5px; color: var(--muted); }
 a.favname { font-weight: 650; }
+.capwin { background: var(--accent-wash); font-weight: 700; box-shadow: inset 0 -2px 0 var(--gold); }
 
 /* favorites */
 .favbtn {

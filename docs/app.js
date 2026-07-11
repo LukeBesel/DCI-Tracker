@@ -90,6 +90,7 @@
     catch (e) { set = new Set(); }
     return {
       has: n => set.has(n),
+      list: () => [...set],
       toggle: n => {
         set.has(n) ? set.delete(n) : set.add(n);
         localStorage.setItem("cad-favs", JSON.stringify([...set]));
@@ -1139,8 +1140,8 @@
       ${finalsHtml}
       <div class="filters">
         <div id="fCls"></div>
-        <input class="ctrl" id="fQ" placeholder="Search event, city or corps…">
-        <button class="tab" id="favOnly" title="Only shows featuring your starred corps">★ My corps</button>
+        <div id="fCorps"></div>
+        <input class="ctrl" id="fQ" placeholder="Search event or city…">
         <button class="tab" id="toggleAll">Expand All ▾</button>
       </div>
       <div id="evcount" class="kicker" style="margin:-6px 0 10px"></div>
@@ -1164,10 +1165,10 @@
 
     function matches(ev, cls, q) {
       if (cls && !(ev.classes || []).some(c => c.class === cls)) return false;
-      if (favOn) {
-        const inList = (ev.lineup || []).some(c => FAVS.has(c)) ||
-          (ev.classes || []).some(c => (c.results || []).some(r => FAVS.has(r.corps)));
-        if (!inList) return false;
+      if (corpsPick.size) {
+        const featured = (ev.lineup || []).some(c => corpsPick.has(c)) ||
+          (ev.classes || []).some(c => (c.results || []).some(r => corpsPick.has(r.corps)));
+        if (!featured) return false;
       }
       if (cls && ev.future) return false;
       if (q) {
@@ -1224,7 +1225,7 @@
 
     let allOpen = false;
     let upOpen = false;
-    let favOn = false;
+    const corpsPick = new Set();
     let fClsVal = "";
     singleSelect(document.getElementById("fCls"), {
       label: "All classes",
@@ -1233,12 +1234,18 @@
       onChange: v => { fClsVal = v || ""; allOpen = false; syncToggle(); render(); },
     });
     document.getElementById("fQ").addEventListener("input", () => { allOpen = false; syncToggle(); render(); });
-    const favBtn = document.getElementById("favOnly");
-    favBtn.onclick = () => {
-      favOn = !favOn;
-      favBtn.classList.toggle("on", favOn);
-      render();
-    };
+    // corps picker: see just one corps' summer (favorites are one tap away)
+    const seasonCorps = [...new Set(events.flatMap(ev => [
+      ...(ev.lineup || []),
+      ...(ev.classes || []).flatMap(c => (c.results || []).map(r => r.corps)),
+    ]))].sort();
+    multiSelect(document.getElementById("fCorps"), {
+      label: "All corps", searchable: seasonCorps.length > 12, bulk: true, bulkAll: false,
+      presets: FAVS.list().length ? [{ label: "★ Favorites", values: () => FAVS.list().filter(c => seasonCorps.includes(c)) }] : [],
+      options: seasonCorps.map(c => ({ value: c, label: c })),
+      selected: corpsPick,
+      onChange: () => { allOpen = false; syncToggle(); render(); },
+    });
     const toggleBtn = document.getElementById("toggleAll");
     function syncToggle() { toggleBtn.textContent = allOpen ? "Collapse All ▴" : "Expand All ▾"; }
     toggleBtn.onclick = () => {
@@ -1350,6 +1357,12 @@
       </div>
       <div class="secdiv" id="capSeasonDiv"></div>
       <div class="card">
+        <h2 id="showCmpTitle">Show Recap <span class="sub">every corps, every caption, one sheet — gold marks the caption winner</span></h2>
+        <div class="filters" style="margin:2px 0 8px"><div id="showSel"></div></div>
+        <div id="showCmpBody"><div class="empty">Pick a show above.</div></div>
+        ${CAP_KEY_NOTE}
+      </div>
+      <div class="card" style="margin-top:14px">
         <h2 id="capChartTitle"></h2>
         <div class="filters" style="margin:2px 0 8px"><div id="capCorpsSel"></div><button class="tab" id="capReset" hidden>Top 8</button></div>
         <div class="chartwrap" id="capChart"></div>
@@ -1391,6 +1404,68 @@
       iCls = () => cols.indexOf("class"), iCorps = () => cols.indexOf("corps");
 
     function classesIn(rs) { return sortClasses([...new Set(rs.map(r => r[iCls()]))]); }
+
+    // --- show recap sheet: one show, all corps, all captions ---
+    let ssShow = null;
+    function renderShowCmp() {
+      const body = document.getElementById("showCmpBody");
+      if (!body) return;
+      const shows = [];
+      const seen = new Set();
+      for (const r of rows) {
+        if (r[iCls()] !== cls || !r[iDate()]) continue;
+        const key = r[iDate()] + "|" + r[iEv()];
+        if (!seen.has(key)) { seen.add(key); shows.push({ d: r[iDate()], ev: r[iEv()] }); }
+      }
+      shows.sort((a, b) => b.d.localeCompare(a.d));
+      if (!shows.length) {
+        body.innerHTML = "<div class='empty'>No verified recaps for this class yet.</div>";
+        if (ssShow) ssShow.setOptions([]);
+        return;
+      }
+      const opts = shows.map(sh => ({ value: sh.d + "|" + sh.ev, label: sh.ev, hint: fmtDate(sh.d) }));
+      if (!ssShow) {
+        ssShow = singleSelect(document.getElementById("showSel"), {
+          label: "Pick a show…", searchable: shows.length > 10,
+          options: opts, value: opts[0].value,
+          onChange: renderShowCmp,
+        });
+      } else {
+        ssShow.setOptions(opts);
+        if (!opts.some(o => o.value === ssShow.get())) ssShow.set(opts[0].value);
+      }
+      const [d, evName] = String(ssShow.get()).split("|");
+      const iTot = cols.indexOf("tot");
+      const sheet = rows.filter(r => r[iCls()] === cls && r[iDate()] === d && r[iEv()] === evName)
+        .sort((a, b) => (b[iTot] || 0) - (a[iTot] || 0));
+      const HEAD = [["ge1", "GE1"], ["ge2", "GE2"], ["ge", "GE"], ["vp", "VP"], ["va", "VA"], ["cg", "CG"], ["vis", "VIS"],
+        ["br", "BR"], ["ma", "MA"], ["pc", "PC"], ["mus", "MUS"], ["pen", "Pen"], ["tot", "Total"]];
+      // the best value in each caption wins the gold cell (penalty: no winner)
+      const best = {};
+      for (const [k] of HEAD) {
+        if (k === "pen") continue;
+        const i = cols.indexOf(k);
+        best[k] = Math.max(...sheet.map(r => r[i] == null ? -1 : r[i]));
+      }
+      body.innerHTML = `<div class="tscroll"><table class="t sticky1 showcmp"><thead><tr><th>Corps</th>${HEAD.map(([k, l]) =>
+          `<th class="num" data-c="${cols.indexOf(k)}">${l}</th>`).join("")}</tr></thead><tbody>
+        ${sheet.map(r => `<tr><td>${corpsLink(r[iCorps()])}</td>${HEAD.map(([k]) => {
+          const i = cols.indexOf(k);
+          const v = r[i];
+          const win = k !== "pen" && v != null && v === best[k] && best[k] >= 0;
+          return `<td class="num${k === "tot" ? " score" : ""}${win ? " capwin" : ""}">${v == null ? "—" : (+v).toFixed(k === "tot" ? 3 : 2)}</td>`;
+        }).join("")}</tr>`).join("")}
+      </tbody></table></div>
+      <p class="capkey" style="margin-top:8px">${esc(evName)} · ${esc(fmtDateY(d))} · ${sheet.length} corps · tap a column to sort</p>`;
+      body.querySelectorAll("th[data-c]").forEach(th => th.onclick = () => {
+        const i = +th.dataset.c;
+        const tb = body.querySelector("tbody");
+        [...tb.rows].sort((a, b) => {
+          const idx = [...th.parentNode.children].indexOf(th);
+          return (parseFloat(b.cells[idx].textContent) || -1) - (parseFloat(a.cells[idx].textContent) || -1);
+        }).forEach(rw => tb.appendChild(rw));
+      });
+    }
 
     let ssCls = null;
     function renderClassTabs() {
@@ -1471,6 +1546,7 @@
       if (board.length) collapseRows(document.querySelector("#capBoard tbody"), 5, "corps");
 
       renderSpot(board);
+      renderShowCmp();
 
       // corps picker persists across updates so the panel stays open
       const capOptions = board.map(b => ({ value: b.corps, label: b.corps, hint: `#${b.rank}` }));
