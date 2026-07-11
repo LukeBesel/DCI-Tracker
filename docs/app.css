@@ -268,7 +268,7 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; }
     scrollbar-width: none; -webkit-overflow-scrolling: touch;
   }
   #nav::-webkit-scrollbar { display: none; }
-  #nav a { padding: 6px 9px; font-size: 13px; white-space: nowrap; }
+  #nav a { padding: 6px 6px; font-size: 12.5px; white-space: nowrap; }
   main { padding: 14px 12px 50px; }
   h1.page { font-size: 21px; }
   .tile .value { font-size: 24px; }
