@@ -108,8 +108,8 @@
   // Safe to call again after a re-render (replaces its own button).
   function collapseRows(tbody, n, noun) {
     const host = tbody.closest(".tscroll") || tbody.closest("table").parentElement;
-    const old = host.parentElement.querySelector(":scope > .expandwrap");
-    if (old) old.remove();
+    const old = host.nextElementSibling;
+    if (old && old.classList && old.classList.contains("expandwrap")) old.remove();
     const rows = [...tbody.rows];
     if (rows.length <= n + 3) return;
     let open = false;
@@ -396,7 +396,7 @@
         ${sorted.map(r => h`<tr${FAVS.has(r.corps) ? ' class="favrow"' : ""}>
           <td><button class="favbtn${FAVS.has(r.corps) ? " on" : ""}" data-fav="${esc(r.corps)}" title="${FAVS.has(r.corps) ? "Unpin" : "Pin to top"}">${FAVS.has(r.corps) ? "★" : "☆"}</button></td>
           <td class="rank">${r.rank}</td>
-          <td>${corpsLink(r.corps)}<div style="font-size:11.5px;color:var(--muted)">${esc(r.event)} · ${esc(fmtDateY(r.date))}</div></td>
+          <td>${corpsLink(r.corps)}<div class="lastev">${esc(r.event)} · ${esc(fmtDateY(r.date))}</div></td>
           <td class="num score">${score3(r.score)}</td>
           <td class="num col-high" data-tip="${esc(`${score3(r.high)} — ${r.high_event || ""} · ${fmtDateY(r.high_date) || ""}`)}">${score3(r.high)}</td>
           <td class="num">${deltaHtml(r.delta)}</td>
@@ -544,7 +544,7 @@
       ${dataSubNav("compare")}
       <h1 class="page">Compare <span class="kicker">· any corps, any seasons</span></h1>
       <div class="card">
-        <h2>Compare <span class="sub">any corps, any seasons, one chart</span></h2>
+        <h2>Score Progression <span class="sub">tap ⊕ in the directory below to add corps</span></h2>
         <div class="filters" style="margin-bottom:10px">
           <div id="fClass"></div>
           <div id="corpsSel"></div>
@@ -892,11 +892,11 @@
       const list = perfs.filter(p => !sel.length || yearSet.has(String(p.y)))
         .sort((a, b) => (b.d || "").localeCompare(a.d || "") || b.y - a.y);
       document.getElementById("perfTable").innerHTML = `<div class="tscroll"><table class="t">
-        <thead><tr><th>Date</th><th>Event</th><th>Class</th><th class="num">Place</th><th class="num">Score</th></tr></thead>
+        <thead><tr><th>Date</th><th>Event</th><th class="m-hide">Class</th><th class="num">Place</th><th class="num">Score</th></tr></thead>
         <tbody id="perfRows">${list.slice(0, 600).map(p => h`<tr>
           <td style="color:var(--muted);white-space:nowrap">${fmtDate2(p.d, p.y)}</td>
           <td>${esc(p.ev || "")}</td>
-          <td><span class="pill">${esc(p.cls || "")}</span></td>
+          <td class="m-hide"><span class="pill">${esc(p.cls || "")}</span></td>
           <td class="num">${p.p ?? "—"}</td><td class="num score">${score3(p.s)}</td></tr>`).join("")}</tbody></table></div>`;
       collapseRows(document.getElementById("perfRows"), 5, "performances");
     }
@@ -1747,7 +1747,7 @@
       if (i === 0) return `<td class="num m-hide" style="text-align:left">${r[0]}</td>`;
       if (i === cfg.dateIdx) return `<td style="color:var(--muted);white-space:nowrap">${fmtDate2(r[i])}</td>`;
       if (i === cfg.corpsIdx) return `<td>${corpsLink(r[i])}</td>`;
-      if (i === cfg.clsIdx) return `<td><span class="pill">${esc(r[i] || "")}</span></td>`;
+      if (i === cfg.clsIdx) return `<td class="m-hide"><span class="pill">${esc(r[i] || "")}</span></td>`;
       if (i === cfg.evIdx) return `<td>${esc(r[i] || "")}</td>`;
       const v = r[i];
       if (typeof v === "number") {
@@ -1764,7 +1764,7 @@
       const more = filtered.length - shown;
       document.getElementById("dbtable").innerHTML =
         `<div class="tscroll dense"><table class="t"><thead><tr>${cfg.cols.map((c, i) =>
-          `<th style="cursor:pointer;user-select:none" class="${i === 0 ? "m-hide" : ""}" data-c="${i}">${c}${i === ci ? (dir > 0 ? " ↑" : " ↓") : ""}</th>`).join("")}</tr></thead><tbody>
+          `<th style="cursor:pointer;user-select:none" class="${i === 0 || i === cfg.clsIdx ? "m-hide" : ""}" data-c="${i}">${c}${i === ci ? (dir > 0 ? " ↑" : " ↓") : ""}</th>`).join("")}</tr></thead><tbody>
         ${filtered.slice(0, shown).map(r =>
           `<tr>${cfg.cols.map((c, i) => cellHtml(r, i)).join("")}</tr>`).join("")}</tbody></table></div>` +
         (more > 0 ? `<div class="expandwrap"><button class="tab" id="dbMore">Show ${Math.min(100, more).toLocaleString()} more ▾ <span class="kicker">(${(shown).toLocaleString()} of ${filtered.length.toLocaleString()})</span></button></div>` : "");
@@ -2050,7 +2050,7 @@
       items = await res.json();
     } catch (e) {
       const el = document.getElementById("sugList");
-      if (!stale() && el) el.innerHTML = `<div class="empty">Couldn't load suggestions right now — <a href="https://github.com/${SUGGEST_REPO}/issues" target="_blank" rel="noopener">view them on GitHub →</a></div>`;
+      if (!stale() && el) el.innerHTML = `<div class="empty">Couldn't load suggestions right now.<br><a class="tab" style="display:inline-block;margin-top:12px" href="https://github.com/${SUGGEST_REPO}/issues" target="_blank" rel="noopener">View them on GitHub →</a></div>`;
       return;
     }
     const el = document.getElementById("sugList");
@@ -2166,7 +2166,7 @@
         toast = null;
         stamp = newStamp;
         const upd = document.getElementById("updated");
-        if (upd) upd.textContent = "data: " + newStamp;
+        if (upd) upd.textContent = "Updated " + newStamp;
         route();
       };
       document.body.appendChild(toast);
@@ -2189,7 +2189,7 @@
   addEventListener("hashchange", route);
 
   data("meta.json").then(m => {
-    document.getElementById("updated").textContent = "data: " + m.updated;
+    document.getElementById("updated").textContent = "Updated " + m.updated.replace(" UTC", " UTC");
     route();
   }).catch(() => {
     firstBuildPending = true;
