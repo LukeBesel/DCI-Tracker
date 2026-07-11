@@ -864,9 +864,9 @@
     let capRows = [];
     try {
       const all = await data(`captions/${year}.json`);
-      if (stale()) return;
       capRows = all.filter(r => r[1] === ev.name && (!ev.date || r[0] === ev.date));
     } catch (e) { /* captions not built for this season */ }
+    if (stale()) return; // bail whether the captions fetch succeeded or not
     const capByClass = new Map();
     capRows.forEach(r => {
       const arr = capByClass.get(r[2]) || [];
@@ -951,7 +951,9 @@
 
     let rows = [];
     let cls = "";
+    let loadGen = 0; // guards against out-of-order season loads
     const capPick = new Set();
+    let msCap = null;
 
     const iDate = () => cols.indexOf("date"), iEv = () => cols.indexOf("event"),
       iCls = () => cols.indexOf("class"), iCorps = () => cols.indexOf("corps");
@@ -1009,7 +1011,7 @@
 
       document.getElementById("capBoardTitle").innerHTML =
         `${esc(label)} leaders <span class="sub">best single-show score, ${esc(String(year))} ${esc(cls)}</span>`;
-      document.getElementById("capBoard").innerHTML = `
+      document.getElementById("capBoard").innerHTML = board.length ? `
         <table class="t"><thead><tr><th>#</th><th>Corps</th><th class="num">Best</th><th>At</th><th class="num col-high">Latest</th><th class="num col-perfs">Scored shows</th></tr></thead><tbody>
         ${board.slice(0, 20).map(b => h`<tr>
           <td class="rank">${b.rank}</td>
@@ -1018,27 +1020,32 @@
           <td style="color:var(--muted);font-size:12.5px">${esc(b.bestEv)} · ${esc(fmtDate(b.bestD))}</td>
           <td class="num col-high">${score3(b.latest)}</td>
           <td class="num col-perfs">${b.n}</td></tr>`).join("")}
-        </tbody></table>` || "<div class='empty'>No data</div>";
+        </tbody></table>` : "<div class='empty'>No recap data for this caption yet — it fills in as recaps are scraped.</div>";
 
-      // corps picker for the chart
-      const mount = document.getElementById("capCorpsSel");
-      mount.innerHTML = "";
-      mount.className = "";
-      const ms = multiSelect(mount, {
-        label: "Pick corps to chart…", searchable: board.length > 12,
-        options: board.map(b => ({ value: b.corps, label: b.corps, hint: `#${b.rank}` })),
-        selected: capPick,
-        onChange: update,
-      });
-      document.getElementById("capReset").onclick = () => { capPick.clear(); ms.refresh(); update(); };
+      // corps picker persists across updates so the panel stays open
+      const capOptions = board.map(b => ({ value: b.corps, label: b.corps, hint: `#${b.rank}` }));
+      if (!msCap) {
+        msCap = multiSelect(document.getElementById("capCorpsSel"), {
+          label: "Pick corps to chart…", searchable: true,
+          options: capOptions,
+          selected: capPick,
+          onChange: update,
+        });
+        document.getElementById("capReset").onclick = () => { capPick.clear(); msCap.refresh(); update(); };
+      } else {
+        msCap.setOptions(capOptions);
+      }
 
-      history.replaceState(null, "", `#/captions?y=${year}&cap=${capKey}`);
+      if (!stale()) history.replaceState(null, "", `#/captions?y=${year}&cap=${capKey}`);
     }
 
     async function loadYear() {
-      try { rows = await data(`captions/${year}.json`); }
-      catch (e) { rows = []; }
-      if (stale()) return;
+      const gen = ++loadGen;
+      let got;
+      try { got = await data(`captions/${year}.json`); }
+      catch (e) { got = []; }
+      if (stale() || gen !== loadGen) return; // navigated away or picked another year
+      rows = got;
       const cl = classesIn(rows);
       cls = cl.includes(cls) ? cls : (cl[0] || "");
       update();

@@ -236,8 +236,10 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; }
 .evcls { margin: 12px 0 4px; font-size: 13px; font-weight: 650; }
 .evbody table.t { max-width: 560px; }
 
+@media (max-width: 900px) {
+  .updated { display: none; } /* keep the 4-tab nav on one sticky row */
+}
 @media (max-width: 640px) {
-  .updated { display: none; }
   main { padding: 14px 12px 50px; }
   h1.page { font-size: 21px; }
   .tile .value { font-size: 24px; }

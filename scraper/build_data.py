@@ -299,6 +299,11 @@ def _t(a, i):
     return t if abs(x + y - t) < EPS else None
 
 
+def _full_panel_ok(ge1, ge2, ge, vp, va, cg, vis, br, ma, pc, mus, sub):
+    return (abs(ge1 + ge2 - ge) < EPS and abs((vp + va + cg) / 2 - vis) < EPS
+            and abs((br + ma + pc) / 2 - mus) < EPS and abs(ge + vis + mus - sub) < EPS)
+
+
 def _layout_30(a):
     ge1, ge2 = _t(a, 0), _t(a, 3)
     vp, va, cg = _t(a, 7), _t(a, 10), _t(a, 13)
@@ -306,8 +311,7 @@ def _layout_30(a):
     ge, vis, mus, sub, pen, tot = a[6], a[16], a[26], a[27], a[28], a[29]
     if None in (ge1, ge2, vp, va, cg, br, ma, pc):
         return None
-    if not (abs(ge1 + ge2 - ge) < EPS and abs((vp + va + cg) / 2 - vis) < EPS
-            and abs((br + ma + pc) / 2 - mus) < EPS):
+    if not _full_panel_ok(ge1, ge2, ge, vp, va, cg, vis, br, ma, pc, mus, sub):
         return None
     return [ge1, ge2, ge, vp, va, cg, vis, br, ma, pc, mus, pen, tot], sub
 
@@ -320,8 +324,7 @@ def _layout_33(a):  # dual percussion panel
     if None in (ge1, ge2, vp, va, cg, br, ma, pca, pcb):
         return None
     pc = (pca + pcb) / 2
-    if not (abs(ge1 + ge2 - ge) < EPS and abs((vp + va + cg) / 2 - vis) < EPS
-            and abs((br + ma + pc) / 2 - mus) < EPS):
+    if not _full_panel_ok(ge1, ge2, ge, vp, va, cg, vis, br, ma, pc, mus, sub):
         return None
     return [ge1, ge2, ge, vp, va, cg, vis, br, ma, pc, mus, pen, tot], sub
 
@@ -334,8 +337,7 @@ def _layout_36(a):  # dual GE panels
     if None in (g1a, g1b, g2a, g2b, vp, va, cg, br, ma, pc):
         return None
     ge1, ge2 = (g1a + g1b) / 2, (g2a + g2b) / 2
-    if not (abs(ge1 + ge2 - ge) < EPS and abs((vp + va + cg) / 2 - vis) < EPS
-            and abs((br + ma + pc) / 2 - mus) < EPS):
+    if not _full_panel_ok(ge1, ge2, ge, vp, va, cg, vis, br, ma, pc, mus, sub):
         return None
     return [ge1, ge2, ge, vp, va, cg, vis, br, ma, pc, mus, pen, tot], sub
 
@@ -348,21 +350,29 @@ def _layout_39(a):  # dual GE + dual percussion (major regionals/championships)
     if None in (g1a, g1b, g2a, g2b, vp, va, cg, br, ma, pca, pcb):
         return None
     ge1, ge2, pc = (g1a + g1b) / 2, (g2a + g2b) / 2, (pca + pcb) / 2
-    if not (abs(ge1 + ge2 - ge) < EPS and abs((vp + va + cg) / 2 - vis) < EPS
-            and abs((br + ma + pc) / 2 - mus) < EPS):
+    if not _full_panel_ok(ge1, ge2, ge, vp, va, cg, vis, br, ma, pc, mus, sub):
         return None
     return [ge1, ge2, ge, vp, va, cg, vis, br, ma, pc, mus, pen, tot], sub
 
 
-def _layout_19(a):  # reduced panel: single visual number, no brass judge
+def _layout_19(a):  # reduced panel: judge assignments vary and sub-caption
+    # scales differ from full panels, so only GE (structurally identical
+    # two-judge panel) and the reconciled totals are published.
     ge1, ge2 = _t(a, 0), _t(a, 3)
-    ma, pc = _t(a, 9), _t(a, 12)
-    ge, vis, vis2, mus, sub, pen, tot = a[6], a[7], a[8], a[15], a[16], a[17], a[18]
-    if None in (ge1, ge2, ma, pc) or abs(vis - vis2) > EPS:
+    ge, sub, pen, tot = a[6], a[16], a[17], a[18]
+    if None in (ge1, ge2) or abs(ge1 + ge2 - ge) > EPS:
         return None
-    if not (abs(ge1 + ge2 - ge) < EPS and abs(ma + pc - mus) < EPS):
+    m1v, m2v = _t(a, 9), _t(a, 12)
+    vis_first = (abs(a[7] - a[8]) < EPS and m1v is not None and m2v is not None
+                 and abs(m1v + m2v - a[15]) < EPS
+                 and abs(ge + a[7] + a[15] - sub) < EPS)
+    m1m, m2m = _t(a, 7), _t(a, 10)
+    mus_first = (m1m is not None and m2m is not None
+                 and abs(m1m + m2m - a[13]) < EPS and abs(a[14] - a[15]) < EPS
+                 and abs(ge + a[14] + a[13] - sub) < EPS)
+    if not (vis_first or mus_first):
         return None
-    return [ge1, ge2, ge, None, None, None, vis, None, ma, pc, mus, pen, tot], sub
+    return [ge1, ge2, ge, None, None, None, None, None, None, None, None, pen, tot], sub
 
 
 LAYOUTS = {30: _layout_30, 33: _layout_33, 36: _layout_36, 39: _layout_39, 19: _layout_19}
@@ -386,10 +396,15 @@ def parse_recap_cells(cells) -> dict | None:
     if not parsed:
         return None
     vals, sub = parsed
-    ge, vis, mus, pen, tot = vals[2], vals[6], vals[10], vals[11], vals[12]
-    # the sheet's own arithmetic is the acceptance test
-    if abs(ge + vis + mus - sub) > EPS or abs(sub - pen - tot) > EPS:
-        return None
+    pen, tot = vals[11], vals[12]
+    if abs(sub - pen - tot) > EPS:
+        # recaps often print '--' where a penalty was assessed; the penalty is
+        # still recoverable from the sheet's own arithmetic
+        recovered = round(sub - tot, 3)
+        if pen == 0.0 and 0 < recovered <= 10:
+            vals[11] = recovered
+        else:
+            return None
     return dict(zip(CAPTION_COLS, [round(v, 3) if v is not None else None for v in vals]))
 
 
