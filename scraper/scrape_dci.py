@@ -216,6 +216,13 @@ def parse_event_page(url: str, html: str) -> dict | None:
 CAPTION_PAT = re.compile(
     r"(general effect|visual|color ?guard|music|brass|percussion|analysis|proficiency|guard|effect)", re.I)
 
+# A recap row is a header fragment only when the whole name IS a caption
+# label — substring tests eat real corps ("Santa Clara Vanguard" ⊃ "guard",
+# "Music City" ⊃ "music"), so match the full cell.
+CAPTION_LABEL = re.compile(
+    r"(corps|general effect|visual|music|color ?guard|brass|percussion|analysis|"
+    r"proficiency|guard|effect|sub ?-?total|total|penalt(?:y|ies))(\s*[-–]\s*\w+)?(\s+\d+)?", re.I)
+
 
 def parse_recap_page(url: str, html: str) -> list[dict]:
     """Caption recaps. dci.org recap pages render one wide table per class
@@ -249,7 +256,7 @@ def parse_recap_page(url: str, html: str) -> list[dict]:
                 continue
             corps = canon_corps(re.sub(r"\s*-\s*$", "", name_cells[0]))
             numbers = re.findall(r"\d{1,3}\.\d{1,3}", " ".join(cells))
-            if not numbers or not corps or CAPTION_PAT.search(corps):
+            if not numbers or not corps or CAPTION_LABEL.fullmatch(corps):
                 continue
             rows.append({"corps": corps, "total": max(float(n) for n in numbers), "cells": cells})
         if rows:
@@ -308,8 +315,21 @@ def main():
     for i, url in enumerate(urls):
         force = args.force and (args.season is None or year_of(url) == args.season)
         if url in existing and not force and cache_path(url).exists() is False:
-            # previously parsed but page not cached (old run) — keep unless reparsing
-            events.append(existing[url])
+            # previously parsed but page not cached (old run) — keep unless
+            # reparsing. Still heal a recap the old run never cached: fetch it
+            # within budget so every sheet eventually reaches full fidelity.
+            ev = existing[url]
+            ru = ev.get("recap_url")
+            if ru and not ev.get("non_corps") and not cache_path(ru).exists():
+                rhtml = budget_fetch(ru)
+                if rhtml:
+                    try:
+                        rec = parse_recap_page(ru, rhtml)
+                        if rec:
+                            ev["recap"] = rec
+                    except Exception as e:  # noqa: BLE001
+                        log(f"PARSE FAIL recap {ru}: {e}")
+            events.append(ev)
             continue
         html = budget_fetch(url, force=force)
         if html is None:

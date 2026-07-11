@@ -1,13 +1,10 @@
-name: Daily update
+name: Data update
 
 on:
   schedule:
-    # 10:30 PM Eastern (02:30 UTC during EDT) — after evening shows post
-    - cron: "30 2 * * *"
-    # live window — show nights, every 30 minutes (June through August)
-    - cron: "*/30 0-6 * 6-8 *"
-    # Morning sweep (~8 AM ET) to catch late West Coast results
-    - cron: "0 12 * * *"
+    # every 30 minutes, year-round — scores publish, the site follows
+    # (the show-night watcher covers the minutes in between)
+    - cron: "*/30 * * * *"
   workflow_dispatch: {}
 
 permissions:

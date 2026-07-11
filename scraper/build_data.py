@@ -952,6 +952,8 @@ def build_upcoming():
                 if ev.get("schedule"):
                     row["schedule"] = [[t, canon_corps(e) if not NON_PERF_UI.search(e) else e]
                                        for t, e in ev["schedule"]]
+                if ev.get("bag_policy"):
+                    row["bag_policy"] = ev["bag_policy"]
                 rows.append(row)
         rows.sort(key=lambda e: (e["date"], e.get("name") or ""))
     write_json("upcoming.json", rows[:60])

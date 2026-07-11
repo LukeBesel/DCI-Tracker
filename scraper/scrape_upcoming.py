@@ -99,6 +99,33 @@ def parse_event_page(url: str, html: str) -> dict | None:
     ev["lineup"] = lineup
     if schedule and any(t for t, _ in schedule):
         ev["schedule"] = schedule
+
+    # bag policy: venues bury it in the event-details prose — capture the
+    # sentence run around the keyword so fans know before they pack
+    bag = None
+    m = re.search(r"(clear\s+bag|bag\s+polic\w+)", body_txt, re.I)
+    if m:
+        start = body_txt.rfind(".", 0, m.start()) + 1
+        # a heading like "SECURITY, BAG POLICY & PROHIBITED ITEMS:" reads
+        # better trimmed to the text after the colon
+        colon = body_txt.find(":", m.end())
+        if 0 <= colon - m.end() <= 40:
+            start = colon + 1
+        snippet = norm_space(body_txt[start:start + 420])
+        # stop where the page moves on to the next section of boilerplate
+        nxt = re.search(r"\b(tickets?|concessions?|parking|directions|accessibilit\w+|watch live|weather)\b",
+                        snippet[20:], re.I)
+        if nxt:
+            snippet = snippet[:20 + nxt.start()]
+        # cut at the last full sentence; drop obvious nav/boilerplate tails
+        last = snippet.rfind(".")
+        if last > 20:
+            snippet = snippet[:last + 1]
+        snippet = norm_space(snippet)
+        if len(snippet) > 25:
+            bag = snippet
+    if bag:
+        ev["bag_policy"] = bag
     return ev if ev.get("date") else None
 
 

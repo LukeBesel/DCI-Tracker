@@ -124,6 +124,8 @@
       open = !open;
       applyRows();
       btn.textContent = open ? `Show Top ${n} ▴` : `Show All ${rows.length} ${noun} ▾`;
+      // collapsing from deep in a long table: bring the table top back on screen
+      if (!open && host.getBoundingClientRect().top < 0) host.scrollIntoView({ block: "start" });
     };
     btn.textContent = `Show All ${rows.length} ${noun} ▾`;
     wrap.appendChild(btn);
@@ -420,7 +422,8 @@
       <h2>Biggest Move <span class="sub">latest show vs previous</span></h2>
       <div style="font-size:20px;font-weight:650">${corpsLink(jump.corps)}</div>
       <div style="color:var(--text-secondary)">${score3(jump.prev_score)} → <b>${score3(jump.score)}</b> ${deltaHtml(jump.delta)}</div>
-      ${block.movers.slice(1).map(m => `<div style="font-size:13px;margin-top:6px">${corpsLink(m.corps)} ${deltaHtml(m.delta)}</div>`).join("")}`
+      ${block.movers.slice(1).map(m => `<div style="font-size:13px;margin-top:6px">${corpsLink(m.corps)} ${deltaHtml(m.delta)}</div>`).join("")}
+      <div style="margin-top:10px;font-size:13px"><a href="#/corps/${slugOf(jump.corps)}">Their full season →</a></div>`
       : "<h2>Biggest Move</h2><div class='empty'>Needs two shows.</div>";
 
     const b = block.battles && block.battles[0];
@@ -430,7 +433,8 @@
         <tr><td class="rank">${b.ra}</td><td>${corpsLink(b.a)}</td><td class="num score">${score3(b.sa)}</td></tr>
         <tr><td class="rank">${b.rb}</td><td>${corpsLink(b.b)}</td><td class="num score">${score3(b.sb)}</td></tr>
       </table>
-      <div style="margin-top:8px;font-size:13px;color:var(--text-secondary)">Gap: <b style="color:var(--bad)">${b.gap.toFixed(3)}</b></div>`
+      <div style="margin-top:8px;font-size:13px;color:var(--text-secondary)">Gap: <b style="color:var(--bad)">${b.gap.toFixed(3)}</b></div>
+      <div style="margin-top:8px;font-size:13px"><a href="#/compare?c=${slugOf(b.a)},${slugOf(b.b)}&y=${rk.season}">Compare head-to-head →</a></div>`
       : "<h2>Closest Battle</h2><div class='empty'>Needs two corps within striking distance.</div>";
   }
 
@@ -461,8 +465,8 @@
 
   async function viewCorpsHub(qs, stale) {
     setNav("data");
-    const [meta, idx, rk] = await Promise.all([
-      data("meta.json"), data("corps_index.json"), data("rankings.json").catch(() => null)]);
+    const [meta, idx] = await Promise.all([
+      data("meta.json"), data("corps_index.json")]);
     if (stale()) return;
     const allYears = meta.seasons.map(s => s.year).sort((a, b) => b - a);
     const bySlug = new Map(idx.map(c => [c.slug, c]));
@@ -490,18 +494,8 @@
       corpsSel = corpsSel.filter(s => bySlug.has(s));
       yearsSel = yearsSel.filter(y => allYears.includes(y));
     }
-    // an explicitly empty selection (user cleared, or shared a cleared URL)
-    // stays empty; only a fresh arrival gets the default matchup:
-    // the current #1 corps, this season vs their previous one
-    if (!explicit && !corpsSel.length && !yearsSel.length) {
-      const rows = rk && rk.standings && (rk.standings["World Class"] || Object.values(rk.standings)[0] || {}).rows;
-      corpsSel = (rows || []).slice(0, 1).map(r => slugOf(r.corps)).filter(s => bySlug.has(s));
-      if (!corpsSel.length) corpsSel = idx.slice(0, 1).map(c => c.slug);
-      const leader = bySlug.get(corpsSel[0]);
-      const theirYears = leader ? leader.series.map(s => s[0]).sort((a, b) => b - a) : allYears;
-      yearsSel = theirYears.slice(0, 2).filter(y => allYears.includes(y));
-      if (!yearsSel.length) yearsSel = allYears.slice(0, 2);
-    }
+    // the page starts empty on purpose — you pick who to compare
+    // (a shared URL or the session's last selection still restores itself)
 
     function persist() {
       if (stale()) return; // never rewrite the URL of a view we've left
@@ -515,7 +509,7 @@
       ${dataSubNav("compare")}
       <h1 class="page">Compare <span class="kicker">· any corps, any seasons</span></h1>
       <div class="card">
-        <h2>Score Progression <span class="sub">tap ⊕ in the directory below to add corps</span></h2>
+        <h2>Score Progression <span class="sub">pick several corps and seasons — every corps-season gets its own line</span></h2>
         <div class="filters" style="margin-bottom:10px">
           <div id="fClass"></div>
           <div id="corpsSel"></div>
@@ -525,15 +519,6 @@
         <div id="cmpNotice"></div>
         <div class="chartwrap" id="cmpChart"><div class="loading">Loading…</div></div>
         <div id="cmpTable" style="margin-top:12px"></div>
-      </div>
-      <div class="card" style="margin-top:14px">
-        <h2 id="dirTitle">All Corps <span class="sub">tap a corps for its full history · ⊕ adds it to the chart</span></h2>
-        <div class="filters">
-          <input class="ctrl" id="q" placeholder="Search corps…">
-        </div>
-        <div class="tscroll"><table class="t"><thead>
-          <tr><th></th><th>Corps</th><th>Years</th><th class="num">Best score</th></tr>
-        </thead><tbody id="rows"></tbody></table></div>
       </div>`;
 
     // --- multiselects ---
@@ -543,12 +528,12 @@
       .sort((a, b) => b.last - a.last || a.name.localeCompare(b.name))
       .map(c => ({ value: c.slug, label: c.name, hint: c.first === c.last ? String(c.first) : `${c.first}–${c.last}` }));
     const msCorps = multiSelect(document.getElementById("corpsSel"), {
-      label: "Select corps…", searchable: true,
+      label: "Add corps — pick as many as you like…", searchable: true,
       labelFor: v => (bySlug.get(v) || { name: v }).name,
       bulk: true, bulkAll: false,
       options: corpsOptions(),
       selected: corpsSet,
-      onChange: v => { corpsSel = v; persist(); draw(); renderRows(); },
+      onChange: v => { corpsSel = v; persist(); draw(); },
     });
 
     // corps-type filter drives both the dropdown and the directory
@@ -560,7 +545,6 @@
         clsFilter = v || "";
         localStorage.setItem("dt-corpsclass", clsFilter);
         msCorps.setOptions(corpsOptions());
-        renderRows();
       },
     });
     const msYears = multiSelect(document.getElementById("yearSel"), {
@@ -576,7 +560,6 @@
       msCorps.refresh(); msYears.refresh();
       persist();
       draw();
-      renderRows();
     };
 
     // --- chart ---
@@ -590,7 +573,11 @@
       if (!chartEl) return;
       noticeEl.innerHTML = "";
       if (!corpsSel.length || !yearsSel.length) {
-        chartEl.innerHTML = "<div class='empty'>Pick at least one corps and one season.</div>";
+        chartEl.innerHTML = `<div class='empty' style="padding:52px 16px">
+          <div style="font-size:30px" aria-hidden="true">📈</div>
+          <div style="font-weight:650;color:var(--text-primary);margin:8px 0 4px">Pick corps and seasons to compare</div>
+          Select as many corps as you like — each corps-season draws its own line,<br>
+          and its row below expands into the full show-by-show log.</div>`;
         tableEl.innerHTML = "";
         return;
       }
@@ -633,7 +620,7 @@
           const hiPt = pts.reduce((m, p) => p.y > m.y ? p : m, pts[0]);
           const tipOf = p => `${score3(p.y)} — ${p.ev} · ${fmtDateY(p.d)}`;
           summary.push({
-            corps: name, year: years[yi], shows: pts.length,
+            corps: name, year: years[yi], shows: pts.length, list: pts,
             first: scores[0], latest: scores[scores.length - 1],
             high: hiPt.y,
             firstTip: tipOf(pts[0]), latestTip: tipOf(pts[pts.length - 1]), highTip: tipOf(hiPt),
@@ -652,50 +639,25 @@
       }
       lineChart(chartEl, { linearX: true, series, height: 360, xFmt: dayLabel, yFmt: v => v.toFixed(1) });
       summary.sort((a, b) => b.year - a.year || (b.latest || 0) - (a.latest || 0));
+      // each corps-season row expands into its full show-by-show log
       tableEl.innerHTML = `
-        <div class="tscroll"><table class="t"><thead><tr><th>Corps</th><th class="num">Season</th><th class="num m-hide">First</th><th class="num">Latest / Final</th><th class="num m-hide">High</th><th class="num">Gain</th></tr></thead><tbody id="cmpRows">
-        ${summary.map(s => h`<tr><td>${corpsLink(s.corps)}</td><td class="num">${s.year}</td><td class="num m-hide" data-tip="${esc(s.firstTip)}">${score3(s.first)}</td><td class="num score" data-tip="${esc(s.latestTip)}">${score3(s.latest)}</td><td class="num m-hide" data-tip="${esc(s.highTip)}">${score3(s.high)}</td><td class="num">${s.gain > 0 ? "+" : ""}${s.gain}</td></tr>`).join("")}
+        <div class="tscroll"><table class="t"><thead><tr><th style="width:26px"></th><th>Corps</th><th class="num">Season</th><th class="num m-hide">First</th><th class="num">Latest / Final</th><th class="num m-hide">High</th><th class="num">Gain</th></tr></thead><tbody id="cmpRows">
+        ${summary.map((s, si) => h`<tr class="rowlink cmpsum" data-si="${si}" title="Tap for every show that season">
+          <td class="cmpcaret" style="color:var(--muted)">▸</td>
+          <td>${corpsLink(s.corps)}</td><td class="num">${s.year}</td><td class="num m-hide" data-tip="${esc(s.firstTip)}">${score3(s.first)}</td><td class="num score" data-tip="${esc(s.latestTip)}">${score3(s.latest)}</td><td class="num m-hide" data-tip="${esc(s.highTip)}">${score3(s.high)}</td><td class="num">${s.gain > 0 ? "+" : ""}${s.gain}</td></tr>
+        <tr class="cmpdet hid"><td></td><td colspan="6" style="padding:0 8px 12px">
+          <table class="t" style="font-size:13px">${s.list.map(p => `<tr><td style="color:var(--muted);white-space:nowrap;width:70px">${fmtDate(p.d)}</td><td>${esc(p.ev)}</td><td class="num score">${score3(p.y)}</td></tr>`).join("")}</table>
+        </td></tr>`).join("")}
         </tbody></table></div>`;
-      collapseRows(document.getElementById("cmpRows"), 5, "rows");
-    }
-
-    // --- directory ---
-    const rowsEl = document.getElementById("rows");
-    function renderRows() {
-      const q = (document.getElementById("q").value || "").toLowerCase();
-      const list = idx.filter(c =>
-        classMatch(c) &&
-        (!q || c.name.toLowerCase().includes(q)))
-        .sort((a, b) => b.last - a.last || (b.best || 0) - (a.best || 0));
-      // the type dropdown above filters this list too — say so in the title
-      document.getElementById("dirTitle").innerHTML =
-        `All Corps${clsFilter ? ` — ${esc(clsFilter)}` : ""} <span class="sub">${list.length} corps · tap one for its history · ⊕ adds it to the chart</span>`;
-      rowsEl.innerHTML = list.map(c => h`
-        <tr class="rowlink" data-slug="${c.slug}">
-          <td class="addcell"><button class="addbtn${corpsSet.has(c.slug) ? " on" : ""}" data-add="${c.slug}" title="${corpsSet.has(c.slug) ? "Remove from" : "Add to"} compare">${corpsSet.has(c.slug) ? "✓" : "+"}</button></td>
-          <td><b>${esc(c.name)}</b></td>
-          <td style="color:var(--muted)">${c.first === c.last ? c.first : c.first + "–" + c.last}</td>
-          <td class="num score" data-tip="${esc(`Best ${score3(c.best)} — ${((c.series || []).find(sr => sr[1] === c.best) || [])[0] || ""} season`)}">${score3(c.best)}</td></tr>`).join("")
-        || "<tr><td colspan='4' class='empty'>No matches.</td></tr>";
-      rowsEl.querySelectorAll("tr[data-slug]").forEach(tr => {
-        tr.onclick = e => {
-          if (e.target.closest(".addbtn")) return;
-          location.hash = `#/corps/${tr.dataset.slug}`;
-        };
+      tableEl.querySelectorAll("tr.cmpsum").forEach(tr => tr.onclick = e => {
+        if (e.target.closest("a")) return; // the corps link still navigates
+        const det = tr.nextElementSibling;
+        det.classList.toggle("hid");
+        tr.querySelector(".cmpcaret").textContent = det.classList.contains("hid") ? "▸" : "▾";
       });
-      rowsEl.querySelectorAll(".addbtn").forEach(bt => bt.onclick = () => {
-        const s = bt.dataset.add;
-        corpsSet.has(s) ? corpsSet.delete(s) : corpsSet.add(s);
-        corpsSel = [...corpsSet];
-        msCorps.refresh();
-        persist(); draw(); renderRows();
-      });
-      collapseRows(rowsEl, 5, "corps");
     }
-    document.getElementById("q").addEventListener("input", renderRows);
 
     persist();
-    renderRows();
     draw();
   }
 
@@ -798,6 +760,7 @@
     const scored = perfs.filter(p => p.s);
     const cmpYears = years.slice(-3).reverse().join(",");
 
+    const bestPerf = scored.length ? scored.reduce((m, p) => p.s > m.s ? p : m, scored[0]) : null;
     const pt = document.getElementById("corpsPageTitle");
     if (pt) pt.textContent = detail.name;
     mount().innerHTML = h`
@@ -806,9 +769,18 @@
       <div class="card" style="margin-top:14px"><h2 id="perfTitle">Performance Log</h2>
         <div id="perfTable"></div></div>
       <div class="grid cols-tiles" style="margin-top:14px">
-        <div class="tile"><div class="label">Performances</div><div class="value">${perfs.length}</div><div class="sub">${years.length} seasons in the database</div></div>
-        <div class="tile"><div class="label">Best score</div><div class="value">${scored.length ? score3(Math.max(...scored.map(p => p.s))) : "—"}</div></div>
-        <div class="tile"><div class="label">Titles</div><div class="value">${titles.length}</div><div class="sub">${esc(titles.length <= 6 ? titles.join(" · ") || "—" : titles.slice(-3).join(" · ") + ` · +${titles.length - 3} more`)}</div></div>
+        <div class="tile click" id="tilePerfs" role="button" title="Open the full performance log">
+          <div class="label">Performances</div><div class="value">${perfs.length}</div>
+          <div class="sub">${years.length} seasons · see every show →</div></div>
+        <div class="tile click" id="tileBest" role="button" title="Jump to that season">
+          <div class="label">Best score</div><div class="value">${bestPerf ? score3(bestPerf.s) : "—"}</div>
+          <div class="sub">${bestPerf ? esc(`${bestPerf.ev || ""} · ${bestPerf.y}`) + " →" : ""}</div></div>
+        <div class="tile click" id="tileTitles" role="button" title="The full record book">
+          <div class="label">Titles</div><div class="value">${titles.length}</div>
+          <div class="sub">${esc(titles.length <= 6 ? titles.join(" · ") || "—" : titles.slice(-3).join(" · ") + ` · +${titles.length - 3} more`)} →</div></div>
+        <a class="tile click" href="#/captions?corps=${encodeURIComponent(detail.name)}">
+          <div class="label">Caption Scores</div><div class="value">GE · VIS · MUS</div>
+          <div class="sub">judge-by-judge breakdowns →</div></a>
       </div>`;
 
     // the year filter drives BOTH the chart and the log; one year shows the
@@ -835,6 +807,23 @@
           height: 260, xFmt: dayLabel, yFmt: v => v.toFixed(1),
         });
         return;
+      }
+      // a handful of chosen seasons: overlay each season's full progression,
+      // one color per year, on a shared season-day axis
+      if (sel.length > 1 && sel.length <= 8) {
+        const series = sel.map(yv => ({
+          name: String(yv), color: PALETTE[yv % PALETTE.length],
+          points: (byYear.get(yv) || []).filter(p => p.s && p.d)
+            .map(p => ({ x: dayOfSeason(p.d), y: p.s })).sort((a, b) => a.x - b.x),
+        })).filter(sr => sr.points.length);
+        if (series.length) {
+          title.innerHTML = `Season Progression — ${sel[0]}–${sel[sel.length - 1]} <span class="sub">one line per season · <a href="#/compare?c=${slug}&y=${cmpYears}">compare vs other corps →</a></span>`;
+          lineChart(document.getElementById("corpsChart"), {
+            linearX: true, series,
+            height: 260, xFmt: dayLabel, yFmt: v => v.toFixed(1),
+          });
+          return;
+        }
       }
       // top score per season — the line only connects consecutive seasons,
       // so years the corps didn't march show as real gaps and an in-progress
@@ -875,6 +864,23 @@
     }
     renderChart();
     renderPerfs();
+
+    // stat tiles double as drill-downs
+    document.getElementById("tilePerfs").onclick = () => {
+      const btn = document.querySelector("#perfTable .expandwrap .tab");
+      if (btn && document.querySelector("#perfRows tr.hid")) btn.click();
+      document.getElementById("perfTitle").scrollIntoView({ block: "start", behavior: "smooth" });
+    };
+    document.getElementById("tileBest").onclick = () => {
+      if (!bestPerf) return;
+      yearSet.clear();
+      yearSet.add(String(bestPerf.y));
+      msYears.refresh();
+      renderChart();
+      renderPerfs();
+      document.getElementById("corpsChartTitle").scrollIntoView({ block: "start", behavior: "smooth" });
+    };
+    document.getElementById("tileTitles").onclick = () => { location.hash = "#/seasons"; };
   }
 
   /* ============ SEASONS ============ */
@@ -990,9 +996,11 @@
 
   function eventBodyHtml(ev, year, i) {
     if (ev.future) {
-      const mapLink = ev.location
+      const mapLink = (ev.location
         ? `<p style="font-size:12.5px;color:var(--muted);margin:8px 0 0"><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((ev.name || "") + " " + ev.location)}" target="_blank" rel="noopener">Venue map ↗</a></p>`
-        : "";
+        : "") + (ev.bag_policy
+        ? `<p style="font-size:12.5px;color:var(--muted);margin:6px 0 0">🎒 <b>Bag policy:</b> ${esc(ev.bag_policy)}</p>`
+        : "");
       if (ev.schedule && ev.schedule.length) {
         return h`<h3 class="evcls">Schedule <span class="kicker">${ev.lineup.length} corps · venue time</span></h3>
           <table class="t"><tbody>
@@ -1073,7 +1081,7 @@
         if (!u.date || !String(u.date).startsWith(String(year))) continue;
         if (seen.has(u.date + "|" + (u.name || "").toLowerCase())) continue;
         events.push({ name: u.name, date: u.date, location: u.location,
-          lineup: u.lineup || [], future: true });
+          lineup: u.lineup || [], schedule: u.schedule, bag_policy: u.bag_policy, future: true });
       }
     }
 
@@ -1280,7 +1288,10 @@
       rows = rows.slice().sort((a, b) => (b[1][sortI] ?? -1) - (a[1][sortI] ?? -1));
       const best = cols.map((c, i) => c.kind === "pen" ? null
         : Math.max(...rows.map(r => (r[1][i] == null ? -1 : r[1][i]))));
-      host.innerHTML = `<div class="tscroll"><table class="t sticky1 rt"><thead>
+      // quick-jump chips: the sheet is wide, so hop straight to a caption block
+      const chips = `<div class="rjump">${groups.map((g, gi) =>
+        `<button type="button" class="rjbtn" data-g="${gi}">${esc(g.n)}</button>`).join("")}<button type="button" class="rjbtn" data-g="end">Totals</button></div>`;
+      host.innerHTML = `${chips}<div class="tscroll"><table class="t sticky1 rt"><thead>
         <tr><th rowspan="3">Corps</th>${groups.map(g =>
           `<th colspan="${g.span}" class="rgrp gb" data-c="${g.totI}">${esc(g.n)}</th>`).join("")}<th rowspan="3" class="num gb" data-c="${iSub}">Sub</th><th rowspan="3" class="num" data-c="${iPen}">Pen</th><th rowspan="3" class="num" data-c="${iTot}">Total</th></tr>
         <tr>${groups.map(g => g.subs.map(s =>
@@ -1300,6 +1311,17 @@
       host.querySelectorAll("th[data-c]").forEach(th => {
         if (+th.dataset.c === sortI) th.classList.add("on");
         th.onclick = () => { sortI = +th.dataset.c; paint(); };
+      });
+      const sc = host.querySelector(".tscroll");
+      host.querySelectorAll(".rjbtn").forEach(bt => bt.onclick = () => {
+        const firstTd = sc.querySelector("tbody td:first-child");
+        const stickyW = firstTd ? firstTd.offsetWidth : 120;
+        if (bt.dataset.g === "end") {
+          sc.scrollTo({ left: sc.scrollWidth, behavior: "smooth" });
+          return;
+        }
+        const th = sc.querySelectorAll("th.rgrp")[+bt.dataset.g];
+        if (th) sc.scrollTo({ left: Math.max(0, th.offsetLeft - stickyW - 6), behavior: "smooth" });
       });
     }
     paint();
@@ -1414,6 +1436,7 @@
     const params = parseHashQuery(qs);
     let year = +params.y && seasons.includes(+params.y) ? +params.y : seasons[0];
     let capKey = CAPTION_DEFS.some(([k]) => k === params.cap) ? params.cap : "ge";
+    let spotWant = params.corps ? decodeURIComponent(params.corps) : null; // deep link into the Spotlight
 
     app.innerHTML = `
       ${dataSubNav("captions")}
@@ -1700,15 +1723,24 @@
       if (!document.getElementById("spotCorps")) return;
       spotBoard = board;
       const opts = board.map(b => ({ value: b.corps, label: b.corps, hint: `#${b.rank}` }));
+      const wantSpot = spotWant && board.some(b => b.corps === spotWant) ? spotWant : null;
       if (!ssSpot) {
         ssSpot = singleSelect(document.getElementById("spotCorps"), {
           label: "Pick a corps…", searchable: board.length > 12, options: opts,
-          value: board.length ? board[0].corps : null,
+          value: wantSpot || (board.length ? board[0].corps : null),
           onChange: () => renderSpot(spotBoard),
         });
       } else {
         ssSpot.setOptions(opts);
-        if (!board.some(b => b.corps === ssSpot.get())) ssSpot.set(board.length ? board[0].corps : null);
+        if (wantSpot) ssSpot.set(wantSpot);
+        else if (!board.some(b => b.corps === ssSpot.get())) ssSpot.set(board.length ? board[0].corps : null);
+      }
+      if (wantSpot) {
+        spotWant = null; // consumed — user picks freely from here
+        setTimeout(() => {
+          const t = document.getElementById("spotTitle");
+          if (t) t.scrollIntoView({ block: "start", behavior: "smooth" });
+        }, 60);
       }
       const vsOpts = [{ value: "", label: "No comparison" }, ...opts];
       if (!ssVs) {
@@ -1772,6 +1804,11 @@
       if (stale() || gen !== loadGen) return; // navigated away or picked another year
       rows = got;
       recapsYr = gotRec;
+      // a spotlight deep link lands in whatever class that corps marched
+      if (spotWant) {
+        const r0 = rows.find(r => r[iCorps()] === spotWant);
+        if (r0) cls = r0[iCls()];
+      }
       const cl = classesIn(rows);
       cls = cl.includes(cls) ? cls : (cl[0] || "");
       update();
@@ -2452,6 +2489,15 @@
 
   window.CadRedraw = route; // theme toggle re-renders the current view
   addEventListener("hashchange", route);
+  // logo tap: home with a clean slate — filters reset, preferences (theme,
+  // favorites) kept
+  const brandEl = document.querySelector(".brand");
+  if (brandEl) brandEl.addEventListener("click", () => {
+    ["dt-class", "dt-corpsclass"].forEach(k => localStorage.removeItem(k));
+    sessionStorage.removeItem("cmp-corps");
+    sessionStorage.removeItem("cmp-years");
+    if ((location.hash || "#/") === "#/") route(); // already home: force a fresh render
+  });
 
   data("meta.json").then(m => {
     document.getElementById("updated").textContent = "Updated " + m.updated.replace(" UTC", " UTC");
