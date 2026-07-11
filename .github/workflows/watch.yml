@@ -7,8 +7,12 @@ on:
     - cron: "20 23 * 5-8 *"   # first shift: 7:20 PM ET, May–August
     - cron: "0 5 * 5-8 *"     # second shift: 1 AM ET — West Coast finishes
   workflow_dispatch:
+# own lane, NOT the shared "scrape" group: this job holds its lock for a
+# five-hour shift, and sharing it froze every 15-minute update run behind
+# it all evening. Concurrent pushes are safe — both sides commit through
+# the same pull-rebase-retry sequence.
 concurrency:
-  group: scrape
+  group: watch
   cancel-in-progress: false
 permissions:
   contents: write
