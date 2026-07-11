@@ -730,6 +730,11 @@ def build_pace(events, champions):
     log(f"pace: {sum(len(v) for v in curves.values())} champion curves")
 
 
+NON_PERF_UI = re.compile(
+    r"gates open|welcome|anthem|intermission|scores? announced|encore|award|"
+    r"ceremon|recognition|pledge|meeting|clinic|autograph", re.I)
+
+
 def build_upcoming():
     """docs/data/upcoming.json from data/parsed/dci_upcoming.json (events
     calendar scrape): future events with lineups for the homepage."""
@@ -739,12 +744,16 @@ def build_upcoming():
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         for ev in json.loads(p.read_text()):
             if ev.get("date") and ev["date"] >= today:
-                rows.append({
+                row = {
                     "name": ev.get("name"), "date": ev["date"],
                     "date_display": ev.get("date_display"),
                     "location": ev.get("location"), "url": ev.get("url"),
                     "lineup": [canon_corps(c) for c in (ev.get("lineup") or [])],
-                })
+                }
+                if ev.get("schedule"):
+                    row["schedule"] = [[t, canon_corps(e) if not NON_PERF_UI.search(e) else e]
+                                       for t, e in ev["schedule"]]
+                rows.append(row)
         rows.sort(key=lambda e: (e["date"], e.get("name") or ""))
     write_json("upcoming.json", rows[:60])
 

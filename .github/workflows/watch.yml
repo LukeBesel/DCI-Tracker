@@ -1,0 +1,72 @@
+name: Show-night live watcher
+# On summer show nights, poll the DCI scores index every ~3 minutes and
+# publish the moment new scores appear — instead of waiting for the
+# half-hourly cron. One long job per evening; exits early on no-show days.
+on:
+  schedule:
+    - cron: "20 23 * 6-8 *"   # 7:20 PM ET, June–August
+  workflow_dispatch:
+concurrency:
+  group: scrape
+  cancel-in-progress: false
+permissions:
+  contents: write
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 345
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r scraper/requirements.txt
+      - name: Watch for score drops
+        run: |
+          set -u
+          # no shows today (UTC date == ET date at 23:20) -> go back to sleep
+          python3 - <<'PY' || { echo "no shows today — exiting"; exit 0; }
+          import json, datetime, sys
+          try:
+              up = json.load(open("docs/data/upcoming.json"))
+          except Exception:
+              sys.exit(1)
+          today = datetime.datetime.utcnow().strftime("%Y-%m-%d")
+          sys.exit(0 if any(e.get("date") == today for e in up) else 1)
+          PY
+          git config user.name "dci-tracker-bot"
+          git config user.email "actions@users.noreply.github.com"
+          publish() {
+            git add -A data
+            git diff --cached --quiet || git commit -m "Live scores: $(date -u '+%Y-%m-%d %H:%M UTC') (inputs)"
+            git checkout -- . 2>/dev/null || true
+            git clean -fd docs/data 2>/dev/null || true
+            for i in 1 2 3 4; do
+              if ! git pull --rebase -X theirs origin main; then
+                git rebase --abort 2>/dev/null || true
+                sleep $((5 * i)); continue
+              fi
+              python scraper/build_data.py
+              git add -A data docs/data
+              git diff --cached --quiet || git commit -m "Live scores: $(date -u '+%Y-%m-%d %H:%M UTC')"
+              git push && return 0
+              sleep $((5 * i))
+            done
+            echo "::warning::live publish failed after retries"
+            return 1
+          }
+          last=""
+          end=$(( $(date +%s) + 300 * 60 ))   # five hours of watching
+          while [ "$(date +%s)" -lt "$end" ]; do
+            cur=$(curl -sS --max-time 30 "https://www.dci.org/scores" | md5sum | cut -d" " -f1 || echo "")
+            if [ -n "$cur" ] && [ -n "$last" ] && [ "$cur" != "$last" ]; then
+              echo "scores index changed — scraping"
+              bash scraper/run_all.sh update || echo "::warning::scrape failed this cycle"
+              publish || true
+            fi
+            [ -n "$cur" ] && last="$cur"
+            sleep 180
+          done
+          echo "watch window closed"

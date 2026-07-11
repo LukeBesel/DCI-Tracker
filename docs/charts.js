@@ -2,6 +2,15 @@
    2px lines, >=8px end markers with 2px surface rings, hairline solid grid,
    crosshair + single tooltip listing every series, legend always for >=2 series. */
 (function () {
+  const themeVar = name => (getComputedStyle(document.documentElement).getPropertyValue(name) || "").trim();
+  const CH = () => ({
+    grid: themeVar("--ch-grid") || CH().grid,
+    base: themeVar("--ch-base") || CH().base,
+    label: themeVar("--ch-label") || CH().label,
+    ink: themeVar("--ch-ink") || CH().ink,
+    halo: themeVar("--ch-halo") || CH().halo,
+    cross: themeVar("--ch-cross") || CH().cross,
+  });
   const NS = "http://www.w3.org/2000/svg";
   const PALETTE = ["#e8590c", "#1971c2", "#2f9e44", "#6741d9", "#c2255c", "#0c8599", "#a61e4d", "#495057"];
 
@@ -84,16 +93,16 @@
     // grid + y ticks
     for (const tv of niceTicks(yMin, yMax, 5)) {
       if (tv < yMin || tv > yMax) continue;
-      el("line", { x1: m.left, x2: W - m.right, y1: Y(tv), y2: Y(tv), stroke: "#e4e9f1", "stroke-width": 1 }, svg);
-      const t = el("text", { x: m.left - 8, y: Y(tv) + 4, "text-anchor": "end", fill: "#74808f", "font-size": 11 }, svg);
+      el("line", { x1: m.left, x2: W - m.right, y1: Y(tv), y2: Y(tv), stroke: CH().grid, "stroke-width": 1 }, svg);
+      const t = el("text", { x: m.left - 8, y: Y(tv) + 4, "text-anchor": "end", fill: CH().label, "font-size": 11 }, svg);
       t.textContent = fmt(tv);
     }
-    el("line", { x1: m.left, x2: W - m.right, y1: m.top + ih, y2: m.top + ih, stroke: "#c4cdda", "stroke-width": 1 }, svg);
+    el("line", { x1: m.left, x2: W - m.right, y1: m.top + ih, y2: m.top + ih, stroke: CH().base, "stroke-width": 1 }, svg);
     // x labels (thin out)
     const every = Math.ceil(nX / Math.floor(iw / 70));
     opts.xLabels.forEach((lb, i) => {
       if (i % every !== 0 && i !== nX - 1) return;
-      const t = el("text", { x: X(i), y: H - 8, "text-anchor": "middle", fill: "#74808f", "font-size": 11 }, svg);
+      const t = el("text", { x: X(i), y: H - 8, "text-anchor": "middle", fill: CH().label, "font-size": 11 }, svg);
       t.textContent = lb;
     });
 
@@ -103,7 +112,7 @@
       const d = pts.map((p, j) => (j ? "L" : "M") + X(p.x).toFixed(1) + " " + Y(p.y).toFixed(1)).join(" ");
       el("path", { d, fill: "none", stroke: s.color, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
       const last = pts[pts.length - 1];
-      el("circle", { cx: X(last.x), cy: Y(last.y), r: 4, fill: s.color, stroke: "#ffffff", "stroke-width": 2 }, svg);
+      el("circle", { cx: X(last.x), cy: Y(last.y), r: 4, fill: s.color, stroke: CH().halo, "stroke-width": 2 }, svg);
     }
     // selective direct labels: first series endpoint value
     if (series.length <= 4) {
@@ -111,13 +120,13 @@
         const pts = s.points.filter(p => p.y != null);
         if (!pts.length) return;
         const last = pts[pts.length - 1];
-        const t = el("text", { x: Math.min(X(last.x) + 8, W - 2), y: Y(last.y) + 4, fill: "#2c3a55", "font-size": 11 }, svg);
+        const t = el("text", { x: Math.min(X(last.x) + 8, W - 2), y: Y(last.y) + 4, fill: CH().ink, "font-size": 11 }, svg);
         t.textContent = fmt(last.y);
       });
     }
 
     // crosshair + tooltip
-    const cross = el("line", { y1: m.top, y2: m.top + ih, stroke: "#97a2b3", "stroke-width": 1, opacity: 0 }, svg);
+    const cross = el("line", { y1: m.top, y2: m.top + ih, stroke: CH().cross, "stroke-width": 1, opacity: 0 }, svg);
     const hover = el("rect", { x: m.left, y: m.top, width: iw, height: ih, fill: "transparent" }, svg);
     function toIdx(evt) {
       const r = svg.getBoundingClientRect();
@@ -177,14 +186,14 @@
     const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img" }, container);
     for (const tv of niceTicks(yMin, yMax, 5)) {
       if (tv < yMin || tv > yMax) continue;
-      el("line", { x1: m.left, x2: W - m.right, y1: Y(tv), y2: Y(tv), stroke: "#e4e9f1", "stroke-width": 1 }, svg);
-      const t = el("text", { x: m.left - 8, y: Y(tv) + 4, "text-anchor": "end", fill: "#74808f", "font-size": 11 }, svg);
+      el("line", { x1: m.left, x2: W - m.right, y1: Y(tv), y2: Y(tv), stroke: CH().grid, "stroke-width": 1 }, svg);
+      const t = el("text", { x: m.left - 8, y: Y(tv) + 4, "text-anchor": "end", fill: CH().label, "font-size": 11 }, svg);
       t.textContent = yFmt(tv);
     }
-    el("line", { x1: m.left, x2: W - m.right, y1: m.top + ih, y2: m.top + ih, stroke: "#c4cdda", "stroke-width": 1 }, svg);
+    el("line", { x1: m.left, x2: W - m.right, y1: m.top + ih, y2: m.top + ih, stroke: CH().base, "stroke-width": 1 }, svg);
     for (const tx of niceTicks(xMin, xMax, Math.min(10, Math.floor(iw / 80)))) {
       if (tx < xMin || tx > xMax) continue;
-      const t = el("text", { x: X(tx), y: H - 8, "text-anchor": "middle", fill: "#74808f", "font-size": 11 }, svg);
+      const t = el("text", { x: X(tx), y: H - 8, "text-anchor": "middle", fill: CH().label, "font-size": 11 }, svg);
       t.textContent = xFmt(tx);
     }
     const numbered = series.length >= 2 && !opts.noLegend;
@@ -197,7 +206,7 @@
       if (s.dash) attrs["stroke-dasharray"] = s.dash;
       el("path", attrs, svg);
       const last = pts[pts.length - 1];
-      el("circle", { cx: X(last.x), cy: Y(last.y), r: 4, fill: s.color, stroke: "#ffffff", "stroke-width": 2 }, svg);
+      el("circle", { cx: X(last.x), cy: Y(last.y), r: 4, fill: s.color, stroke: CH().halo, "stroke-width": 2 }, svg);
       if (numbered) badges.push({ x: X(last.x), y: Y(last.y), color: s.color, num: si + 1 });
     });
     // numbered chips beside each line's endpoint (de-overlapped vertically)
@@ -208,7 +217,7 @@
       }
       for (const b of badges) {
         const by = Math.min(Math.max(b.y, m.top + 7), m.top + ih + 4);
-        el("circle", { cx: b.x + 12, cy: by, r: 7.5, fill: b.color, stroke: "#ffffff", "stroke-width": 1.5 }, svg);
+        el("circle", { cx: b.x + 12, cy: by, r: 7.5, fill: b.color, stroke: CH().halo, "stroke-width": 1.5 }, svg);
         const t = el("text", { x: b.x + 12, y: by + 3.2, "text-anchor": "middle", fill: "#fff",
                                "font-size": 9.5, "font-weight": 700 }, svg);
         t.textContent = b.num;
@@ -216,7 +225,7 @@
     }
     // hover: snap to nearest x present in any series
     const xsSet = [...new Set(allPts.map(p => p.x))].sort((a, b) => a - b);
-    const cross = el("line", { y1: m.top, y2: m.top + ih, stroke: "#97a2b3", "stroke-width": 1, opacity: 0 }, svg);
+    const cross = el("line", { y1: m.top, y2: m.top + ih, stroke: CH().cross, "stroke-width": 1, opacity: 0 }, svg);
     const hover = el("rect", { x: m.left, y: m.top, width: iw, height: ih, fill: "transparent" }, svg);
     hover.addEventListener("pointermove", evt => {
       const r = svg.getBoundingClientRect();
@@ -276,11 +285,11 @@
     const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img" }, container);
     for (const tv of niceTicks(0, yMax, 4)) {
       if (tv > yMax) continue;
-      el("line", { x1: m.left, x2: W - m.right, y1: Y(tv), y2: Y(tv), stroke: "#e4e9f1", "stroke-width": 1 }, svg);
-      const t = el("text", { x: m.left - 7, y: Y(tv) + 4, "text-anchor": "end", fill: "#74808f", "font-size": 11 }, svg);
+      el("line", { x1: m.left, x2: W - m.right, y1: Y(tv), y2: Y(tv), stroke: CH().grid, "stroke-width": 1 }, svg);
+      const t = el("text", { x: m.left - 7, y: Y(tv) + 4, "text-anchor": "end", fill: CH().label, "font-size": 11 }, svg);
       t.textContent = String(+tv.toFixed(2));
     }
-    el("line", { x1: m.left, x2: W - m.right, y1: m.top + ih, y2: m.top + ih, stroke: "#c4cdda", "stroke-width": 1 }, svg);
+    el("line", { x1: m.left, x2: W - m.right, y1: m.top + ih, y2: m.top + ih, stroke: CH().base, "stroke-width": 1 }, svg);
 
     const gw = iw / groups.length;
     const nBars = Math.max(...groups.map(g => g.bars.length));
@@ -300,17 +309,17 @@
                      fill: b.color || PALETTE[bi % 8] }, svg);
         if (bw >= 18) { // labels collide on very thin paired bars
           const t = el("text", { x: (x + bw / 2).toFixed(1), y: (y - 4).toFixed(1),
-                                 "text-anchor": "middle", fill: "#2c3a55",
+                                 "text-anchor": "middle", fill: CH().ink,
                                  "font-size": 9.5, "font-weight": 650 }, svg);
           t.textContent = fmt(b.value);
         }
       });
       const lb = el("text", { x: (m.left + gi * gw + gw / 2).toFixed(1), y: H - (g.sub ? 16 : 9),
-                              "text-anchor": "middle", fill: "#74808f", "font-size": 10.5 }, svg);
+                              "text-anchor": "middle", fill: CH().label, "font-size": 10.5 }, svg);
       lb.textContent = g.label;
       if (g.sub) {
         const sb = el("text", { x: (m.left + gi * gw + gw / 2).toFixed(1), y: H - 4,
-                                "text-anchor": "middle", fill: "#2c3a55",
+                                "text-anchor": "middle", fill: CH().ink,
                                 "font-size": 9.5, "font-weight": 700 }, svg);
         sb.textContent = g.sub;
       }

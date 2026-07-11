@@ -98,7 +98,8 @@
   })();
 
   function corpsLink(name) {
-    return `<a href="#/corps/${slugOf(name)}">${esc(name)}</a>`;
+    const fav = FAVS.has(name);
+    return `<a href="#/corps/${slugOf(name)}"${fav ? ' class="favname"' : ""}>${fav ? "★ " : ""}${esc(name)}</a>`;
   }
   function setNav(route) {
     document.querySelectorAll("#nav a").forEach(a =>
@@ -392,12 +393,13 @@
       document.getElementById("standTitle").innerHTML =
         `${esc(cls)} Standings <span class="sub">each corps' most recent score · ★ pins favorites</span>`;
       document.getElementById("standings").innerHTML = `
-        <table class="t standings"><thead><tr><th></th><th>#</th><th>Corps · last event</th><th class="num">Score</th><th class="num col-high">Season high</th><th class="num">vs prev</th><th class="col-trend">Trend</th></tr></thead><tbody>
+        <table class="t standings"><thead><tr><th></th><th>#</th><th>Corps · last event</th><th class="num">Score</th><th class="num col-high">3-show avg</th><th class="num col-high">Season high</th><th class="num">vs prev</th><th class="col-trend">Trend</th></tr></thead><tbody>
         ${sorted.map(r => h`<tr${FAVS.has(r.corps) ? ' class="favrow"' : ""}>
           <td><button class="favbtn${FAVS.has(r.corps) ? " on" : ""}" data-fav="${esc(r.corps)}" title="${FAVS.has(r.corps) ? "Unpin" : "Pin to top"}">${FAVS.has(r.corps) ? "★" : "☆"}</button></td>
           <td class="rank">${r.rank}</td>
           <td>${corpsLink(r.corps)}<div class="lastev">${esc(r.event)} · ${esc(fmtDateY(r.date))}</div></td>
           <td class="num score">${score3(r.score)}</td>
+          <td class="num col-high" data-tip="Average of the last ${Math.min(3, r.trend.length)} shows — smooths out one judging panel">${score3(r.trend.slice(-3).reduce((a, t) => a + t[1], 0) / Math.min(3, r.trend.length))}</td>
           <td class="num col-high" data-tip="${esc(`${score3(r.high)} — ${r.high_event || ""} · ${fmtDateY(r.high_date) || ""}`)}">${score3(r.high)}</td>
           <td class="num">${deltaHtml(r.delta)}</td>
           <td class="col-trend"><span class="sparkcell" data-trend="${r.trend.map(t => t[1]).join(",")}"></span></td>
@@ -1017,6 +1019,16 @@
 
   function eventBodyHtml(ev, year, i) {
     if (ev.future) {
+      if (ev.schedule && ev.schedule.length) {
+        return h`<h3 class="evcls">Schedule <span class="kicker">${ev.lineup.length} corps · venue time</span></h3>
+          <table class="t"><tbody>
+          ${ev.schedule.map(([t, entry]) => {
+            const isCorps = (ev.lineup || []).includes(entry);
+            return `<tr><td class="num" style="color:var(--muted);white-space:nowrap">${esc(t || "")}</td><td>${isCorps ? corpsLink(entry) : `<span style="color:var(--muted)">${esc(entry)}</span>`}</td></tr>`;
+          }).join("")}
+          </tbody></table>
+          ${ev.location ? `<p style="font-size:12.5px;color:var(--muted);margin:8px 0 0"><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((ev.name || "") + " " + ev.location)}" target="_blank" rel="noopener">Venue map ↗</a></p>` : ""}`;
+      }
       return (ev.lineup || []).length
         ? h`<h3 class="evcls">Scheduled Lineup <span class="kicker">${ev.lineup.length} corps</span></h3>
             <table class="t"><tbody>
@@ -1128,6 +1140,7 @@
       <div class="filters">
         <div id="fCls"></div>
         <input class="ctrl" id="fQ" placeholder="Search event, city or corps…">
+        <button class="tab" id="favOnly" title="Only shows featuring your starred corps">★ My corps</button>
         <button class="tab" id="toggleAll">Expand All ▾</button>
       </div>
       <div id="evcount" class="kicker" style="margin:-6px 0 10px"></div>
@@ -1151,6 +1164,11 @@
 
     function matches(ev, cls, q) {
       if (cls && !(ev.classes || []).some(c => c.class === cls)) return false;
+      if (favOn) {
+        const inList = (ev.lineup || []).some(c => FAVS.has(c)) ||
+          (ev.classes || []).some(c => (c.results || []).some(r => FAVS.has(r.corps)));
+        if (!inList) return false;
+      }
       if (cls && ev.future) return false;
       if (q) {
         const hay = (ev.name + " " + (ev.location || "")).toLowerCase();
@@ -1206,6 +1224,7 @@
 
     let allOpen = false;
     let upOpen = false;
+    let favOn = false;
     let fClsVal = "";
     singleSelect(document.getElementById("fCls"), {
       label: "All classes",
@@ -1214,6 +1233,12 @@
       onChange: v => { fClsVal = v || ""; allOpen = false; syncToggle(); render(); },
     });
     document.getElementById("fQ").addEventListener("input", () => { allOpen = false; syncToggle(); render(); });
+    const favBtn = document.getElementById("favOnly");
+    favBtn.onclick = () => {
+      favOn = !favOn;
+      favBtn.classList.toggle("on", favOn);
+      render();
+    };
     const toggleBtn = document.getElementById("toggleAll");
     function syncToggle() { toggleBtn.textContent = allOpen ? "Collapse All ▴" : "Expand All ▾"; }
     toggleBtn.onclick = () => {
@@ -1252,8 +1277,8 @@
     const capTable = (cls, ci) => {
       const rows = (capByClass.get(cls) || []).slice().sort((a, b) => b[CIDX.tot] - a[CIDX.tot]);
       if (!rows.length) return "";
-      return h`<h3 class="evcls" style="margin-top:14px">Caption Breakdown <span class="kicker">verified against the official recap</span></h3>
-        <div class="tscroll"><table class="t"><thead><tr><th>Corps</th>${CAP_HEAD.map(([, l]) => `<th class="num">${l}</th>`).join("")}</tr></thead><tbody class="evcap" data-ci="${ci}">
+      return h`<h3 class="evcls" style="margin-top:14px">Caption Breakdown <span class="kicker">verified against the official recap · tap a column to sort</span></h3>
+        <div class="tscroll"><table class="t sticky1 capsort"><thead><tr><th>Corps</th>${CAP_HEAD.map(([k, l]) => `<th class="num" data-sort="${k}">${l}</th>`).join("")}</tr></thead><tbody class="evcap" data-ci="${ci}">
         ${rows.map(r => `<tr><td>${corpsLink(r[CIDX.corps])}</td>${CAP_HEAD.map(([k]) =>
           `<td class="num${k === "tot" ? " score" : ""}">${r[CIDX[k]] == null ? "—" : (+r[CIDX[k]]).toFixed(k === "tot" ? 3 : 2)}</td>`).join("")}</tr>`).join("")}
         </tbody></table></div>${CAP_KEY_NOTE}`;
@@ -1269,8 +1294,27 @@
         ${c.results.map(r => `<tr><td class="rank">${r.place ?? "—"}</td><td>${corpsLink(r.corps)}</td><td class="num score">${score3(r.score)}</td></tr>`).join("")}
         </tbody></table></div>
         ${capTable(c.class, ci)}</div>`).join("")}
-      ${ev.recap_url ? `<p style="font-size:12.5px;color:var(--muted)"><a href="${encodeURI(ev.recap_url)}" target="_blank" rel="noopener">Official recap on DCI.org ↗</a></p>` : ""}`;
+      ${ev.recap_url ? `<p style="font-size:12.5px;color:var(--muted)"><a href="${encodeURI(ev.recap_url)}" target="_blank" rel="noopener">Official recap on DCI.org ↗</a></p>` : ""}
+      ${ev.location ? `<p style="font-size:12.5px;color:var(--muted)"><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((ev.name || "") + " " + ev.location)}" target="_blank" rel="noopener">Venue map ↗</a></p>` : ""}`;
     document.querySelectorAll(".evres, .evcap").forEach(tb => collapseRows(tb, 5, "corps"));
+    // tap a caption header to re-rank the sheet by that caption
+    document.querySelectorAll(".capsort").forEach(table => {
+      table.querySelectorAll("th[data-sort]").forEach(th => th.onclick = () => {
+        const k = th.dataset.sort;
+        const tb = table.tBodies[0];
+        const rowsArr = [...tb.rows];
+        const idx = [...table.tHead.rows[0].cells].indexOf(th);
+        rowsArr.sort((a, b) => {
+          const av = parseFloat(a.cells[idx].textContent) || -1;
+          const bv = parseFloat(b.cells[idx].textContent) || -1;
+          return bv - av;
+        });
+        rowsArr.forEach(r => tb.appendChild(r));
+        rowsArr.forEach(r => r.classList.remove("hid"));
+        const wrap = (tb.closest(".tscroll") || {}).nextElementSibling;
+        if (wrap && wrap.classList && wrap.classList.contains("expandwrap")) wrap.remove();
+      });
+    });
   }
 
   /* ============ CAPTIONS ============ */
@@ -2181,11 +2225,12 @@
         else stamp = m.updated;
       } catch (e) { /* offline — try again next tick */ }
     }
-    setInterval(check, 5 * 60 * 1000);
+    setInterval(check, 3 * 60 * 1000);
     document.addEventListener("visibilitychange", () => { if (!document.hidden) check(); });
     check();
   })();
 
+  window.CadRedraw = route; // theme toggle re-renders the current view
   addEventListener("hashchange", route);
 
   data("meta.json").then(m => {

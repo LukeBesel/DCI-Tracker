@@ -67,8 +67,10 @@ def parse_event_page(url: str, html: str) -> dict | None:
         ev["date_display"] = f"{dm.group(1)} {dm.group(2)}, {dm.group(3)}"
         ev["date"] = iso_from_display(ev["date_display"])
 
-    # lineup table under the "Lineup & Times" heading
+    # lineup table under the "Lineup & Times" heading; the full timed
+    # schedule (gates, step-offs, intermission, scores announced) rides along
     lineup: list[str] = []
+    schedule: list[list[str]] = []
     head = soup.find(lambda t: t.name in ("h2", "h3") and "lineup" in t.get_text().lower())
     if head:
         table = head.find_next("table")
@@ -77,8 +79,12 @@ def parse_event_page(url: str, html: str) -> dict | None:
                 cells = [norm_space(td.get_text(" ", strip=True)) for td in tr.find_all(["td", "th"])]
                 if len(cells) < 2:
                     continue
-                entry = cells[-1]
+                time_s, entry = cells[0], cells[-1]
+                if not entry:
+                    continue
                 if NON_PERFORMANCE.search(entry):
+                    if len(schedule) < 60:
+                        schedule.append([time_s, entry])
                     continue
                 # "Corps Name - City, ST" (city part optional)
                 name = re.split(r"\s+-\s+", entry)[0]
@@ -88,7 +94,11 @@ def parse_event_page(url: str, html: str) -> dict | None:
                 cname = canon_corps(name)
                 if cname and cname not in lineup:
                     lineup.append(cname)
+                    if len(schedule) < 60:
+                        schedule.append([time_s, cname])
     ev["lineup"] = lineup
+    if schedule and any(t for t, _ in schedule):
+        ev["schedule"] = schedule
     return ev if ev.get("date") else None
 
 
