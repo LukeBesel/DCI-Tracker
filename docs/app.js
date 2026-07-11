@@ -494,7 +494,7 @@
           <button class="tab" data-f="active">Active (last 2 yrs)</button>
         </div>
         <div class="tscroll"><table class="t"><thead>
-          <tr><th></th><th>Corps</th><th class="num">Seasons</th><th>Years</th><th class="num">Best score</th><th class="num col-perfs">Performances</th></tr>
+          <tr><th></th><th>Corps</th><th class="num">Seasons</th><th>Years</th><th class="num">Best score</th></tr>
         </thead><tbody id="rows"></tbody></table></div>
       </div>`;
 
@@ -608,8 +608,8 @@
       lineChart(chartEl, { linearX: true, series, height: 360, xFmt: dayLabel, yFmt: v => v.toFixed(1) });
       summary.sort((a, b) => b.year - a.year || (b.latest || 0) - (a.latest || 0));
       tableEl.innerHTML = `
-        <div class="tscroll"><table class="t"><thead><tr><th>Corps</th><th class="num">Season</th><th class="num">Shows</th><th class="num">First</th><th class="num">Latest / Final</th><th class="num">High</th><th class="num">Gain</th></tr></thead><tbody>
-        ${summary.map(s => h`<tr><td>${corpsLink(s.corps)}</td><td class="num">${s.year}</td><td class="num">${s.shows}</td><td class="num">${score3(s.first)}</td><td class="num score">${score3(s.latest)}</td><td class="num">${score3(s.high)}</td><td class="num">${s.gain > 0 ? "+" : ""}${s.gain}</td></tr>`).join("")}
+        <div class="tscroll"><table class="t"><thead><tr><th>Corps</th><th class="num">Season</th><th class="num">First</th><th class="num">Latest / Final</th><th class="num">High</th><th class="num">Gain</th></tr></thead><tbody>
+        ${summary.map(s => h`<tr><td>${corpsLink(s.corps)}</td><td class="num">${s.year}</td><td class="num">${score3(s.first)}</td><td class="num score">${score3(s.latest)}</td><td class="num">${score3(s.high)}</td><td class="num">${s.gain > 0 ? "+" : ""}${s.gain}</td></tr>`).join("")}
         </tbody></table></div>`;
     }
 
@@ -629,8 +629,8 @@
           <td class="addcell"><button class="addbtn${corpsSet.has(c.slug) ? " on" : ""}" data-add="${c.slug}" title="${corpsSet.has(c.slug) ? "Remove from" : "Add to"} compare">${corpsSet.has(c.slug) ? "✓" : "+"}</button></td>
           <td><b>${esc(c.name)}</b></td><td class="num">${c.seasons}</td>
           <td style="color:var(--muted)">${c.first === c.last ? c.first : c.first + "–" + c.last}</td>
-          <td class="num score">${score3(c.best)}</td><td class="num col-perfs">${c.n}</td></tr>`).join("")
-        || "<tr><td colspan='6' class='empty'>No matches.</td></tr>";
+          <td class="num score">${score3(c.best)}</td></tr>`).join("")
+        || "<tr><td colspan='5' class='empty'>No matches.</td></tr>";
       rowsEl.querySelectorAll("tr[data-slug]").forEach(tr => {
         tr.onclick = e => {
           if (e.target.closest(".addbtn")) return;
@@ -753,24 +753,14 @@
   /* ============ SEASONS ============ */
   async function viewSeasons(_m, stale) {
     setNav("seasons");
-    const [meta, champs, thisweek] = await Promise.all([
-      data("meta.json"), data("champions.json").catch(() => ({})),
-      data("thisweek.json").catch(() => [])]);
+    const [meta, champs] = await Promise.all([
+      data("meta.json"), data("champions.json").catch(() => ({}))]);
     if (stale()) return;
     const years = meta.seasons.slice().sort((a, b) => b.year - a.year);
     app.innerHTML = h`
       <h1 class="page">Season History <span class="kicker">· the record book</span></h1>
       <p class="lede">Every champion ever crowned, and the complete results of every season on record — open any year and drill down to the individual show, corps and score.</p>
-      ${thisweek.length ? `
-      <div class="card" style="margin-bottom:14px"><h2>This week in DCI history <span class="sub">shows from this calendar week, across the years</span></h2>
-      <table class="t"><tbody id="twRows">
-        ${thisweek.map(t => h`<tr>
-          <td class="rank" style="width:52px"><a href="#/season/${t.y}">${t.y}</a></td>
-          <td><b>${esc(t.name)}</b><div style="font-size:12px;color:var(--muted)">${esc(fmtDate(t.date))}${t.location ? " · " + esc(t.location) : ""}</div></td>
-          <td style="white-space:nowrap">${t.winner ? h`🏆 ${esc(t.winner.corps)} <span class="score">${score3(t.winner.score)}</span>` : ""}</td>
-        </tr>`).join("")}
-      </tbody></table></div>` : ""}
-      <div class="card"><h2>Past champions <span class="sub" id="champSub"></span></h2>
+            <div class="card"><h2>Past champions <span class="sub" id="champSub"></span></h2>
       <div class="filters classrow" id="champTabs" style="margin-bottom:8px"></div>
       <table class="t" id="champT"></table></div>
       <div class="card" style="margin-top:14px"><h2>Browse a season <span class="sub">every show of that summer — who performed, and every score</span></h2>
@@ -785,9 +775,6 @@
           </tr>`;
         }).join("")}
       </tbody></table></div>`;
-    const tw = document.getElementById("twRows");
-    if (tw) collapseRows(tw, 6, "shows");
-
     // champions: one class at a time
     const clsSet = new Set();
     Object.values(champs).forEach(byCls => Object.keys(byCls).forEach(c => clsSet.add(c)));
