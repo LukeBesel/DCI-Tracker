@@ -570,33 +570,23 @@
         });
         return;
       }
-      // All years: every scored performance in time order — no smoothing, no
-      // interpolation across seasons the corps didn't march (line breaks there)
-      const dated = perfs.filter(p => p.s && p.d)
-        .map(p => ({ x: p.y + Math.min(Math.max(dayOfSeason(p.d), 0), 120) / 130, y: p.s }))
-        .sort((a, b) => a.x - b.x);
-      if (dated.length >= 5) {
-        title.innerHTML = `Every scored performance <span class="sub">${years[0]}–${years[years.length - 1]} · gaps = seasons not marched · <a href="#/corps?c=${slug}&y=${cmpYears}">compare seasons →</a></span>`;
-        const segs = [];
-        let cur = [];
-        for (const p of dated) {
-          if (cur.length && p.x - cur[cur.length - 1].x > 1.2) { segs.push(cur); cur = []; }
-          cur.push(p);
-        }
-        if (cur.length) segs.push(cur);
-        lineChart(document.getElementById("corpsChart"), {
-          linearX: true, noLegend: true,
-          series: segs.map(pts => ({ name: "Score", points: pts, color: PALETTE[0] })),
-          height: 260, yFmt: v => v.toFixed(0), xFmt: v => String(Math.floor(v)),
-        });
-      } else {
-        title.innerHTML = `Season-best score by year <span class="sub"><a href="#/corps?c=${slug}&y=${cmpYears}">compare seasons on one chart →</a></span>`;
-        lineChart(document.getElementById("corpsChart"), {
-          linearX: true,
-          series: [{ name: "Season best", points: years.map((y, i) => ({ x: y, y: bestByYear[i] })).filter(p => p.y) }],
-          height: 260, yFmt: v => v.toFixed(0), xFmt: v => String(Math.round(v)),
-        });
+      // All years: top score per season — the line only connects consecutive
+      // seasons, so years the corps didn't march show as real gaps and an
+      // in-progress season sits as its own point instead of dragging the line
+      title.innerHTML = `Top score by year <span class="sub">gaps = seasons not marched · <a href="#/corps?c=${slug}&y=${cmpYears}">compare seasons →</a></span>`;
+      const ptsAll = years.map((y, i) => ({ x: y, y: bestByYear[i] })).filter(p => p.y);
+      const segs = [];
+      let cur = [];
+      for (const p of ptsAll) {
+        if (cur.length && p.x - cur[cur.length - 1].x > 1) { segs.push(cur); cur = []; }
+        cur.push(p);
       }
+      if (cur.length) segs.push(cur);
+      lineChart(document.getElementById("corpsChart"), {
+        linearX: true, noLegend: true,
+        series: segs.map(pts => ({ name: "Top score", points: pts, color: PALETTE[0] })),
+        height: 260, yFmt: v => v.toFixed(0), xFmt: v => String(Math.round(v)),
+      });
     }
 
     function renderPerfs() {
