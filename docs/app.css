@@ -292,7 +292,8 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; }
     scrollbar-width: none; -webkit-overflow-scrolling: touch;
   }
   #nav::-webkit-scrollbar { display: none; }
-  #nav a { padding: 6px 6px; font-size: 12.5px; white-space: nowrap; }
+  #nav a { padding: 6px 4px; font-size: 12px; white-space: nowrap; flex: 1; text-align: center; min-width: 0; }
+  @media (max-width: 355px) { #nav a { font-size: 11px; letter-spacing: -0.2px; } }
   main { padding: 14px 12px 50px; }
   h1.page { font-size: 21px; }
   .evwhen { font-size: 11px; }
