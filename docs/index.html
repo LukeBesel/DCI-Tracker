@@ -45,7 +45,7 @@
 </main>
 
 <footer class="foot">
-  <div><a href="#" id="installBtn" hidden><b>📲 Get the App</b> — install on this device</a></div>
+  <div><a href="#" id="installBtn" hidden><b>📲 Get the App</b> — install on this device (iPhone needs this for score alerts)</a></div>
   <div><a href="#" id="pushBtn"><b>🔔 Score alerts</b> — get a ping when scores drop</a></div>
   <div>Scores from <a href="https://www.dci.org/scores" rel="noopener">DCI.org</a> · refreshed every 30 minutes, minute-by-minute on show nights</div>
   <div><a href="#/suggestions"><b>Suggestions</b> — tell us what to build next →</a></div>
@@ -117,7 +117,17 @@ if ("serviceWorker" in navigator) {
       return await reg.pushManager.getSubscription();
     } catch (e) { return null; }
   }
+  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  const standaloneNow = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone;
   async function paint() {
+    // iPhone/iPad can only receive web notifications from the installed
+    // app (Apple's rule) — say so up front instead of after a dead tap
+    if (!canPush) {
+      btn.innerHTML = isIOS && !standaloneNow()
+        ? "<b>🔔 Score alerts</b> — on iPhone, install the app first · tap for steps"
+        : "<b>🔔 Score alerts</b> — not supported in this browser";
+      return;
+    }
     const sub = await currentSub();
     btn.innerHTML = sub
       ? "<b>🔕 Score alerts on</b> — tap to turn off"
