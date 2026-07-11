@@ -832,6 +832,32 @@
     if (stale()) return;
     const ev = events[+idx];
     if (!ev) { app.innerHTML = "<div class='empty'>Event not found.</div>"; return; }
+
+    // verified caption breakdown for this show, when available
+    let capRows = [];
+    try {
+      const all = await data(`captions/${year}.json`);
+      if (stale()) return;
+      capRows = all.filter(r => r[1] === ev.name && (!ev.date || r[0] === ev.date));
+    } catch (e) { /* captions not built for this season */ }
+    const capByClass = new Map();
+    capRows.forEach(r => {
+      const arr = capByClass.get(r[2]) || [];
+      arr.push(r);
+      capByClass.set(r[2], arr);
+    });
+    const CAP_HEAD = [["ge", "GE"], ["vp", "Vis Prof"], ["va", "Vis Anal"], ["cg", "Guard"], ["br", "Brass"], ["ma", "Mus Anal"], ["pc", "Perc"], ["tot", "Total"]];
+    const CIDX = { date: 0, event: 1, cls: 2, corps: 3, ge1: 4, ge2: 5, ge: 6, vp: 7, va: 8, cg: 9, vis: 10, br: 11, ma: 12, pc: 13, mus: 14, pen: 15, tot: 16 };
+    const capTable = cls => {
+      const rows = (capByClass.get(cls) || []).slice().sort((a, b) => b[CIDX.tot] - a[CIDX.tot]);
+      if (!rows.length) return "";
+      return h`<h3 class="evcls" style="margin-top:14px">Caption breakdown <span class="kicker">verified against the official recap</span></h3>
+        <div class="tscroll"><table class="t"><thead><tr><th>Corps</th>${CAP_HEAD.map(([, l]) => `<th class="num">${l}</th>`).join("")}</tr></thead><tbody>
+        ${rows.map(r => `<tr><td>${corpsLink(r[CIDX.corps])}</td>${CAP_HEAD.map(([k]) =>
+          `<td class="num${k === "tot" ? " score" : ""}">${r[CIDX[k]] == null ? "—" : (+r[CIDX[k]]).toFixed(k === "tot" ? 3 : 2)}</td>`).join("")}</tr>`).join("")}
+        </tbody></table></div>`;
+    };
+
     app.innerHTML = h`
       <div class="crumbs"><a href="#/seasons">Seasons</a> / <a href="#/season/${year}">${year}</a> / ${esc(ev.name)}</div>
       <h1 class="page">${esc(ev.name)}</h1>
@@ -840,7 +866,8 @@
         <div class="card" style="margin-bottom:14px"><h2>${esc(c.class)}</h2>
         <table class="t"><thead><tr><th>#</th><th>Corps</th><th class="num">Score</th></tr></thead><tbody>
         ${c.results.map(r => `<tr><td class="rank">${r.place ?? "—"}</td><td>${corpsLink(r.corps)}</td><td class="num score">${score3(r.score)}</td></tr>`).join("")}
-        </tbody></table></div>`).join("")}
+        </tbody></table>
+        ${capTable(c.class)}</div>`).join("")}
       ${(ev.recap || []).map(rc => h`
         <div class="card" style="margin-bottom:14px"><h2>Caption recap — ${esc(rc.class)}</h2>
         <div class="tscroll dense"><table class="t">
@@ -849,6 +876,150 @@
         </table></div>
         ${ev.recap_url ? `<div style="margin-top:8px;font-size:12.5px"><a href="${encodeURI(ev.recap_url)}" target="_blank" rel="noopener">Official recap ↗</a></div>` : ""}
         </div>`).join("")}`;
+  }
+
+  /* ============ CAPTIONS ============ */
+  const CAPTION_DEFS = [
+    ["ge", "General Effect"], ["ge1", "GE 1"], ["ge2", "GE 2"],
+    ["vis", "Visual"], ["vp", "Visual Proficiency"], ["va", "Visual Analysis"], ["cg", "Color Guard"],
+    ["mus", "Music"], ["br", "Brass"], ["ma", "Music Analysis"], ["pc", "Percussion"],
+    ["tot", "Total"],
+  ];
+
+  async function viewCaptions(qs, stale) {
+    setNav("captions");
+    let cindex;
+    try { cindex = await data("captions/index.json"); }
+    catch (e) {
+      if (!stale()) app.innerHTML = "<div class='card'><div class='empty'>Caption data builds with the next data run.</div></div>";
+      return;
+    }
+    if (stale()) return;
+    const cols = cindex.cols;
+    const seasons = cindex.seasons.map(s => s.year).sort((a, b) => b - a);
+    const params = parseHashQuery(qs);
+    let year = +params.y && seasons.includes(+params.y) ? +params.y : seasons[0];
+    let capKey = CAPTION_DEFS.some(([k]) => k === params.cap) ? params.cap : "ge";
+
+    app.innerHTML = `
+      <h1 class="page">Caption scores</h1>
+      <div class="filters">
+        <select class="ctrl" id="capYear">${seasons.map(y => `<option>${y}</option>`).join("")}</select>
+        <select class="ctrl" id="capKey">${CAPTION_DEFS.map(([k, l]) => `<option value="${k}">${l}</option>`).join("")}</select>
+        <span id="capClassTabs" style="display:flex;gap:6px;flex-wrap:wrap"></span>
+      </div>
+      <div class="card">
+        <h2 id="capChartTitle"></h2>
+        <div class="filters" style="margin:2px 0 8px"><div id="capCorpsSel"></div><button class="tab" id="capReset" hidden>Top 8</button></div>
+        <div class="chartwrap" id="capChart"></div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h2 id="capBoardTitle"></h2>
+        <div id="capBoard"></div>
+      </div>
+      <p class="pagenote">Every number here comes from DCI's published judge recaps and is arithmetically reconciled (caption sums must reproduce the official total) before it's shown. Dual-judge panels at big regionals are averaged, exactly as on the sheet.</p>`;
+
+    document.getElementById("capYear").value = String(year);
+    document.getElementById("capKey").value = capKey;
+
+    let rows = [];
+    let cls = "";
+    const capPick = new Set();
+
+    const iDate = () => cols.indexOf("date"), iEv = () => cols.indexOf("event"),
+      iCls = () => cols.indexOf("class"), iCorps = () => cols.indexOf("corps");
+
+    function classesIn(rs) { return sortClasses([...new Set(rs.map(r => r[iCls()]))]); }
+
+    function renderClassTabs() {
+      const tabs = document.getElementById("capClassTabs");
+      tabs.innerHTML = "";
+      classesIn(rows).forEach(c => {
+        const b = document.createElement("button");
+        b.className = "tab" + (c === cls ? " on" : "");
+        b.textContent = c;
+        b.onclick = () => { cls = c; capPick.clear(); update(); };
+        tabs.appendChild(b);
+      });
+    }
+
+    function corpsSeries() {
+      const ki = cols.indexOf(capKey);
+      const per = new Map();
+      for (const r of rows) {
+        if (r[iCls()] !== cls || r[ki] == null || !r[iDate()]) continue;
+        const arr = per.get(r[iCorps()]) || [];
+        arr.push({ d: r[iDate()], ev: r[iEv()], v: r[ki] });
+        per.set(r[iCorps()], arr);
+      }
+      per.forEach(a => a.sort((x, y) => x.d.localeCompare(y.d)));
+      return per;
+    }
+
+    function update() {
+      renderClassTabs();
+      const per = corpsSeries();
+      const label = (CAPTION_DEFS.find(([k]) => k === capKey) || [])[1];
+      const board = [...per.entries()].map(([corps, a]) => {
+        const best = a.reduce((m, p) => p.v > m.v ? p : m, a[0]);
+        return { corps, best: best.v, bestEv: best.ev, bestD: best.d, latest: a[a.length - 1].v, n: a.length };
+      }).sort((x, y) => y.best - x.best);
+      board.forEach((b, i) => { b.rank = i + 1; });
+
+      // chart: picked corps, else top 8 by best
+      const chosen = capPick.size ? board.filter(b => capPick.has(b.corps)) : board.slice(0, 8);
+      document.getElementById("capChartTitle").innerHTML =
+        `${esc(label)} progression <span class="sub">${esc(String(year))} · ${capPick.size ? chosen.length + " selected" : "top 8"}</span>`;
+      document.getElementById("capReset").hidden = !capPick.size;
+      lineChart(document.getElementById("capChart"), {
+        linearX: true,
+        series: chosen.map(b => ({
+          name: b.corps,
+          points: per.get(b.corps).map(p => ({ x: dayOfSeason(p.d), y: p.v })),
+        })),
+        height: 330, xFmt: dayLabel, yFmt: v => v.toFixed(1),
+      });
+
+      document.getElementById("capBoardTitle").innerHTML =
+        `${esc(label)} leaders <span class="sub">best single-show score, ${esc(String(year))} ${esc(cls)}</span>`;
+      document.getElementById("capBoard").innerHTML = `
+        <table class="t"><thead><tr><th>#</th><th>Corps</th><th class="num">Best</th><th>At</th><th class="num col-high">Latest</th><th class="num col-perfs">Scored shows</th></tr></thead><tbody>
+        ${board.slice(0, 20).map(b => h`<tr>
+          <td class="rank">${b.rank}</td>
+          <td>${corpsLink(b.corps)}</td>
+          <td class="num score">${score3(b.best)}</td>
+          <td style="color:var(--muted);font-size:12.5px">${esc(b.bestEv)} · ${esc(fmtDate(b.bestD))}</td>
+          <td class="num col-high">${score3(b.latest)}</td>
+          <td class="num col-perfs">${b.n}</td></tr>`).join("")}
+        </tbody></table>` || "<div class='empty'>No data</div>";
+
+      // corps picker for the chart
+      const mount = document.getElementById("capCorpsSel");
+      mount.innerHTML = "";
+      mount.className = "";
+      const ms = multiSelect(mount, {
+        label: "Pick corps to chart…", searchable: board.length > 12,
+        options: board.map(b => ({ value: b.corps, label: b.corps, hint: `#${b.rank}` })),
+        selected: capPick,
+        onChange: update,
+      });
+      document.getElementById("capReset").onclick = () => { capPick.clear(); ms.refresh(); update(); };
+
+      history.replaceState(null, "", `#/captions?y=${year}&cap=${capKey}`);
+    }
+
+    async function loadYear() {
+      try { rows = await data(`captions/${year}.json`); }
+      catch (e) { rows = []; }
+      if (stale()) return;
+      const cl = classesIn(rows);
+      cls = cl.includes(cls) ? cls : (cl[0] || "");
+      update();
+    }
+
+    document.getElementById("capYear").onchange = e => { year = +e.target.value; capPick.clear(); loadYear(); };
+    document.getElementById("capKey").onchange = e => { capKey = e.target.value; update(); };
+    await loadYear();
   }
 
   /* ============ DATABASE ============ */
@@ -981,6 +1152,7 @@
     [/^#\/seasons$/, viewSeasons],
     [/^#\/season\/(\d{4})$/, (m, st) => viewSeason(m[1], st)],
     [/^#\/event\/(\d{4})\/(\d+)$/, (m, st) => viewEvent(m[1], m[2], st)],
+    [/^#\/captions(?:\?(.*))?$/, (m, st) => viewCaptions(m[1], st)],
     [/^#\/database$/, viewDatabase],
     // legacy routes from earlier versions
     [/^#\/compare(?:\?.*)?$/, () => { location.replace("#/corps"); }],

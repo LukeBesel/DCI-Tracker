@@ -276,6 +276,154 @@ def build_rankings(events):
     }
 
 
+# ---------------------------------------------------------------- captions
+# DCI's judging sheet (2013–present): GE1 + GE2 (Rep/Perf), Visual
+# (Proficiency / Analysis / Color Guard, each Cont|Comp/Achv), Music (Brass /
+# Analysis / Percussion, each Cont/Achv), penalties, total. A recap row's
+# atomic numeric cells therefore appear in a fixed order (30 values), and the
+# sheet's own arithmetic (caption sums → subtotals → total) lets us verify
+# every parse — rows that don't reconcile are dropped, never guessed.
+ATOM = re.compile(r"^\d{1,3}\.\d{1,3}(?:\s+\d{1,2})?$")
+DASH = re.compile(r"^(--|-|—|0)$")
+
+CAPTION_COLS = ["ge1", "ge2", "ge", "vp", "va", "cg", "vis",
+                "br", "ma", "pc", "mus", "pen", "tot"]
+
+
+EPS = 0.015
+
+
+def _t(a, i):
+    """judge triplet at index i: (score, score, total) with total verified"""
+    x, y, t = a[i], a[i + 1], a[i + 2]
+    return t if abs(x + y - t) < EPS else None
+
+
+def _layout_30(a):
+    ge1, ge2 = _t(a, 0), _t(a, 3)
+    vp, va, cg = _t(a, 7), _t(a, 10), _t(a, 13)
+    br, ma, pc = _t(a, 17), _t(a, 20), _t(a, 23)
+    ge, vis, mus, sub, pen, tot = a[6], a[16], a[26], a[27], a[28], a[29]
+    if None in (ge1, ge2, vp, va, cg, br, ma, pc):
+        return None
+    if not (abs(ge1 + ge2 - ge) < EPS and abs((vp + va + cg) / 2 - vis) < EPS
+            and abs((br + ma + pc) / 2 - mus) < EPS):
+        return None
+    return [ge1, ge2, ge, vp, va, cg, vis, br, ma, pc, mus, pen, tot], sub
+
+
+def _layout_33(a):  # dual percussion panel
+    ge1, ge2 = _t(a, 0), _t(a, 3)
+    vp, va, cg = _t(a, 7), _t(a, 10), _t(a, 13)
+    br, ma, pca, pcb = _t(a, 17), _t(a, 20), _t(a, 23), _t(a, 26)
+    ge, vis, mus, sub, pen, tot = a[6], a[16], a[29], a[30], a[31], a[32]
+    if None in (ge1, ge2, vp, va, cg, br, ma, pca, pcb):
+        return None
+    pc = (pca + pcb) / 2
+    if not (abs(ge1 + ge2 - ge) < EPS and abs((vp + va + cg) / 2 - vis) < EPS
+            and abs((br + ma + pc) / 2 - mus) < EPS):
+        return None
+    return [ge1, ge2, ge, vp, va, cg, vis, br, ma, pc, mus, pen, tot], sub
+
+
+def _layout_36(a):  # dual GE panels
+    g1a, g1b, g2a, g2b = _t(a, 0), _t(a, 3), _t(a, 6), _t(a, 9)
+    vp, va, cg = _t(a, 13), _t(a, 16), _t(a, 19)
+    br, ma, pc = _t(a, 23), _t(a, 26), _t(a, 29)
+    ge, vis, mus, sub, pen, tot = a[12], a[22], a[32], a[33], a[34], a[35]
+    if None in (g1a, g1b, g2a, g2b, vp, va, cg, br, ma, pc):
+        return None
+    ge1, ge2 = (g1a + g1b) / 2, (g2a + g2b) / 2
+    if not (abs(ge1 + ge2 - ge) < EPS and abs((vp + va + cg) / 2 - vis) < EPS
+            and abs((br + ma + pc) / 2 - mus) < EPS):
+        return None
+    return [ge1, ge2, ge, vp, va, cg, vis, br, ma, pc, mus, pen, tot], sub
+
+
+def _layout_39(a):  # dual GE + dual percussion (major regionals/championships)
+    g1a, g1b, g2a, g2b = _t(a, 0), _t(a, 3), _t(a, 6), _t(a, 9)
+    vp, va, cg = _t(a, 13), _t(a, 16), _t(a, 19)
+    br, ma, pca, pcb = _t(a, 23), _t(a, 26), _t(a, 29), _t(a, 32)
+    ge, vis, mus, sub, pen, tot = a[12], a[22], a[35], a[36], a[37], a[38]
+    if None in (g1a, g1b, g2a, g2b, vp, va, cg, br, ma, pca, pcb):
+        return None
+    ge1, ge2, pc = (g1a + g1b) / 2, (g2a + g2b) / 2, (pca + pcb) / 2
+    if not (abs(ge1 + ge2 - ge) < EPS and abs((vp + va + cg) / 2 - vis) < EPS
+            and abs((br + ma + pc) / 2 - mus) < EPS):
+        return None
+    return [ge1, ge2, ge, vp, va, cg, vis, br, ma, pc, mus, pen, tot], sub
+
+
+def _layout_19(a):  # reduced panel: single visual number, no brass judge
+    ge1, ge2 = _t(a, 0), _t(a, 3)
+    ma, pc = _t(a, 9), _t(a, 12)
+    ge, vis, vis2, mus, sub, pen, tot = a[6], a[7], a[8], a[15], a[16], a[17], a[18]
+    if None in (ge1, ge2, ma, pc) or abs(vis - vis2) > EPS:
+        return None
+    if not (abs(ge1 + ge2 - ge) < EPS and abs(ma + pc - mus) < EPS):
+        return None
+    return [ge1, ge2, ge, None, None, None, vis, None, ma, pc, mus, pen, tot], sub
+
+
+LAYOUTS = {30: _layout_30, 33: _layout_33, 36: _layout_36, 39: _layout_39, 19: _layout_19}
+
+
+def parse_recap_cells(cells) -> dict | None:
+    atoms = []
+    for c in cells:
+        t = norm_space(str(c))
+        if ATOM.fullmatch(t):
+            atoms.append(float(t.split()[0]))
+        elif DASH.fullmatch(t):
+            atoms.append(0.0)
+    fn = LAYOUTS.get(len(atoms))
+    if not fn:
+        return None
+    try:
+        parsed = fn(atoms)
+    except IndexError:
+        return None
+    if not parsed:
+        return None
+    vals, sub = parsed
+    ge, vis, mus, pen, tot = vals[2], vals[6], vals[10], vals[11], vals[12]
+    # the sheet's own arithmetic is the acceptance test
+    if abs(ge + vis + mus - sub) > EPS or abs(sub - pen - tot) > EPS:
+        return None
+    return dict(zip(CAPTION_COLS, [round(v, 3) if v is not None else None for v in vals]))
+
+
+def build_captions(events):
+    by_year = defaultdict(list)
+    parsed = dropped = 0
+    for ev in events:
+        for rc in ev.get("recap") or []:
+            cls = canon_class(rc.get("class"))
+            if cls == "Exhibition" or IE_CLASS.search(norm_space(rc.get("class") or "")):
+                continue
+            for row in rc.get("rows") or []:
+                corps = canon_corps(row.get("corps") or "")
+                if not corps:
+                    continue
+                caps = parse_recap_cells(row.get("cells") or [])
+                if not caps:
+                    dropped += 1
+                    continue
+                parsed += 1
+                by_year[ev["year"]].append(
+                    [ev.get("date"), ev.get("name"), cls, corps,
+                     *[caps[k] for k in CAPTION_COLS]])
+    index = []
+    for year, rows in sorted(by_year.items()):
+        rows.sort(key=lambda r: (r[0] or "", r[1] or ""))
+        write_json(f"captions/{year}.json", rows)
+        index.append({"year": year, "rows": len(rows)})
+    write_json("captions/index.json",
+               {"seasons": index, "cols": ["date", "event", "class", "corps", *CAPTION_COLS]})
+    log(f"captions: {parsed} rows verified, {dropped} rows failed reconciliation (dropped)")
+    return index
+
+
 def build_upcoming():
     """docs/data/upcoming.json from data/parsed/dci_upcoming.json (events
     calendar scrape): future events with lineups for the homepage."""
@@ -306,6 +454,7 @@ def main():
     champions = build_champions(events)
     corps_index = build_corps(events)
     rankings = build_rankings(events)
+    build_captions(events)
     build_upcoming()
 
     write_json("champions.json", champions)
