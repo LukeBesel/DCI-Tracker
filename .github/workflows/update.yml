@@ -12,6 +12,7 @@ permissions:
   contents: write
   pages: write
   id-token: write
+  actions: write
 
 concurrency:
   group: scrape
@@ -72,6 +73,36 @@ jobs:
             data/parsed
             data/scrape_report.txt
           retention-days: 3
+      - name: Keep the beat & wake the show-night watcher
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          api="https://api.github.com/repos/${{ github.repository }}/actions"
+          hdr1="Authorization: Bearer $GH_TOKEN"
+          hdr2="Accept: application/vnd.github+json"
+          # self-perpetuating cadence: the pulse sleeps ~12 min, then
+          # dispatches the next update (GitHub's cron is only the backstop)
+          curl -sf -X POST -H "$hdr1" -H "$hdr2" \
+            "$api/workflows/pulse.yml/dispatches" -d '{"ref":"main"}' || true
+          # show window (23:00–09:59 UTC covers evening + West Coast): make
+          # sure a live watcher shift is running — its own no-shows check
+          # exits immediately on quiet days
+          H=$(date -u +%H)
+          if [ "$H" -ge 23 ] || [ "$H" -lt 10 ]; then
+            active=0
+            for st in in_progress queued; do
+              n=$(curl -sf -H "$hdr1" -H "$hdr2" \
+                "$api/workflows/watch.yml/runs?status=$st&per_page=1" \
+                | python3 -c "import json,sys; print(json.load(sys.stdin).get('total_count',0))" || echo 1)
+              active=$((active + n))
+            done
+            if [ "$active" = "0" ]; then
+              echo "starting a watcher shift"
+              curl -sf -X POST -H "$hdr1" -H "$hdr2" \
+                "$api/workflows/watch.yml/dispatches" -d '{"ref":"main"}' || true
+            fi
+          fi
 
   deploy:
     needs: update
