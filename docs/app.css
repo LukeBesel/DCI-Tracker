@@ -282,11 +282,10 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; }
   #nav a { padding: 6px 6px; font-size: 12.5px; white-space: nowrap; }
   main { padding: 14px 12px 50px; }
   h1.page { font-size: 21px; }
-  /* class filter rows stay on one line, swipeable */
-  .classrow { flex-wrap: nowrap !important; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
-  .classrow::-webkit-scrollbar { display: none; }
-  .classrow .tab { white-space: nowrap; padding: 6px 10px; font-size: 12.5px; flex: none; }
   .evwhen { font-size: 11px; }
+  /* card titles stay on one line */
+  .card h2 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card h2 .sub { display: none; }
   .tile .value { font-size: 24px; }
   .standings .col-trend, .standings .col-high, .col-perfs { display: none; }
   .t td, .t th { padding: 6px 5px; }

@@ -264,7 +264,7 @@
   function barChart(container, opts) {
     container.innerHTML = "";
     const W = fitWidth(container), H = opts.height || 300;
-    const m = { top: 22, right: 10, bottom: 30, left: 40 };
+    const m = { top: 22, right: 10, bottom: (opts.groups || []).some(g => g.sub) ? 38 : 30, left: 40 };
     const iw = W - m.left - m.right, ih = H - m.top - m.bottom;
     const groups = (opts.groups || []).filter(g => g.bars.some(b => b.value != null));
     if (!groups.length) { container.innerHTML = '<div class="empty">No data yet.</div>'; return; }
@@ -303,9 +303,15 @@
                                "font-size": 9.5, "font-weight": 650 }, svg);
         t.textContent = fmt(b.value);
       });
-      const lb = el("text", { x: (m.left + gi * gw + gw / 2).toFixed(1), y: H - 9,
+      const lb = el("text", { x: (m.left + gi * gw + gw / 2).toFixed(1), y: H - (g.sub ? 16 : 9),
                               "text-anchor": "middle", fill: "#857a5f", "font-size": 10.5 }, svg);
       lb.textContent = g.label;
+      if (g.sub) {
+        const sb = el("text", { x: (m.left + gi * gw + gw / 2).toFixed(1), y: H - 4,
+                                "text-anchor": "middle", fill: "#453f30",
+                                "font-size": 9.5, "font-weight": 700 }, svg);
+        sb.textContent = g.sub;
+      }
     });
 
     // legend from the first group's bar names

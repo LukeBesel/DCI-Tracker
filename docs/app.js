@@ -271,7 +271,7 @@
     const cls = classes.includes(saved) ? saved : classes[0];
     app.innerHTML = h`
       <h1 class="page">${esc(String(rk.season))} Rankings</h1>
-      <div class="filters classrow" id="classTabs"></div>
+      <div class="filters"><select class="ctrl" id="clsSel"></select></div>
       <div class="card">
         <h2 id="trendTitle">Season progression <span class="sub" id="trendSub">score by date · top 12</span></h2>
         <div class="filters" style="margin:2px 0 8px"><div id="trendCorpsSel"></div><button class="tab" id="trendReset" hidden>Top 12</button></div>
@@ -289,14 +289,10 @@
         </div>
       </div>`;
 
-    const tabs = document.getElementById("classTabs");
-    classes.forEach(c => {
-      const b = document.createElement("button");
-      b.className = "tab" + (c === cls ? " on" : "");
-      b.textContent = `${c} (${rk.standings[c].rows.length})`;
-      b.onclick = () => { localStorage.setItem("dt-class", c); viewRankings(null, stale); };
-      tabs.appendChild(b);
-    });
+    const clsSel = document.getElementById("clsSel");
+    classes.forEach(c => clsSel.add(new Option(`${c} (${rk.standings[c].rows.length})`, c)));
+    clsSel.value = cls;
+    clsSel.onchange = () => { localStorage.setItem("dt-class", clsSel.value); viewRankings(null, stale); };
 
     const block = rk.standings[cls];
 
@@ -608,9 +604,10 @@
       lineChart(chartEl, { linearX: true, series, height: 360, xFmt: dayLabel, yFmt: v => v.toFixed(1) });
       summary.sort((a, b) => b.year - a.year || (b.latest || 0) - (a.latest || 0));
       tableEl.innerHTML = `
-        <div class="tscroll"><table class="t"><thead><tr><th>Corps</th><th class="num">Season</th><th class="num">First</th><th class="num">Latest / Final</th><th class="num">High</th><th class="num">Gain</th></tr></thead><tbody>
+        <div class="tscroll"><table class="t"><thead><tr><th>Corps</th><th class="num">Season</th><th class="num">First</th><th class="num">Latest / Final</th><th class="num">High</th><th class="num">Gain</th></tr></thead><tbody id="cmpRows">
         ${summary.map(s => h`<tr><td>${corpsLink(s.corps)}</td><td class="num">${s.year}</td><td class="num">${score3(s.first)}</td><td class="num score">${score3(s.latest)}</td><td class="num">${score3(s.high)}</td><td class="num">${s.gain > 0 ? "+" : ""}${s.gain}</td></tr>`).join("")}
         </tbody></table></div>`;
+      collapseRows(document.getElementById("cmpRows"), 5, "rows");
     }
 
     // --- directory ---
@@ -739,11 +736,12 @@
         .sort((a, b) => (b.d || "").localeCompare(a.d || "") || b.y - a.y);
       document.getElementById("perfTable").innerHTML = `<div class="tscroll"><table class="t">
         <thead><tr><th>Date</th><th>Event</th><th>Class</th><th class="num">Place</th><th class="num">Score</th></tr></thead>
-        <tbody>${list.slice(0, 400).map(p => h`<tr>
+        <tbody id="perfRows">${list.slice(0, 600).map(p => h`<tr>
           <td style="color:var(--muted);white-space:nowrap">${esc(fmtDateY(p.d) || p.y)}</td>
           <td>${esc(p.ev || "")}</td>
           <td><span class="pill">${esc(p.cls || "")}</span></td>
           <td class="num">${p.p ?? "—"}</td><td class="num score">${score3(p.s)}</td></tr>`).join("")}</tbody></table></div>`;
+      collapseRows(document.getElementById("perfRows"), 5, "performances");
     }
     document.getElementById("yearSel2").addEventListener("change", () => { renderChart(); renderPerfs(); });
     renderChart();
@@ -759,9 +757,8 @@
     const years = meta.seasons.slice().sort((a, b) => b.year - a.year);
     app.innerHTML = h`
       <h1 class="page">Season History <span class="kicker">· the record book</span></h1>
-      <p class="lede">Every champion ever crowned, and the complete results of every season on record — open any year and drill down to the individual show, corps and score.</p>
             <div class="card"><h2>Past champions <span class="sub" id="champSub"></span></h2>
-      <div class="filters classrow" id="champTabs" style="margin-bottom:8px"></div>
+      <div class="filters" style="margin-bottom:8px"><select class="ctrl" id="champCls"></select></div>
       <table class="t" id="champT"></table></div>
       <div class="card" style="margin-top:14px"><h2>Browse a season <span class="sub">every show of that summer — who performed, and every score</span></h2>
       <table class="t"><thead><tr><th>Season</th><th class="num">Events</th><th>World Class champion</th></tr></thead>
@@ -781,15 +778,11 @@
     const clsList = sortClasses([...clsSet]);
     let champCls = clsList.includes("World Class") ? "World Class" : clsList[0];
     function renderChamps() {
-      const tabs = document.getElementById("champTabs");
-      tabs.innerHTML = "";
-      clsList.forEach(c => {
-        const b = document.createElement("button");
-        b.className = "tab" + (c === champCls ? " on" : "");
-        b.textContent = c;
-        b.onclick = () => { champCls = c; renderChamps(); };
-        tabs.appendChild(b);
-      });
+      const sel = document.getElementById("champCls");
+      sel.innerHTML = "";
+      clsList.forEach(c => sel.add(new Option(c, c)));
+      sel.value = champCls;
+      sel.onchange = () => { champCls = sel.value; renderChamps(); };
       document.getElementById("champSub").textContent = `${champCls} · World Championship Finals winners`;
       const yearsWith = Object.keys(champs).filter(y => champs[y][champCls]).sort((a, b) => b - a);
       document.getElementById("champT").innerHTML = `
@@ -798,7 +791,7 @@
           const w = champs[y][champCls];
           return `<tr><td><a href="#/season/${y}">${y}</a></td><td><b>${esc(w.corps)}</b></td><td class="num score">${score3(w.score)}</td></tr>`;
         }).join("")}</tbody>`;
-      collapseRows(document.getElementById("champRows"), 10, "seasons");
+      collapseRows(document.getElementById("champRows"), 5, "seasons");
     }
     renderChamps();
 
@@ -806,7 +799,7 @@
     sr.querySelectorAll("tr[data-y]").forEach(tr => {
       tr.onclick = () => { location.hash = `#/season/${tr.dataset.y}`; };
     });
-    collapseRows(sr, 12, "seasons");
+    collapseRows(sr, 5, "seasons");
   }
 
   function eventWinner(ev) {
@@ -1028,7 +1021,7 @@
       <div class="filters">
         <select class="ctrl" id="capYear">${seasons.map(y => `<option>${y}</option>`).join("")}</select>
         <select class="ctrl" id="capKey">${CAPTION_DEFS.map(([k, l]) => `<option value="${k}">${l}</option>`).join("")}</select>
-        <span id="capClassTabs" class="classrow" style="display:flex;gap:6px"></span>
+        <select class="ctrl" id="capCls"></select>
       </div>
       <div class="card">
         <h2 id="capChartTitle"></h2>
@@ -1061,15 +1054,12 @@
     function classesIn(rs) { return sortClasses([...new Set(rs.map(r => r[iCls()]))]); }
 
     function renderClassTabs() {
-      const tabs = document.getElementById("capClassTabs");
-      tabs.innerHTML = "";
-      classesIn(rows).forEach(c => {
-        const b = document.createElement("button");
-        b.className = "tab" + (c === cls ? " on" : "");
-        b.textContent = c;
-        b.onclick = () => { cls = c; seedPick = true; update(); };
-        tabs.appendChild(b);
-      });
+      const sel = document.getElementById("capCls");
+      const cl = classesIn(rows);
+      sel.innerHTML = "";
+      cl.forEach(c => sel.add(new Option(c, c)));
+      sel.value = cls;
+      sel.onchange = () => { cls = sel.value; seedPick = true; update(); };
     }
 
     function corpsSeries() {
@@ -1171,9 +1161,23 @@
       const latest = mine[mine.length - 1];
       document.getElementById("spotTitle").innerHTML =
         `${esc(corps)} — caption scores <span class="sub">${esc(latest[iEv()])} · ${esc(fmtDateY(latest[iDate()]))} · each caption out of 20</span>`;
+      // per-caption rank within the class (by season best)
+      const bestBy = {};
+      for (const [k] of SPOT_CAPS) {
+        const ki = cols.indexOf(k);
+        const bests = new Map();
+        for (const r of rows) {
+          if (r[iCls()] !== cls || r[ki] == null) continue;
+          const cur = bests.get(r[iCorps()]);
+          if (cur == null || r[ki] > cur) bests.set(r[iCorps()], r[ki]);
+        }
+        const order = [...bests.entries()].sort((a, b) => b[1] - a[1]).map(e => e[0]);
+        bestBy[k] = order.indexOf(corps) + 1;
+      }
       const groups = SPOT_CAPS.map(([k, label]) => {
         const ki = cols.indexOf(k);
-        return { label, bars: [{ name: "Score", value: latest[ki], color: corpsColor(corps) }] };
+        return { label, sub: bestBy[k] > 0 ? `#${bestBy[k]}` : "",
+                 bars: [{ name: "Score", value: latest[ki], color: corpsColor(corps) }] };
       });
       CCViz.barChart(chartEl, { groups, height: 280, yMax: 20, track: true, yFmt: v => v.toFixed(1) });
     }
@@ -1247,7 +1251,7 @@
 
     let setKey = "scores";
     let cfg = DB_SETS[setKey];
-    const CHUNK0 = 100;
+    const CHUNK0 = 10;
     let shown = CHUNK0;
     let rows = [];
     let filtered = [];
@@ -1344,9 +1348,9 @@
           `<th style="cursor:pointer;user-select:none" data-c="${i}">${c}${i === ci ? (dir > 0 ? " ↑" : " ↓") : ""}</th>`).join("")}</tr></thead><tbody>
         ${filtered.slice(0, shown).map(r =>
           `<tr>${cfg.cols.map((c, i) => cellHtml(r, i)).join("")}</tr>`).join("")}</tbody></table></div>` +
-        (more > 0 ? `<div class="expandwrap"><button class="tab" id="dbMore">Show ${Math.min(CHUNK0 * 3, more).toLocaleString()} more ▾ <span class="kicker">(${(shown).toLocaleString()} of ${filtered.length.toLocaleString()})</span></button></div>` : "");
+        (more > 0 ? `<div class="expandwrap"><button class="tab" id="dbMore">Show ${Math.min(100, more).toLocaleString()} more ▾ <span class="kicker">(${(shown).toLocaleString()} of ${filtered.length.toLocaleString()})</span></button></div>` : "");
       const mb = document.getElementById("dbMore");
-      if (mb) mb.onclick = () => { shown += CHUNK0 * 3; render(); };
+      if (mb) mb.onclick = () => { shown += 100; render(); };
       document.querySelectorAll("#dbtable th").forEach(th => th.onclick = () => {
         const c = +th.dataset.c;
         DB.sort = DB.sort[0] === c ? [c, -DB.sort[1]] : [c, c === 0 || c >= 5 ? -1 : 1];

@@ -44,7 +44,7 @@
 
 <footer class="foot">
   <div><a href="#/database"><b>Full score database</b> — every score, sortable &amp; exportable →</a></div>
-  <div><button id="installBtn" class="tab" hidden>📲 Install app</button></div>
+  <div><a href="#" id="installBtn" hidden><b>📲 Get the app</b> — install on this device</a></div>
   <div>Scores from <a href="https://www.dci.org/scores" rel="noopener">DCI.org</a> · updates nightly at 10:30 PM ET</div>
 </footer>
 
@@ -66,9 +66,16 @@ if ("serviceWorker" in navigator) {
     deferred = e;
     btn.hidden = false;
   });
-  btn.addEventListener("click", () => {
-    if (deferred) { deferred.prompt(); deferred = null; }
-    else alert("To install DCI Tracker:\n\niPhone/iPad: Share button \u2192 Add to Home Screen\nAndroid: browser menu \u2192 Add to Home screen / Install app\nDesktop Chrome/Edge: install icon in the address bar");
+  btn.addEventListener("click", e => {
+    e.preventDefault();
+    if (deferred) { deferred.prompt(); deferred = null; return; }
+    const ua = navigator.userAgent;
+    const msg = /iPhone|iPad|iPod/.test(ua)
+      ? "Install on iPhone/iPad:\n\n1. Tap the Share button (square with arrow)\n2. Scroll down and tap 'Add to Home Screen'\n3. Tap Add — DCI Tracker appears as an app"
+      : /Android/.test(ua)
+        ? "Install on Android:\n\n1. Tap the browser menu (three dots)\n2. Tap 'Add to Home screen' or 'Install app'\n3. Confirm — DCI Tracker appears as an app"
+        : "Install on this computer:\n\nLook for the install icon at the right end of the address bar (Chrome/Edge), or use the browser menu and choose 'Install DCI Tracker'.";
+    alert(msg);
   });
   addEventListener("appinstalled", () => { btn.hidden = true; });
 })();
