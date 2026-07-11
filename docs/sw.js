@@ -23,7 +23,9 @@ self.addEventListener("push", e => {
   e.waitUntil(self.registration.showNotification(d.title || "Cadence", {
     body: d.body || "New DCI scores are in.",
     icon: "icons/icon-192.png",
-    badge: "icons/icon-192.png",
+    // status-bar badge must be monochrome-on-transparent or Android
+    // flattens it into a white square
+    badge: "icons/badge-96.png",
     tag: d.tag || "cadence-scores",
     data: { url: d.url || "./" },
   }));
