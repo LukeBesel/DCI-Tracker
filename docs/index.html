@@ -105,7 +105,7 @@ if ("serviceWorker" in navigator) {
 })();
 // score alerts: Web Push via the Cadence push relay
 (function () {
-  const PUSH_SERVER = "https://cadence-push-production.up.railway.app";
+  const PUSH_SERVER = "https://cadenceapp.up.railway.app";
   const btn = document.getElementById("pushBtn");
   if (!btn) return;
   const canPush = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
