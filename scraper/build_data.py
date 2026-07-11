@@ -11,7 +11,7 @@ Output: docs/data/
   db/perfs_<decade>s.json  flat sortable rows + db/index.json
   records.json             all-time record-book inputs (top scores, finals)
   caption_titles.json      per-year caption winners at championship finals
-  pace.json                each champion's score-by-date curve per class
+  recaps/<year>.json       judge-level recap sheets (values + official ranks)
 """
 from __future__ import annotations
 
@@ -705,6 +705,124 @@ def build_captions(events):
     return index
 
 
+# ------------------------------------------------------------ judge recaps
+# The official recap sheet, kept at full fidelity: every judge's sub-scores
+# (Rep/Perf, Cont/Achv, …) plus the sheet's own per-caption ranks. Unlike the
+# reconciled captions dataset above, nothing here is derived — the header
+# hierarchy and every value/rank pair are read straight off the published
+# sheet, and a row is only kept when its cell count matches the header
+# structure exactly.
+ATOM_R = re.compile(r"^(\d{1,3}\.\d{1,3})(?:\s+(\d{1,2}))?$")
+
+
+def _recap_sub(caps, i, n):
+    """One sub-caption: [megastring, name, judge?, col..., 'TOT']. The
+    megastring is the concatenation of its parts, which lets us verify the
+    split (and detect sheets that omit the judge cell)."""
+    if i + 2 >= n:
+        return None
+    mega, name = norm_space(caps[i]), norm_space(caps[i + 1])
+    j = i + 2
+    parts = []
+    while j < n and norm_space(caps[j]).upper() != "TOT":
+        parts.append(norm_space(caps[j]))
+        j += 1
+        if len(parts) > 4:
+            return None
+    if j >= n or not parts:
+        return None
+    for judge, colnames in ((parts[0], parts[1:]), ("", parts)):
+        if not colnames:
+            continue
+        if norm_space(mega) == norm_space(f"{name} {judge} {''.join(colnames)} TOT"):
+            return {"n": name, "j": judge, "cols": colnames}, j + 1
+    return None
+
+
+def _recap_header(caps):
+    """Header tree: [{n, subs:[{n, j, cols}]}] — a group may have no subs
+    when only its total was published (e.g. combined visual panels)."""
+    if not caps or norm_space(caps[0]).lower() != "corps":
+        return None
+    i, n = 1, len(caps)
+    groups = []
+    while i < n:
+        c = norm_space(caps[i])
+        if c.lower() in ("sub total", "subtotal", "sub-total"):
+            break
+        if i + 1 >= n:
+            return None
+        g = {"n": norm_space(caps[i + 1]), "subs": []}
+        i += 2
+        closed = False
+        while i < n:
+            if norm_space(caps[i]).upper() == "TOT":
+                i += 1
+                closed = True
+                break
+            sub = _recap_sub(caps, i, n)
+            if not sub:
+                return None
+            g["subs"].append(sub[0])
+            i = sub[1]
+        if not closed:
+            return None
+        groups.append(g)
+    return groups or None
+
+
+def _recap_atoms(cells):
+    """Leaf (value, rank) cells in sheet order; megastrings never match."""
+    out = []
+    for c in cells:
+        t = norm_space(str(c))
+        m = ATOM_R.fullmatch(t)
+        if m:
+            out.append((float(m.group(1)), int(m.group(2)) if m.group(2) else None))
+        elif DASH.fullmatch(t):
+            out.append((0.0, None))
+    return out
+
+
+def build_recaps(events):
+    by_year = defaultdict(list)
+    kept = skipped = 0
+    for ev in events:
+        classes = {}
+        for rc in ev.get("recap") or []:
+            cls = canon_class(rc.get("class"))
+            if cls == "Exhibition" or IE_CLASS.search(norm_space(rc.get("class") or "")):
+                continue
+            groups = _recap_header(rc.get("captions") or [])
+            if not groups:
+                skipped += len(rc.get("rows") or [])
+                continue
+            need = sum(sum(len(s["cols"]) + 1 for s in g["subs"]) + 1 for g in groups) + 3
+            rows = []
+            for row in rc.get("rows") or []:
+                corps = canon_corps(row.get("corps") or "")
+                atoms = _recap_atoms(row.get("cells") or [])
+                if not corps or len(atoms) != need:
+                    skipped += 1
+                    continue
+                rows.append([corps, [a[0] for a in atoms], [a[1] for a in atoms]])
+            if not rows:
+                continue
+            kept += len(rows)
+            # duplicate class blocks: keep the fuller sheet
+            if cls not in classes or len(rows) > len(classes[cls]["rows"]):
+                classes[cls] = {"c": cls, "groups": groups, "rows": rows}
+        if classes:
+            by_year[ev["year"]].append(
+                {"d": ev.get("date"), "e": ev.get("name"), "classes": list(classes.values())})
+    for year, evs in sorted(by_year.items()):
+        evs.sort(key=lambda e: (e["d"] or "", e["e"] or ""))
+        write_json(f"recaps/{year}.json", {"events": evs})
+    write_json("recaps/index.json",
+               {"seasons": [{"year": y, "events": len(v)} for y, v in sorted(by_year.items())]})
+    log(f"judge recaps: {kept} rows across {sum(len(v) for v in by_year.values())} events, {skipped} rows unparseable")
+
+
 def build_records(events):
     """docs/data/records.json — compact inputs for the all-time record book.
     The client derives every list (titles, streaks, margins, appearances)
@@ -851,6 +969,7 @@ def main():
     corps_index = build_corps(events)
     rankings = build_rankings(events)
     build_captions(events)
+    build_recaps(events)
     build_records(events)
     build_upcoming()
 

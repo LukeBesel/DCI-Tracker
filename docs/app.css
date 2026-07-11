@@ -30,6 +30,8 @@
   --accent: #d97706;
   --accent-ink: #a16207;
   --accent-wash: rgba(240,180,41,0.14);
+  --link: #1d2d50;
+  --heading: #1d2d50;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 @media (prefers-color-scheme: dark) {
@@ -51,6 +53,8 @@
   --ch-ink: #dfe5f2;
   --ch-halo: #1a2338;
   --ch-cross: #566180;
+  --link: #f0b429;
+  --heading: #e8ecf5;
   }
 }
 :root[data-theme="dark"], :root[data-theme="dark"] .viz-root {
@@ -71,6 +75,8 @@
   --ch-ink: #dfe5f2;
   --ch-halo: #1a2338;
   --ch-cross: #566180;
+  --link: #f0b429;
+  --heading: #e8ecf5;
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: rgba(240,180,41,0.25); }
@@ -95,7 +101,7 @@ body {
   background: var(--page);
   font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
 }
-a { color: var(--accent-ink); text-decoration: none; }
+a { color: var(--link); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
 /* top bar */
@@ -140,7 +146,7 @@ main { max-width: 1180px; margin: 0 auto; padding: 22px 18px 60px; min-height: 7
 .card h2 .sub, .kicker { color: var(--muted); font-weight: 500; font-size: 12.5px; }
 h1.page {
   font-size: 28px; margin: 4px 0 14px;
-  font-weight: 800; letter-spacing: -0.2px; color: var(--navy);
+  font-weight: 800; letter-spacing: -0.2px; color: var(--heading);
 }
 h1.page .kicker { font-weight: 500; }
 p.lede { color: var(--text-secondary); margin: 0 0 18px; max-width: 74ch; }
@@ -185,6 +191,22 @@ a.favname { font-weight: 650; }
 }
 .sticky1 th:first-child { z-index: 3; }
 th[data-sort] { cursor: pointer; user-select: none; }
+
+/* judge-level recap sheet: grouped 3-row header, rank under every value */
+.rt { font-size: 12px; }
+.rt th, .rt td { white-space: nowrap; }
+.rt thead th { text-align: center; vertical-align: bottom; border-bottom: 1px solid var(--grid); }
+.rt thead tr:last-child th, .rt thead th[rowspan] { border-bottom: 1.5px solid var(--text-primary); }
+.rt thead tr:not(:first-child) th { position: static; box-shadow: none; }
+.rt thead th small { display: block; font-weight: 500; font-size: 10px; letter-spacing: 0; text-transform: none; color: var(--muted); }
+.rt th.rgrp { font-size: 12px; letter-spacing: .7px; }
+.rt th[data-c] { cursor: pointer; user-select: none; }
+.rt th[data-c].on { color: var(--link); }
+.rt td { padding: 5px 7px; }
+.rt td.num b { display: block; font-weight: 600; font-variant-numeric: tabular-nums; }
+.rt td.num i { display: block; font-style: normal; font-size: 9.5px; line-height: 1.25; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rt .gb { border-left: 2px solid var(--baseline); }
+.rt td:first-child { font-size: 13px; }
 
 /* live-scores refresh toast */
 #liveToast {
@@ -336,7 +358,7 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14.5px; }
   flex: 1; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-secondary);
   border-radius: 7px; padding: 5px 8px; font-size: 12.5px; cursor: pointer;
 }
-.msel-bulk-btn:hover { color: var(--accent); border-color: var(--accent); }
+.msel-bulk-btn:hover { color: var(--link); border-color: var(--link); }
 .msel-opt {
   display: flex; align-items: center; gap: 9px; padding: 7px 9px;
   border-radius: 8px; cursor: pointer; font-size: 13.5px;
@@ -356,15 +378,15 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14.5px; }
 .addbtn::after { /* expand the touch target past the visible circle */
   content: ""; position: absolute; inset: -9px; border-radius: 50%;
 }
-.addbtn:hover { border-color: var(--accent); color: var(--accent); }
-.addbtn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.addbtn:hover { border-color: var(--link); color: var(--link); }
+.addbtn.on { background: var(--navy); border-color: var(--navy); color: #fff; }
 
 /* upcoming events */
 .upitem { padding: 8px 0; border-bottom: 1px solid var(--grid); font-size: 13px; }
 .upitem:last-of-type { border-bottom: 0; }
 .upitem .lineup { color: var(--text-secondary); font-size: 12px; margin-top: 3px; line-height: 1.5; }
 .lineup-more {
-  border: 0; background: none; color: var(--accent); cursor: pointer;
+  border: 0; background: none; color: var(--link); cursor: pointer;
   font-size: 12px; padding: 0 2px;
 }
 .lineup-more:hover { text-decoration: underline; }

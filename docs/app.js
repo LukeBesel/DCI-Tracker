@@ -338,7 +338,6 @@
           <div id="standings"></div>
         </div>
         <div style="display:grid;gap:14px;align-content:start">
-          <div class="card" id="upcomingCard"></div>
           <div class="card" id="moveCard"></div>
           <div class="card" id="battleCard"></div>
         </div>
@@ -415,37 +414,6 @@
       collapseRows(document.querySelector("#standings tbody"), 5, "corps");
     }
     renderStandings();
-
-    // Upcoming events with lineups
-    const up = await data("upcoming.json").catch(() => []);
-    const upEl = document.getElementById("upcomingCard");
-    if (stale() || !upEl) return; // user navigated away while loading
-    if (up.length) {
-      upEl.innerHTML = `<h2>Upcoming Events <span class="sub">who's performing next</span></h2>` +
-        up.slice(0, 6).map(ev => {
-          const lineup = ev.lineup || [];
-          const head = lineup.slice(0, 7).map(c => corpsLink(c)).join(", ");
-          const rest = lineup.slice(7).map(c => corpsLink(c)).join(", ");
-          const more = rest
-            ? `<span class="lineup-rest" hidden>, ${rest}</span> <button class="lineup-more" data-n="${lineup.length - 7}">+${lineup.length - 7} more ▾</button>`
-            : "";
-          return h`<div class="upitem">
-            <div><b>${esc(ev.name)}</b> <span class="kicker">${esc(fmtDateY(ev.date))}</span></div>
-            <div style="color:var(--muted);font-size:12px">${esc(ev.location || "")}</div>
-            ${lineup.length ? `<div class="lineup">${head}${more}</div>` : ""}
-          </div>`;
-        }).join("") +
-        `<div style="margin-top:8px"><a href="#/season/${rk.season}">All ${rk.season} results →</a></div>`;
-      upEl.querySelectorAll(".lineup-more").forEach(bt => bt.onclick = () => {
-        const rest = bt.previousElementSibling;
-        rest.hidden = !rest.hidden;
-        bt.textContent = rest.hidden ? `+${bt.dataset.n} more ▾` : "fewer ▴";
-      });
-    } else {
-      upEl.innerHTML = `<h2>Upcoming Events</h2>
-        <div class="empty" style="padding:12px 0">Schedule updates with the nightly data run.</div>
-        <div><a href="#/season/${rk.season}">All ${rk.season} results →</a></div>`;
-    }
 
     const jump = block.movers && block.movers[0];
     document.getElementById("moveCard").innerHTML = jump ? h`
@@ -734,8 +702,7 @@
   /* ============ CORPS (single-corps tab) ============ */
   async function viewCorpsPage(slug, stale) {
     setNav("corps");
-    const [idx, rk] = await Promise.all([
-      data("corps_index.json"), data("rankings.json").catch(() => null)]);
+    const idx = await data("corps_index.json");
     if (stale()) return;
     const bySlug = new Map(idx.map(c => [c.slug, c]));
     const classList = sortClasses([...new Set(idx.map(corpsClass))]);
@@ -744,17 +711,12 @@
       ? savedCls
       : (classList.includes("World Class") ? "World Class" : "");
 
-    // default corps: the deep-linked one, else the current leader
-    let current = slug && bySlug.has(slug) ? slug : null;
-    if (!current && rk && rk.standings) {
-      const rows = (rk.standings["World Class"] || Object.values(rk.standings)[0] || {}).rows || [];
-      current = rows.length ? slugOf(rows[0].corps) : null;
-      if (current && !bySlug.has(current)) current = null;
-    }
-    if (!current) current = idx[0] && idx[0].slug;
+    // only a deep link picks a corps — otherwise the page asks for one
+    const current0 = slug && bySlug.has(slug) ? slug : null;
+    let current = current0;
     // the deep-linked corps drives the type filter, not vice versa
-    if (slug && bySlug.has(slug)) {
-      const t = corpsClass(bySlug.get(slug));
+    if (current) {
+      const t = corpsClass(bySlug.get(current));
       if (clsFilter && t !== clsFilter) clsFilter = t;
     }
 
@@ -800,7 +762,15 @@
       await renderCorpsDetail(current, () => stale() || gen !== detailGen);
     }
     if (current) await load();
-    else document.getElementById("corpsDetail").innerHTML = "<div class='card'><div class='empty'>No corps on record yet.</div></div>";
+    else {
+      const favs = FAVS.list().filter(n => bySlug.has(slugOf(n)));
+      document.getElementById("corpsDetail").innerHTML = h`<div class="card" style="text-align:center;padding:44px 20px">
+        <div style="font-size:34px" aria-hidden="true">🥁</div>
+        <h2 style="margin:10px 0 6px">Pick a corps</h2>
+        <div style="color:var(--muted);font-size:14px;max-width:44ch;margin:0 auto">Choose any corps above to see season charts, the full performance log, and championship titles — back to 1972.</div>
+        ${favs.length ? `<div style="margin-top:14px;font-size:15px">${favs.map(n => corpsLink(n)).join(" · ")}</div>` : ""}
+      </div>`;
+    }
   }
 
   async function renderCorpsDetail(slug, stale) {
@@ -1020,6 +990,9 @@
 
   function eventBodyHtml(ev, year, i) {
     if (ev.future) {
+      const mapLink = ev.location
+        ? `<p style="font-size:12.5px;color:var(--muted);margin:8px 0 0"><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((ev.name || "") + " " + ev.location)}" target="_blank" rel="noopener">Venue map ↗</a></p>`
+        : "";
       if (ev.schedule && ev.schedule.length) {
         return h`<h3 class="evcls">Schedule <span class="kicker">${ev.lineup.length} corps · venue time</span></h3>
           <table class="t"><tbody>
@@ -1028,14 +1001,15 @@
             return `<tr><td class="num" style="color:var(--muted);white-space:nowrap">${esc(t || "")}</td><td>${isCorps ? corpsLink(entry) : `<span style="color:var(--muted)">${esc(entry)}</span>`}</td></tr>`;
           }).join("")}
           </tbody></table>
-          ${ev.location ? `<p style="font-size:12.5px;color:var(--muted);margin:8px 0 0"><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((ev.name || "") + " " + ev.location)}" target="_blank" rel="noopener">Venue map ↗</a></p>` : ""}`;
+          ${mapLink}`;
       }
       return (ev.lineup || []).length
         ? h`<h3 class="evcls">Scheduled Lineup <span class="kicker">${ev.lineup.length} corps</span></h3>
             <table class="t"><tbody>
             ${ev.lineup.map(c => `<tr><td>${corpsLink(c)}</td><td class="num" style="color:var(--muted)">upcoming</td></tr>`).join("")}
-            </tbody></table>`
-        : "<div class='empty'>Lineup not announced yet.</div>";
+            </tbody></table>
+            ${mapLink}`
+        : `<div class='empty'>Lineup not announced yet.</div>${mapLink}`;
     }
     return h`
       ${(ev.classes || []).map(c => h`
@@ -1256,6 +1230,82 @@
     render();
   }
 
+  /* ===== judge-level recap sheets =====
+     The official sheet at full fidelity: every judge's sub-scores with the
+     sheet's own per-caption ranks. recaps/<year>.json is built straight from
+     the published header hierarchy — nothing here is derived. */
+  async function recapEvent(year, evName, evDate) {
+    if (+year < 2013) return null; // sheets only exist for the DCI.org era
+    let rec;
+    try { rec = await data(`recaps/${year}.json`); } catch (e) { return null; }
+    return (rec.events || []).find(e => e.e === evName && (!evDate || e.d === evDate)) || null;
+  }
+
+  // Hierarchical sheet: caption group → judge sub-caption → sub-scores.
+  // Rank sits under every value; gold marks each column's leader. Tap a
+  // caption, judge, or column header to re-rank the sheet by it.
+  function renderRecapSheet(host, cd, opts = {}) {
+    const cols = [];   // flat column meta; index i addresses vals[i] / ranks[i]
+    const groups = [];
+    for (const g of cd.groups) {
+      const gm = { n: g.n, subs: [], first: cols.length };
+      for (const s of g.subs) {
+        const sm = { n: s.n, j: s.j, first: cols.length };
+        for (const cl of s.cols) cols.push({ label: cl, kind: "c" });
+        sm.totI = cols.length;
+        cols.push({ label: "Tot", kind: "st" });
+        gm.subs.push(sm);
+      }
+      gm.totI = cols.length;
+      cols.push({ label: "Tot", kind: "gt" });
+      gm.span = cols.length - gm.first;
+      groups.push(gm);
+    }
+    const iSub = cols.length; cols.push({ label: "Sub", kind: "sub" });
+    const iPen = cols.length; cols.push({ label: "Pen", kind: "pen" });
+    const iTot = cols.length; cols.push({ label: "Total", kind: "tot" });
+    // heavier rule where a caption group starts, so the blocks read at a glance
+    const gb = new Set(groups.map(g => g.first));
+    gb.add(iSub);
+    let sortI = iTot;
+
+    const fmt = (v, kind) => v == null ? "—"
+      : kind === "c" || kind === "st" ? (+v).toFixed(2)
+      : kind === "pen" ? (+v ? (+v).toFixed(2) : "—")
+      : (+v).toFixed(3);
+
+    function paint() {
+      let rows = cd.rows;
+      if (opts.pick && opts.pick.size) rows = rows.filter(r => opts.pick.has(r[0]));
+      rows = rows.slice().sort((a, b) => (b[1][sortI] ?? -1) - (a[1][sortI] ?? -1));
+      const best = cols.map((c, i) => c.kind === "pen" ? null
+        : Math.max(...rows.map(r => (r[1][i] == null ? -1 : r[1][i]))));
+      host.innerHTML = `<div class="tscroll"><table class="t sticky1 rt"><thead>
+        <tr><th rowspan="3">Corps</th>${groups.map(g =>
+          `<th colspan="${g.span}" class="rgrp gb" data-c="${g.totI}">${esc(g.n)}</th>`).join("")}<th rowspan="3" class="num gb" data-c="${iSub}">Sub</th><th rowspan="3" class="num" data-c="${iPen}">Pen</th><th rowspan="3" class="num" data-c="${iTot}">Total</th></tr>
+        <tr>${groups.map(g => g.subs.map(s =>
+          `<th colspan="${s.totI - s.first + 1}" class="rsub${s.first === g.first ? " gb" : ""}" data-c="${s.totI}">${esc(s.n)}${s.j && s.j !== "." ? `<small>${esc(s.j)}</small>` : ""}</th>`).join("") +
+          `<th rowspan="2" class="num${g.subs.length ? "" : " gb"}" data-c="${g.totI}">Tot</th>`).join("")}</tr>
+        <tr>${groups.map(g => g.subs.map(s =>
+          cols.slice(s.first, s.totI).map((c, k) =>
+            `<th class="num${s.first + k === g.first ? " gb" : ""}" data-c="${s.first + k}">${esc(c.label)}</th>`).join("") +
+          `<th class="num" data-c="${s.totI}">Tot</th>`).join("")).join("")}</tr>
+        </thead><tbody>
+        ${rows.map(r => `<tr><td>${corpsLink(r[0])}</td>${cols.map((c, i) => {
+          const v = r[1][i], rk = r[2][i];
+          const win = c.kind !== "pen" && v != null && v === best[i] && best[i] > 0;
+          return `<td class="num${win ? " capwin" : ""}${gb.has(i) ? " gb" : ""}"><b>${fmt(v, c.kind)}</b><i>${rk == null ? "" : rk}</i></td>`;
+        }).join("")}</tr>`).join("")}
+        </tbody></table></div>`;
+      host.querySelectorAll("th[data-c]").forEach(th => {
+        if (+th.dataset.c === sortI) th.classList.add("on");
+        th.onclick = () => { sortI = +th.dataset.c; paint(); };
+      });
+    }
+    paint();
+    return { repaint: paint };
+  }
+
   async function viewEvent(year, idx, stale) {
     setNav("events");
     const events = await data(`seasons/${year}.json`);
@@ -1263,16 +1313,19 @@
     const ev = events[+idx];
     if (!ev) { app.innerHTML = "<div class='empty'>Event not found.</div>"; return; }
 
-    // verified caption breakdown for this show, when available
+    // judge-level recap when available; verified caption summary as fallback
     // (recaps only exist for the DCI.org era — skip the fetch for old years)
     let capRows = [];
+    let recEv = null;
     try {
       if (+year >= 2013) {
+        recEv = await recapEvent(year, ev.name, ev.date);
         const all = await data(`captions/${year}.json`);
         capRows = all.filter(r => r[1] === ev.name && (!ev.date || r[0] === ev.date));
       }
     } catch (e) { /* captions not built for this season */ }
     if (stale()) return; // bail whether the captions fetch succeeded or not
+    const recByClass = new Map(((recEv && recEv.classes) || []).map(c => [c.c, c]));
     const capByClass = new Map();
     capRows.forEach(r => {
       const arr = capByClass.get(r[2]) || [];
@@ -1284,12 +1337,23 @@
     const capTable = (cls, ci) => {
       const rows = (capByClass.get(cls) || []).slice().sort((a, b) => b[CIDX.tot] - a[CIDX.tot]);
       if (!rows.length) return "";
-      return h`<h3 class="evcls" style="margin-top:14px">Caption Breakdown <span class="kicker">verified against the official recap · tap a column to sort</span></h3>
+      // gold on each caption's best so the winner reads at a glance
+      const best = {};
+      CAP_HEAD.forEach(([k]) => { best[k] = Math.max(...rows.map(r => r[CIDX[k]] == null ? -1 : r[CIDX[k]])); });
+      return h`<h3 class="evcls" style="margin-top:14px">Caption Breakdown <span class="kicker">verified against the official recap · gold marks the caption winner · tap a column to sort</span></h3>
         <div class="tscroll"><table class="t sticky1 capsort"><thead><tr><th>Corps</th>${CAP_HEAD.map(([k, l]) => `<th class="num" data-sort="${k}">${l}</th>`).join("")}</tr></thead><tbody class="evcap" data-ci="${ci}">
-        ${rows.map(r => `<tr><td>${corpsLink(r[CIDX.corps])}</td>${CAP_HEAD.map(([k]) =>
-          `<td class="num${k === "tot" ? " score" : ""}">${r[CIDX[k]] == null ? "—" : (+r[CIDX[k]]).toFixed(k === "tot" ? 3 : 2)}</td>`).join("")}</tr>`).join("")}
+        ${rows.map(r => `<tr><td>${corpsLink(r[CIDX.corps])}</td>${CAP_HEAD.map(([k]) => {
+          const v = r[CIDX[k]];
+          const win = v != null && v === best[k] && best[k] > 0;
+          return `<td class="num${k === "tot" ? " score" : ""}${win ? " capwin" : ""}">${v == null ? "—" : (+v).toFixed(k === "tot" ? 3 : 2)}</td>`;
+        }).join("")}</tr>`).join("")}
         </tbody></table></div>${CAP_KEY_NOTE}`;
     };
+    // the full official sheet beats the summary — show it whenever it parsed
+    const capSection = (cls, ci) => recByClass.has(cls)
+      ? h`<h3 class="evcls" style="margin-top:14px">Official Recap <span class="kicker">every judge, every caption · rank under each score · gold marks the leader · tap a judge or column to sort</span></h3>
+         <div class="rcmount" data-cls="${esc(cls)}"></div>`
+      : capTable(cls, ci);
 
     app.innerHTML = h`
       <div class="crumbs"><a href="#/events?y=${year}">Shows</a> / <a href="#/events?y=${year}">${year}</a> / ${esc(ev.name)}</div>
@@ -1300,9 +1364,13 @@
         <div class="tscroll"><table class="t"><thead><tr><th>#</th><th>Corps</th><th class="num">Score</th></tr></thead><tbody class="evres" data-ci="${ci}">
         ${c.results.map(r => `<tr><td class="rank">${r.place ?? "—"}</td><td>${corpsLink(r.corps)}</td><td class="num score">${score3(r.score)}</td></tr>`).join("")}
         </tbody></table></div>
-        ${capTable(c.class, ci)}</div>`).join("")}
+        ${capSection(c.class, ci)}</div>`).join("")}
       ${ev.recap_url ? `<p style="font-size:12.5px;color:var(--muted)"><a href="${encodeURI(ev.recap_url)}" target="_blank" rel="noopener">Official recap on DCI.org ↗</a></p>` : ""}
       ${ev.location ? `<p style="font-size:12.5px;color:var(--muted)"><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((ev.name || "") + " " + ev.location)}" target="_blank" rel="noopener">Venue map ↗</a></p>` : ""}`;
+    document.querySelectorAll(".rcmount").forEach(m => {
+      const rc = recByClass.get(m.dataset.cls);
+      if (rc) renderRecapSheet(m, rc);
+    });
     document.querySelectorAll(".evres, .evcap").forEach(tb => collapseRows(tb, 5, "corps"));
     // tap a caption header to re-rank the sheet by that caption
     document.querySelectorAll(".capsort").forEach(table => {
@@ -1357,10 +1425,9 @@
       </div>
       <div class="secdiv" id="capSeasonDiv"></div>
       <div class="card">
-        <h2 id="showCmpTitle">Show Recap <span class="sub">every corps, every caption, one sheet — gold marks the caption winner</span></h2>
-        <div class="filters" style="margin:2px 0 8px"><div id="showSel"></div></div>
+        <h2 id="showCmpTitle">Show Recap <span class="sub">the official judge-by-judge sheet — rank under each score, gold marks each caption's leader</span></h2>
+        <div class="filters" style="margin:2px 0 8px"><div id="showSel"></div><div id="showCorpsSel"></div></div>
         <div id="showCmpBody"><div class="empty">Pick a show above.</div></div>
-        ${CAP_KEY_NOTE}
       </div>
       <div class="card" style="margin-top:14px">
         <h2 id="capChartTitle"></h2>
@@ -1391,6 +1458,7 @@
 
 
     let rows = [];
+    let recapsYr = []; // judge-level sheets for the picked year
     let cls = "";
     let loadGen = 0; // guards against out-of-order season loads
     const capPick = new Set();
@@ -1405,22 +1473,34 @@
 
     function classesIn(rs) { return sortClasses([...new Set(rs.map(r => r[iCls()]))]); }
 
-    // --- show recap sheet: one show, all corps, all captions ---
+    // --- show recap sheet: one show, all corps, judge by judge ---
     let ssShow = null;
+    let msShowCorps = null;
+    const showPick = new Set();
+    let showPickKey = ""; // reseed the corps filter when the show changes
     function renderShowCmp() {
       const body = document.getElementById("showCmpBody");
       if (!body) return;
       const shows = [];
       const seen = new Set();
+      const judged = new Set(); // shows with a full judge-level sheet
+      for (const e of recapsYr) {
+        if (!e.d || !(e.classes || []).some(c => c.c === cls)) continue;
+        const key = e.d + "|" + e.e;
+        judged.add(key);
+        if (!seen.has(key)) { seen.add(key); shows.push({ d: e.d, ev: e.e }); }
+      }
       for (const r of rows) {
         if (r[iCls()] !== cls || !r[iDate()]) continue;
         const key = r[iDate()] + "|" + r[iEv()];
         if (!seen.has(key)) { seen.add(key); shows.push({ d: r[iDate()], ev: r[iEv()] }); }
       }
       shows.sort((a, b) => b.d.localeCompare(a.d));
+      const corpsSel = document.getElementById("showCorpsSel");
       if (!shows.length) {
         body.innerHTML = "<div class='empty'>No verified recaps for this class yet.</div>";
         if (ssShow) ssShow.setOptions([]);
+        if (corpsSel) corpsSel.style.display = "none";
         return;
       }
       const opts = shows.map(sh => ({ value: sh.d + "|" + sh.ev, label: sh.ev, hint: fmtDate(sh.d) }));
@@ -1435,6 +1515,46 @@
         if (!opts.some(o => o.value === ssShow.get())) ssShow.set(opts[0].value);
       }
       const [d, evName] = String(ssShow.get()).split("|");
+
+      // full judge-level sheet when the official recap parsed
+      const rev = recapsYr.find(e => e.d === d && e.e === evName);
+      const rc = rev && (rev.classes || []).find(c => c.c === cls);
+      if (rc) {
+        const names = rc.rows.map(r => r[0]);
+        const key = d + "|" + evName + "|" + cls;
+        if (showPickKey !== key) {
+          showPickKey = key;
+          showPick.clear();
+          names.forEach(n => showPick.add(n));
+        }
+        const corpsOpts = names.map(n => ({ value: n, label: n }));
+        if (corpsSel) {
+          corpsSel.style.display = "";
+          if (!msShowCorps) {
+            msShowCorps = multiSelect(corpsSel, {
+              label: "All corps", bulk: true,
+              summary: () => showPick.size === rc.rows.length ? "All corps" : null,
+              options: corpsOpts, selected: showPick,
+              onChange: renderShowCmp,
+            });
+          } else {
+            msShowCorps.setOptions(corpsOpts);
+          }
+        }
+        body.innerHTML = "";
+        const mount = document.createElement("div");
+        body.appendChild(mount);
+        renderRecapSheet(mount, rc, { pick: showPick });
+        const foot = document.createElement("p");
+        foot.className = "capkey";
+        foot.style.marginTop = "8px";
+        foot.textContent = `${evName} · ${fmtDateY(d)} · ${rc.rows.length} corps · rank under each score · tap a caption, judge, or column to sort`;
+        body.appendChild(foot);
+        return;
+      }
+      if (corpsSel) corpsSel.style.display = "none";
+
+      // fallback: reconciled caption totals (older sheets the parser passed on)
       const iTot = cols.indexOf("tot");
       const sheet = rows.filter(r => r[iCls()] === cls && r[iDate()] === d && r[iEv()] === evName)
         .sort((a, b) => (b[iTot] || 0) - (a[iTot] || 0));
@@ -1456,7 +1576,7 @@
           return `<td class="num${k === "tot" ? " score" : ""}${win ? " capwin" : ""}">${v == null ? "—" : (+v).toFixed(k === "tot" ? 3 : 2)}</td>`;
         }).join("")}</tr>`).join("")}
       </tbody></table></div>
-      <p class="capkey" style="margin-top:8px">${esc(evName)} · ${esc(fmtDateY(d))} · ${sheet.length} corps · tap a column to sort</p>`;
+      <p class="capkey" style="margin-top:8px">${esc(evName)} · ${esc(fmtDateY(d))} · ${sheet.length} corps · tap a column to sort</p>${CAP_KEY_NOTE}`;
       body.querySelectorAll("th[data-c]").forEach(th => th.onclick = () => {
         const i = +th.dataset.c;
         const tb = body.querySelector("tbody");
@@ -1642,11 +1762,14 @@
 
     async function loadYear() {
       const gen = ++loadGen;
-      let got;
+      let got, gotRec;
       try { got = await data(`captions/${year}.json`); }
       catch (e) { got = []; }
+      try { gotRec = ((await data(`recaps/${year}.json`)) || {}).events || []; }
+      catch (e) { gotRec = []; }
       if (stale() || gen !== loadGen) return; // navigated away or picked another year
       rows = got;
+      recapsYr = gotRec;
       const cl = classesIn(rows);
       cls = cl.includes(cls) ? cls : (cl[0] || "");
       update();
