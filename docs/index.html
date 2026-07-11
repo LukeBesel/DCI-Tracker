@@ -3,39 +3,35 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Corps Central — DCI & DCA Scores, History & News</title>
-<meta name="description" content="Auto-updating dashboard for DCI and DCA drum corps: live season standings, complete score history back to 1972, caption recaps, corps histories, champions and news.">
-<meta name="color-scheme" content="dark">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='44' fill='%233987e5'/><circle cx='50' cy='50' r='30' fill='%230d0d0d'/><circle cx='50' cy='50' r='12' fill='%233987e5'/></svg>">
+<title>DCI Tracker — Scores, Rankings & History</title>
+<meta name="description" content="Auto-updating DCI drum corps dashboard: current season rankings, year-vs-year comparisons, every score since 2013, caption recaps, corps histories and champions — straight from official DCI.org published scores.">
+<meta name="color-scheme" content="light">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='44' fill='%232a78d6'/><circle cx='50' cy='50' r='30' fill='%23f9f9f7'/><circle cx='50' cy='50' r='12' fill='%232a78d6'/></svg>">
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
 <header class="topbar">
   <a class="brand" href="#/">
-    <svg viewBox="0 0 100 100" width="26" height="26" aria-hidden="true"><circle cx="50" cy="50" r="44" fill="#3987e5"/><circle cx="50" cy="50" r="30" fill="#0d0d0d"/><circle cx="50" cy="50" r="12" fill="#3987e5"/></svg>
-    <span>Corps<b>Central</b></span>
+    <svg viewBox="0 0 100 100" width="26" height="26" aria-hidden="true"><circle cx="50" cy="50" r="44" fill="#2a78d6"/><circle cx="50" cy="50" r="30" fill="#f9f9f7"/><circle cx="50" cy="50" r="12" fill="#2a78d6"/></svg>
+    <span>DCI <b>Tracker</b></span>
   </a>
   <nav id="nav">
-    <a href="#/" data-route="today">Today</a>
-    <a href="#/rankings" data-route="rankings">Rankings</a>
-    <a href="#/seasons" data-route="seasons">Seasons</a>
-    <a href="#/corps" data-route="corps">Corps</a>
-    <a href="#/database" data-route="database">Database</a>
-    <a href="#/champions" data-route="champions">Champions</a>
-    <a href="#/history" data-route="history">Vault</a>
-    <a href="#/news" data-route="news">News</a>
-    <a href="#/about" data-route="about">About</a>
+    <a href="#/" data-route="rankings" title="Current standings — latest scores and movement">Rankings</a>
+    <a href="#/compare" data-route="compare" title="One corps, multiple seasons, overlaid by date">Compare</a>
+    <a href="#/seasons" data-route="seasons" title="Any year's events, results and recaps">Seasons</a>
+    <a href="#/corps" data-route="corps" title="Each corps' full scoring history">Corps</a>
+    <a href="#/database" data-route="database" title="Every score, sortable and exportable">Database</a>
   </nav>
   <div class="updated" id="updated" title="Data refresh time"></div>
 </header>
 
 <main id="app" class="viz-root">
-  <div class="loading">Loading dashboard…</div>
+  <div class="loading">Loading…</div>
 </main>
 
 <footer class="foot">
-  <div>Unofficial fan project. Scores © their respective owners — see <a href="#/about">data sources</a>.</div>
-  <div>Updated automatically twice daily · <a href="https://github.com/LukeBesel/DCI-Tracker" rel="noopener">source on GitHub</a></div>
+  <div>Unofficial fan project · scores as published on <a href="https://www.dci.org/scores" rel="noopener">DCI.org</a></div>
+  <div>Updates nightly at 10:30 PM ET · <a href="https://github.com/LukeBesel/DCI-Tracker" rel="noopener">GitHub</a></div>
 </footer>
 
 <div id="tooltip" class="tooltip" hidden></div>
@@ -43,5 +39,3 @@
 <script src="app.js"></script>
 </body>
 </html>
-
-<!-- deploy: 2026-07-09T16:21:40Z -->

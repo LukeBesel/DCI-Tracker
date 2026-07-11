@@ -1,11 +1,14 @@
-"""Scrape dci.org: competition sitemaps -> final-scores pages -> recap pages.
+"""Scrape dci.org competition results (the ONLY data source for the site).
 
-Produces data/parsed/dci_events.json (list of event dicts with results and
-caption recaps). Covers 2013-present (everything dci.org publishes).
+Discovery: competition sitemaps (all /scores/final-scores/ URLs, 2013-present).
+Parsing: dci.org renders results either as div-based "score-tbl" blocks
+(shortcode) or as plain HTML tables depending on template era — both handled.
+Caption recaps live at /scores/recap/<slug>/ (robots-allowed).
 
 Usage:
-  python scrape_dci.py            # incremental: only fetch uncached pages
-  python scrape_dci.py --season 2026 --force   # re-fetch one season (daily job)
+  python scrape_dci.py                      # incremental (uncached only)
+  python scrape_dci.py --season 2026 --force
+  python scrape_dci.py --season 2019        # backfill one season
 """
 from __future__ import annotations
 
@@ -19,24 +22,27 @@ from bs4 import BeautifulSoup
 from common import ROOT, fetch, log, norm_space, canon_corps
 
 PARSED = ROOT / "data" / "parsed"
-
 SITEMAP_INDEX = "https://www.dci.org/wp-sitemap.xml"
+
+# Events that are individual/ensemble showcases, not corps competitions
+NON_CORPS_EVENT = re.compile(r"individual|\bi ?& ?e\b|soundsport|drumline battle", re.I)
+PLACEHOLDER_ROW = re.compile(r"^(not scored|tba|tbd|--?|—)$", re.I)
 
 
 def get_competition_urls() -> list[str]:
-    """All /scores/final-scores/ URLs from the competition sitemaps."""
     urls: list[str] = []
     idx = fetch(SITEMAP_INDEX, force=True)
     maps = re.findall(r"<loc>\s*([^<]+competition-sitemap\d*\.xml)\s*</loc>", idx or "")
     if not maps:
-        maps = [f"https://www.dci.org/competition-sitemap{n}.xml" for n in ("", "2", "3")]
+        maps = [f"https://www.dci.org/competition-sitemap{n}.xml" for n in ("", "2", "3", "4")]
     for m in maps:
         xml = fetch(m, force=True)
         if not xml:
+            log(f"WARNING: sitemap fetch failed: {m}")
             continue
         urls += re.findall(r"<loc>\s*([^<]+/scores/final-scores/[^<]+)\s*</loc>", xml)
     urls = sorted(set(u.strip() for u in urls))
-    log(f"found {len(urls)} competition URLs in sitemaps")
+    log(f"sitemaps list {len(urls)} competition URLs")
     return urls
 
 
@@ -45,91 +51,176 @@ def year_of(url: str) -> int | None:
     return int(m.group(1)) if m else None
 
 
-def _clean_class_name(s: str) -> str:
+def _clean_heading(s: str) -> str:
     s = norm_space(s)
     s = re.sub(r"\s*(final scores|scores|results)\s*$", "", s, flags=re.I)
     return s
+
+
+def _row_from_cols(place_txt: str, corps_txt: str, score_txt: str):
+    corps_txt = norm_space(corps_txt)
+    place_txt = norm_space(place_txt)
+    score_txt = norm_space(score_txt)
+    if not corps_txt or PLACEHOLDER_ROW.match(corps_txt):
+        return None
+    if PLACEHOLDER_ROW.match(place_txt) and PLACEHOLDER_ROW.match(score_txt or "-"):
+        return None
+    sm = re.fullmatch(r"(\d{1,3}\.\d{1,3})", score_txt)
+    score = float(sm.group(1)) if sm else None
+    pm = re.fullmatch(r"(\d{1,2})\.?", place_txt)
+    place = int(pm.group(1)) if pm else None
+    if score is not None and score < 20:  # exhibitions/placeholders render as 0.0
+        score = None
+    if place is not None and place < 1:
+        place = None
+    if score is None and place is None:
+        return None
+    return {"place": place, "corps": canon_corps(corps_txt), "score": score}
 
 
 def parse_event_page(url: str, html: str) -> dict | None:
     soup = BeautifulSoup(html, "lxml")
     ev: dict = {"url": url, "slug": url.rstrip("/").split("/")[-1], "year": year_of(url)}
 
+    # Name from the slug (h1 is a generic "Official DCI Scores")
+    name = ev["slug"]
+    name = re.sub(r"^\d{4}-", "", name).replace("-", " ")
+    name = re.sub(r"\s+", " ", name).strip().title()
+    name = name.replace("Dci", "DCI").replace("Usbands", "USBands").replace(" Of ", " of ").replace(" The ", " the ").replace(" At ", " at ").replace(" And ", " and ")
     h1 = soup.find("h1")
-    title = norm_space(h1.get_text()) if h1 else ev["slug"].replace("-", " ").title()
-    title = re.sub(r"^\d{4}\s+", "", title)
-    ev["name"] = title
+    if h1:
+        t = norm_space(h1.get_text())
+        if t and "official dci scores" not in t.lower() and len(t) > 3:
+            name = re.sub(r"^\d{4}\s+", "", t)
+    ev["name"] = name
 
-    text = soup.get_text(" ", strip=True)
-    m = re.search(r"(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+(\d{4})", text)
-    if m:
-        ev["date_display"] = m.group(0)
-    m = re.search(r"in\s+([A-Za-z .'-]+,\s*[A-Z]{2})\b", text)
-    if m:
-        ev["location"] = norm_space(m.group(1))
+    # date & location from the score-date-location block
+    sdl = soup.find(class_="score-date-location")
+    if sdl:
+        txt = norm_space(sdl.get_text(" ", strip=True))
+        dm = re.search(r"(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}", txt)
+        if dm:
+            ev["date_display"] = dm.group(0)
+        lm = re.search(r"([A-Za-z .'-]+,\s*[A-Z]{2})\b", txt)
+        if lm:
+            ev["location"] = norm_space(lm.group(1))
+    if "date_display" not in ev:
+        m = re.search(r"(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+(\d{4})", soup.get_text(" ", strip=True))
+        if m:
+            ev["date_display"] = m.group(0)
 
-    recap_a = soup.find("a", string=re.compile(r"view full recap", re.I)) or \
-              soup.find("a", href=re.compile(r"/scores/recap/"))
-    if recap_a and recap_a.get("href"):
+    recap_a = soup.find("a", href=re.compile(r"/scores/recap/"))
+    if recap_a and recap_a.get("href") and recap_a["href"].strip() not in ("#", ""):
         href = recap_a["href"]
         if href.startswith("/"):
             href = "https://www.dci.org" + href
         ev["recap_url"] = href
+    else:
+        ev["recap_url"] = f"https://www.dci.org/scores/recap/{ev['slug']}/"
 
-    # Results tables: each class section is a heading followed by a table
-    # with Place/Corps/Score columns. Parse generically.
-    classes = []
-    for table in soup.find_all("table"):
-        headers = [norm_space(th.get_text()).lower() for th in table.find_all("th")]
-        if not headers or "corps" not in " ".join(headers):
+    classes: list[dict] = []
+
+    def add_class(cls_name, rows):
+        cls_name = _clean_heading(cls_name or "Results")
+        if not rows:
+            return
+        for c in classes:
+            if c["class"].lower() == cls_name.lower():
+                c["results"].extend(rows)
+                return
+        classes.append({"class": cls_name, "results": rows})
+
+    # --- Primary: div-based score tables inside shortcode blocks ---
+    for st in soup.select(".elementor-shortcode .score-tbl, .score-tbl.finalscores"):
+        # skip demo/hidden widget copies
+        hidden_parent = st.find_parent(class_=re.compile(r"elementor-hidden"))
+        if hidden_parent:
             continue
-        # find nearest previous heading for the class name
-        cls = None
-        for prev in table.find_all_previous(["h2", "h3", "h4"]):
-            t = _clean_class_name(prev.get_text())
-            if t and not re.search(r"final scores|scores by|breadcrumb", t, re.I):
-                cls = t
-                break
-        rows = []
-        for tr in table.find_all("tr"):
-            tds = [norm_space(td.get_text()) for td in tr.find_all("td")]
-            if len(tds) < 2:
-                continue
-            place = corps = score = None
-            nums = [t for t in tds if re.fullmatch(r"\d{1,2}", t)]
-            scores = [t for t in tds if re.fullmatch(r"\d{1,3}\.\d{1,3}", t)]
-            names = [t for t in tds if t and not re.fullmatch(r"[\d.]+", t)]
-            if nums:
-                place = int(nums[0])
-            if scores:
-                score = float(scores[-1])
-            if names:
-                corps = canon_corps(names[0])
-            if corps and score is not None:
-                rows.append({"place": place, "corps": corps, "score": score})
+        cur_cls = None
+        # heading may precede the block
+        prev_h = st.find_previous(["h2", "h3"])
+        if prev_h and _clean_heading(prev_h.get_text()) and "score-division-name" not in (prev_h.get("class") or []):
+            t = _clean_heading(prev_h.get_text())
+            if t and len(t) < 50 and not re.search(r"official dci", t, re.I):
+                cur_cls = t
+        rows: list[dict] = []
+        for child in st.descendants:
+            if getattr(child, "name", None) == "h2" and "score-division-name" in (child.get("class") or []):
+                if rows:
+                    add_class(cur_cls, rows)
+                    rows = []
+                cur_cls = _clean_heading(child.get_text())
+            elif getattr(child, "name", None) == "div" and "tbl-row" in (child.get("class") or []):
+                if "poweredby-row" in (child.get("class") or []):
+                    continue
+                cols = child.select(".col-2, .col-7, .col-3")
+                place = corps = score = ""
+                for c in cols:
+                    cl = c.get("class") or []
+                    if "col-2" in cl:
+                        place = c.get_text(" ", strip=True)
+                    elif "col-7" in cl:
+                        corps = c.get_text(" ", strip=True)
+                    elif "col-3" in cl:
+                        score = c.get_text(" ", strip=True)
+                if "view full recap" in (corps + score).lower():
+                    continue
+                r = _row_from_cols(place, corps, score)
+                if r:
+                    rows.append(r)
         if rows:
-            for i, r in enumerate(rows):
-                if r["place"] is None:
-                    r["place"] = i + 1
-            classes.append({"class": cls or "Results", "results": rows})
-    ev["classes"] = classes
-    return ev if classes else (ev if ev.get("recap_url") else None)
+            add_class(cur_cls, rows)
 
+    # --- Fallback: genuine HTML tables (older/championship templates) ---
+    if not classes:
+        for table in soup.find_all("table"):
+            headers = [norm_space(th.get_text()).lower() for th in table.find_all("th")]
+            if headers and "corps" not in " ".join(headers):
+                continue
+            cls = None
+            for prev in table.find_all_previous(["h2", "h3", "h4"]):
+                t = _clean_heading(prev.get_text())
+                if t and len(t) < 50 and not re.search(r"official dci|final scores", t, re.I):
+                    cls = t
+                    break
+            rows = []
+            for tr in table.find_all("tr"):
+                tds = [norm_space(td.get_text()) for td in tr.find_all("td")]
+                if len(tds) < 2:
+                    continue
+                nums = [t for t in tds if re.fullmatch(r"\d{1,2}", t)]
+                scores = [t for t in tds if re.fullmatch(r"\d{1,3}\.\d{1,3}", t)]
+                names = [t for t in tds if t and not re.fullmatch(r"[\d.]+", t)]
+                if names and (scores or nums):
+                    rows.append({"place": int(nums[0]) if nums else None,
+                                 "corps": canon_corps(names[0]),
+                                 "score": float(scores[-1]) if scores else None})
+            if rows:
+                classes.append({"class": cls or "Results", "results": rows})
 
-# ---------------- recap parsing (caption-level detail) ----------------
+    # normalize placements within each class
+    for c in classes:
+        c["results"] = [r for r in c["results"] if r["corps"]]
+        c["results"].sort(key=lambda r: (r["place"] if r["place"] is not None else 99,
+                                         -(r["score"] or 0)))
+        for i, r in enumerate(c["results"]):
+            if r["place"] is None:
+                r["place"] = i + 1
+
+    ev["classes"] = [c for c in classes if c["results"]]
+    if NON_CORPS_EVENT.search(ev["name"]):
+        ev["non_corps"] = True
+    return ev if ev["classes"] else None
+
 
 CAPTION_PAT = re.compile(
     r"(general effect|visual|color ?guard|music|brass|percussion|analysis|proficiency|guard|effect)", re.I)
 
 
 def parse_recap_page(url: str, html: str) -> list[dict]:
-    """Parse a dci.org recap page into per-class caption tables.
-
-    Returns [{class, captions: [names...], rows: [{corps, total, place,
-    caption_scores: {caption: {score, rank}}}]}]. Structure on dci.org is a
-    wide table per class; we parse defensively and keep raw cell text if the
-    layout surprises us.
-    """
+    """Caption recaps. dci.org recap pages render one wide table per class
+    (genuine <table> in all observed templates); keep cells raw-but-clean so
+    the front-end can show the full caption grid."""
     soup = BeautifulSoup(html, "lxml")
     out = []
     for table in soup.find_all("table"):
@@ -142,18 +233,12 @@ def parse_recap_page(url: str, html: str) -> list[dict]:
             if t and len(t) < 60 and not re.search(r"recap|final scores|official", t, re.I):
                 cls = t
                 break
-
-        # Header rows: captions often span two rows (caption name / sub-cols).
-        thead_rows = table.find_all("tr")[:3]
-        caption_names: list[str] = []
-        for tr in thead_rows:
-            cells = tr.find_all(["th", "td"])
-            names = [norm_space(c.get_text()) for c in cells]
-            cand = [n for n in names if CAPTION_PAT.search(n)]
-            if len(cand) >= 3:
-                caption_names = names
+        header_cells: list[str] = []
+        for tr in table.find_all("tr")[:3]:
+            names = [norm_space(c.get_text()) for c in tr.find_all(["th", "td"])]
+            if sum(1 for n in names if CAPTION_PAT.search(n)) >= 3:
+                header_cells = names
                 break
-
         rows = []
         for tr in table.find_all("tr"):
             cells = [norm_space(c.get_text()) for c in tr.find_all("td")]
@@ -166,38 +251,72 @@ def parse_recap_page(url: str, html: str) -> list[dict]:
             numbers = re.findall(r"\d{1,3}\.\d{1,3}", " ".join(cells))
             if not numbers or not corps or CAPTION_PAT.search(corps):
                 continue
-            total = max(float(n) for n in numbers)
-            rows.append({"corps": corps, "total": total, "cells": cells})
+            rows.append({"corps": corps, "total": max(float(n) for n in numbers), "cells": cells})
         if rows:
-            out.append({"class": cls or "Results", "captions": caption_names, "rows": rows})
+            out.append({"class": cls or "Results", "captions": header_cells, "rows": rows})
+    # div-based fallback
+    if not out:
+        for st in soup.select(".score-tbl, .recap-tbl"):
+            rows = []
+            for child in st.select(".tbl-row"):
+                cells = [norm_space(x.get_text(" ", strip=True)) for x in child.select("[class*=col-]")]
+                cells = [c for c in cells if c]
+                if len(cells) >= 4 and any(re.fullmatch(r"\d{1,3}\.\d{1,3}", c) for c in cells):
+                    nm = next((c for c in cells if not re.fullmatch(r"[\d.]+", c)), None)
+                    if nm:
+                        nums = [float(x) for x in re.findall(r"\d{1,3}\.\d{1,3}", " ".join(cells))]
+                        rows.append({"corps": canon_corps(nm), "total": max(nums), "cells": cells})
+            if rows:
+                out.append({"class": "Results", "captions": [], "rows": rows})
     return out
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--season", type=int, default=None, help="only this season")
-    ap.add_argument("--force", action="store_true", help="re-fetch season pages even if cached")
+    ap.add_argument("--season", type=int, default=None)
+    ap.add_argument("--force", action="store_true")
     ap.add_argument("--since", type=int, default=2013)
+    ap.add_argument("--reparse", action="store_true",
+                    help="re-parse cached pages without refetching")
+    ap.add_argument("--max-fetches", type=int, default=0,
+                    help="stop after N live fetches (0 = unlimited); cached pages don't count")
     args = ap.parse_args()
 
     PARSED.mkdir(parents=True, exist_ok=True)
     existing_path = PARSED / "dci_events.json"
     existing: dict[str, dict] = {}
-    if existing_path.exists():
+    if existing_path.exists() and not args.reparse:
         for e in json.loads(existing_path.read_text()):
             existing[e["url"]] = e
 
+    from common import cache_path
     urls = [u for u in get_competition_urls()
             if (year_of(u) or 0) >= args.since
             and (args.season is None or year_of(u) == args.season)]
 
-    events = []
+    fetches = [0]
+
+    def budget_fetch(u, force=False):
+        cached = cache_path(u).exists() and not force
+        if not cached and args.max_fetches and fetches[0] >= args.max_fetches:
+            return None
+        if not cached:
+            fetches[0] += 1
+        return fetch(u, force=force)
+
+    events, skipped = [], 0
     for i, url in enumerate(urls):
         force = args.force and (args.season is None or year_of(url) == args.season)
-        html = fetch(url, force=force)
+        if url in existing and not force and cache_path(url).exists() is False:
+            # previously parsed but page not cached (old run) — keep unless reparsing
+            events.append(existing[url])
+            continue
+        html = budget_fetch(url, force=force)
         if html is None:
             if url in existing:
                 events.append(existing[url])
+            else:
+                skipped += 1
             continue
         try:
             ev = parse_event_page(url, html)
@@ -206,27 +325,27 @@ def main():
             ev = None
         if not ev:
             continue
-        if ev.get("recap_url"):
-            rhtml = fetch(ev["recap_url"], force=force)
+        if ev.get("recap_url") and not ev.get("non_corps"):
+            rhtml = budget_fetch(ev["recap_url"], force=force)
             if rhtml:
                 try:
-                    ev["recap"] = parse_recap_page(ev["recap_url"], rhtml)
+                    rec = parse_recap_page(ev["recap_url"], rhtml)
+                    if rec:
+                        ev["recap"] = rec
                 except Exception as e:  # noqa: BLE001
                     log(f"PARSE FAIL recap {ev['recap_url']}: {e}")
         events.append(ev)
-        if (i + 1) % 25 == 0:
-            log(f"...{i + 1}/{len(urls)} events")
+        if (i + 1) % 50 == 0:
+            log(f"...{i + 1}/{len(urls)} ({fetches[0]} live fetches)")
 
-    # merge with existing events outside the selected slice
-    if args.season is not None:
-        merged = {u: e for u, e in existing.items()}
-        for e in events:
-            merged[e["url"]] = e
-        events = list(merged.values())
-
-    events.sort(key=lambda e: (e.get("year") or 0, e.get("date_display") or "", e.get("name") or ""))
-    existing_path.write_text(json.dumps(events, ensure_ascii=False, indent=1))
-    log(f"wrote {existing_path} with {len(events)} events")
+    # merge back anything outside the selected slice
+    merged = {e["url"]: e for e in (existing.values() if (args.season or args.max_fetches) else [])}
+    for e in events:
+        merged[e["url"]] = e
+    all_events = list(merged.values())
+    all_events.sort(key=lambda e: (e.get("year") or 0, e.get("date_display") or "", e.get("name") or ""))
+    existing_path.write_text(json.dumps(all_events, ensure_ascii=False, indent=1))
+    log(f"wrote {existing_path}: {len(all_events)} events ({fetches[0]} live fetches, {skipped} unreachable)")
 
 
 if __name__ == "__main__":

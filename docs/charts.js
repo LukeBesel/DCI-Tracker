@@ -3,7 +3,7 @@
    crosshair + single tooltip listing every series, legend always for >=2 series. */
 (function () {
   const NS = "http://www.w3.org/2000/svg";
-  const PALETTE = ["#3987e5", "#199e70", "#c98500", "#008300", "#9085e9", "#e66767", "#d55181", "#d95926"];
+  const PALETTE = ["#2a78d6", "#1baf7a", "#eda100", "#008300", "#4a3aa7", "#e34948", "#e87ba4", "#eb6834"];
 
   function el(name, attrs, parent) {
     const n = document.createElementNS(NS, name);
@@ -77,11 +77,11 @@
     // grid + y ticks
     for (const tv of niceTicks(yMin, yMax, 5)) {
       if (tv < yMin || tv > yMax) continue;
-      el("line", { x1: m.left, x2: W - m.right, y1: Y(tv), y2: Y(tv), stroke: "#2c2c2a", "stroke-width": 1 }, svg);
+      el("line", { x1: m.left, x2: W - m.right, y1: Y(tv), y2: Y(tv), stroke: "#e1e0d9", "stroke-width": 1 }, svg);
       const t = el("text", { x: m.left - 8, y: Y(tv) + 4, "text-anchor": "end", fill: "#898781", "font-size": 11 }, svg);
       t.textContent = fmt(tv);
     }
-    el("line", { x1: m.left, x2: W - m.right, y1: m.top + ih, y2: m.top + ih, stroke: "#383835", "stroke-width": 1 }, svg);
+    el("line", { x1: m.left, x2: W - m.right, y1: m.top + ih, y2: m.top + ih, stroke: "#c3c2b7", "stroke-width": 1 }, svg);
     // x labels (thin out)
     const every = Math.ceil(nX / Math.floor(iw / 70));
     opts.xLabels.forEach((lb, i) => {
@@ -96,7 +96,7 @@
       const d = pts.map((p, j) => (j ? "L" : "M") + X(p.x).toFixed(1) + " " + Y(p.y).toFixed(1)).join(" ");
       el("path", { d, fill: "none", stroke: s.color, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
       const last = pts[pts.length - 1];
-      el("circle", { cx: X(last.x), cy: Y(last.y), r: 4, fill: s.color, stroke: "#1a1a19", "stroke-width": 2 }, svg);
+      el("circle", { cx: X(last.x), cy: Y(last.y), r: 4, fill: s.color, stroke: "#fcfcfb", "stroke-width": 2 }, svg);
     }
     // selective direct labels: first series endpoint value
     if (series.length <= 4) {
@@ -104,13 +104,13 @@
         const pts = s.points.filter(p => p.y != null);
         if (!pts.length) return;
         const last = pts[pts.length - 1];
-        const t = el("text", { x: Math.min(X(last.x) + 8, W - 2), y: Y(last.y) + 4, fill: "#c3c2b7", "font-size": 11 }, svg);
+        const t = el("text", { x: Math.min(X(last.x) + 8, W - 2), y: Y(last.y) + 4, fill: "#52514e", "font-size": 11 }, svg);
         t.textContent = fmt(last.y);
       });
     }
 
     // crosshair + tooltip
-    const cross = el("line", { y1: m.top, y2: m.top + ih, stroke: "#52514e", "stroke-width": 1, opacity: 0 }, svg);
+    const cross = el("line", { y1: m.top, y2: m.top + ih, stroke: "#898781", "stroke-width": 1, opacity: 0 }, svg);
     const hover = el("rect", { x: m.left, y: m.top, width: iw, height: ih, fill: "transparent" }, svg);
     function toIdx(evt) {
       const r = svg.getBoundingClientRect();
@@ -170,11 +170,11 @@
     const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img" }, container);
     for (const tv of niceTicks(yMin, yMax, 5)) {
       if (tv < yMin || tv > yMax) continue;
-      el("line", { x1: m.left, x2: W - m.right, y1: Y(tv), y2: Y(tv), stroke: "#2c2c2a", "stroke-width": 1 }, svg);
+      el("line", { x1: m.left, x2: W - m.right, y1: Y(tv), y2: Y(tv), stroke: "#e1e0d9", "stroke-width": 1 }, svg);
       const t = el("text", { x: m.left - 8, y: Y(tv) + 4, "text-anchor": "end", fill: "#898781", "font-size": 11 }, svg);
       t.textContent = yFmt(tv);
     }
-    el("line", { x1: m.left, x2: W - m.right, y1: m.top + ih, y2: m.top + ih, stroke: "#383835", "stroke-width": 1 }, svg);
+    el("line", { x1: m.left, x2: W - m.right, y1: m.top + ih, y2: m.top + ih, stroke: "#c3c2b7", "stroke-width": 1 }, svg);
     for (const tx of niceTicks(xMin, xMax, Math.min(10, Math.floor(iw / 80)))) {
       if (tx < xMin || tx > xMax) continue;
       const t = el("text", { x: X(tx), y: H - 8, "text-anchor": "middle", fill: "#898781", "font-size": 11 }, svg);
@@ -186,11 +186,11 @@
       const d = pts.map((p, j) => (j ? "L" : "M") + X(p.x).toFixed(1) + " " + Y(p.y).toFixed(1)).join(" ");
       el("path", { d, fill: "none", stroke: s.color, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
       const last = pts[pts.length - 1];
-      el("circle", { cx: X(last.x), cy: Y(last.y), r: 4, fill: s.color, stroke: "#1a1a19", "stroke-width": 2 }, svg);
+      el("circle", { cx: X(last.x), cy: Y(last.y), r: 4, fill: s.color, stroke: "#fcfcfb", "stroke-width": 2 }, svg);
     }
     // hover: snap to nearest x present in any series
     const xsSet = [...new Set(allPts.map(p => p.x))].sort((a, b) => a - b);
-    const cross = el("line", { y1: m.top, y2: m.top + ih, stroke: "#52514e", "stroke-width": 1, opacity: 0 }, svg);
+    const cross = el("line", { y1: m.top, y2: m.top + ih, stroke: "#898781", "stroke-width": 1, opacity: 0 }, svg);
     const hover = el("rect", { x: m.left, y: m.top, width: iw, height: ih, fill: "transparent" }, svg);
     hover.addEventListener("pointermove", evt => {
       const r = svg.getBoundingClientRect();

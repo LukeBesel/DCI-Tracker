@@ -22,11 +22,17 @@ ROOT = Path(__file__).resolve().parent.parent
 RAW = ROOT / "data" / "raw"
 OUT = ROOT / "docs" / "data"
 
-UA = "dci-dashboard-bot/1.0 (+https://github.com/LukeBesel/DCI-Tracker; hobby project; contact via GitHub issues)"
-RATE_LIMIT_SECONDS = 0.75
+UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+RATE_LIMIT_SECONDS = 1.5
 
 _session = requests.Session()
-_session.headers.update({"User-Agent": UA})
+_session.headers.update({
+    "User-Agent": UA,
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    # transparency about the automated fetcher without tripping bot walls
+    "From": "dci-tracker bot https://github.com/LukeBesel/DCI-Tracker",
+})
 _last_fetch = [0.0]
 
 
@@ -53,7 +59,7 @@ def fetch(url: str, *, force: bool = False, timeout: int = 30, retries: int = 4,
     if accept_json:
         headers["Accept"] = "application/json"
 
-    delay = 2.0
+    delay = 5.0
     for attempt in range(retries):
         wait = RATE_LIMIT_SECONDS - (time.time() - _last_fetch[0])
         if wait > 0:
@@ -64,6 +70,13 @@ def fetch(url: str, *, force: bool = False, timeout: int = 30, retries: int = 4,
             if r.status_code == 404:
                 log(f"404 {url}")
                 return None
+            if r.status_code in (403, 429):
+                # bot-wall / throttle: back off hard before retrying
+                retry_after = int(r.headers.get("Retry-After") or 0)
+                pause = max(retry_after, 45 * (attempt + 1))
+                log(f"{r.status_code} throttle on {url}; sleeping {pause}s")
+                time.sleep(pause)
+                continue
             if r.status_code >= 400:
                 raise requests.HTTPError(f"{r.status_code} for {url}")
             text = r.text

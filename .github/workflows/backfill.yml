@@ -3,10 +3,9 @@ name: Full historical backfill
 on:
   workflow_dispatch:
     inputs:
-      refresh_parse:
-        description: "Re-parse cached pages (after parser changes)"
-        type: boolean
-        default: false
+      max_fetches:
+        description: "Max live page fetches this run"
+        default: "600"
   push:
     branches: [main]
     paths: [".github/workflows/backfill.yml"]
@@ -23,24 +22,24 @@ concurrency:
 jobs:
   backfill:
     runs-on: ubuntu-latest
-    timeout-minutes: 340
+    timeout-minutes: 300
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - run: pip install -r scraper/requirements.txt
-      - name: Run full scrape
+      - name: Run backfill chunk
         run: bash scraper/run_all.sh backfill
         env:
-          REFRESH: ${{ (github.event_name == 'workflow_dispatch' && inputs.refresh_parse) && '1' || '' }}
+          MAX_FETCHES: ${{ inputs.max_fetches || '600' }}
       - name: Commit results
         if: always()
         run: |
-          git config user.name "dci-dashboard-bot"
+          git config user.name "dci-tracker-bot"
           git config user.email "actions@users.noreply.github.com"
           git add -A data docs
-          git diff --cached --quiet || git commit -m "Backfill: full historical scrape"
+          git diff --cached --quiet || git commit -m "Backfill chunk: $(date -u +'%F %H:%M') UTC"
           git pull --rebase origin main || true
           git push
 
@@ -51,5 +50,3 @@ jobs:
       contents: read
       pages: write
       id-token: write
-
-# rebuild queue: 2026-07-09T16:31:19Z

@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Tolerant scrape runner: keeps going if any single source fails, and writes
-# data/scrape_report.txt so run health is visible from the committed repo.
+# DCI-only scrape runner. Writes data/scrape_report.txt for observability.
 set -u
 MODE="${1:-update}"   # update | backfill
 export PYTHONPATH=scraper
@@ -24,22 +23,17 @@ run() {
 YEAR=$(date +%Y)
 
 if [ "$MODE" = "backfill" ]; then
-  run "dci.org all seasons"      python scraper/scrape_dci.py
-  run "drum-corps.net archives"  python scraper/scrape_dcnet.py ${REFRESH:+--refresh}
-  run "historical finals"        python scraper/scrape_history.py
+  # History backfill in bounded chunks: each run fetches up to MAX_FETCHES
+  # uncached pages (older seasons first stay cached forever once fetched).
+  run "dci.org backfill chunk" python scraper/scrape_dci.py --max-fetches "${MAX_FETCHES:-600}"
 else
-  run "dci.org current season"   python scraper/scrape_dci.py --season "$YEAR" --force
-  run "drum-corps.net recent"    python scraper/scrape_dcnet.py
-  if [ ! -f data/parsed/dci_finals_history.json ]; then
-    run "historical finals (first run)" python scraper/scrape_history.py
-  fi
+  run "dci.org current season" python scraper/scrape_dci.py --season "$YEAR" --force
+  # opportunistically continue the history backfill a little each night
+  run "dci.org history chunk"  python scraper/scrape_dci.py --max-fetches 150
 fi
 
-run "dca site"  python scraper/scrape_dca_site.py
-run "news"      python scraper/scrape_news.py
-run "build"     python scraper/build_data.py
+run "build site data" python scraper/build_data.py
 
 echo "finished=$(date -u +'%F %T UTC')" >> "$REPORT"
 cat "$REPORT"
-# build must have produced the core file, otherwise fail the job visibly
 test -f docs/data/meta.json
