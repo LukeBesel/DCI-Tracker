@@ -97,6 +97,8 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14px; }
 .t td { padding: 7px 8px; border-bottom: 1px solid var(--grid); }
 .t tr:last-child td { border-bottom: 0; }
 .t tr.rowlink { cursor: pointer; }
+.t tr.hid { display: none; }
+.expandwrap { text-align: center; padding: 10px 0 2px; }
 .t tr.rowlink:hover td { background: var(--surface-2); }
 .t .num { text-align: right; font-variant-numeric: tabular-nums; }
 .t .rank { color: var(--muted); width: 34px; font-variant-numeric: tabular-nums; }

@@ -45,6 +45,31 @@
     document.querySelectorAll("#nav a").forEach(a =>
       a.classList.toggle("active", a.dataset.route === route));
   }
+  // Collapse long tables to the first `n` rows with a Show-all toggle.
+  // Safe to call again after a re-render (replaces its own button).
+  function collapseRows(tbody, n, noun) {
+    const host = tbody.closest(".tscroll") || tbody.closest("table").parentElement;
+    const old = host.parentElement.querySelector(":scope > .expandwrap");
+    if (old) old.remove();
+    const rows = [...tbody.rows];
+    if (rows.length <= n + 3) return;
+    let open = false;
+    const applyRows = () => rows.slice(n).forEach(r => r.classList.toggle("hid", !open));
+    const wrap = document.createElement("div");
+    wrap.className = "expandwrap";
+    const btn = document.createElement("button");
+    btn.className = "tab";
+    btn.onclick = () => {
+      open = !open;
+      applyRows();
+      btn.textContent = open ? `Show top ${n} ▴` : `Show all ${rows.length} ${noun} ▾`;
+    };
+    btn.textContent = `Show all ${rows.length} ${noun} ▾`;
+    wrap.appendChild(btn);
+    host.insertAdjacentElement("afterend", wrap);
+    applyRows();
+  }
+
   const CLASS_ORDER = ["World Class", "Open Class", "All-Age", "International"];
   const sortClasses = names => names.sort((a, b) => {
     const ia = CLASS_ORDER.indexOf(a), ib = CLASS_ORDER.indexOf(b);
@@ -281,6 +306,7 @@
     document.querySelectorAll(".sparkcell").forEach(elm => {
       sparkline(elm, elm.dataset.trend.split(",").map(Number).filter(n => !isNaN(n)), "#898781");
     });
+    collapseRows(document.querySelector("#standings tbody"), 10, "corps");
 
     // Upcoming events with lineups
     const up = await data("upcoming.json").catch(() => []);
@@ -570,6 +596,7 @@
         msCorps.refresh();
         persist(); draw(); renderRows();
       });
+      collapseRows(rowsEl, 10, "corps");
     }
     document.getElementById("q").addEventListener("input", renderRows);
     document.querySelectorAll(".tab[data-f]").forEach(bt => bt.onclick = () => {
