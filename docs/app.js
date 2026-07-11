@@ -88,7 +88,8 @@
       const n = cfg.selected.size;
       if (!n) return cfg.label;
       const lbls = [...cfg.selected].map(v =>
-        (cfg.options.find(o => String(o.value) === String(v)) || { label: v }).label);
+        (cfg.options.find(o => String(o.value) === String(v)) ||
+          { label: cfg.labelFor ? cfg.labelFor(v) : v }).label);
       return n <= 2 ? lbls.join(", ") : `${lbls[0]}, ${lbls[1]} +${n - 2}`;
     }
     function renderBtn() {
@@ -181,7 +182,14 @@
     };
     renderBtn();
     mount.append(btn, panel);
-    return { refresh: renderBtn };
+    return {
+      refresh: renderBtn,
+      setOptions: opts => {
+        cfg.options = opts;
+        renderBtn();
+        if (mount.classList.contains("open")) renderPanel();
+      },
+    };
   }
 
   /* ============ RANKINGS (home) ============ */
@@ -313,6 +321,20 @@
     const allYears = meta.seasons.map(s => s.year).sort((a, b) => b - a);
     const bySlug = new Map(idx.map(c => [c.slug, c]));
 
+    // corps "type" = the class it most recently competed in
+    const corpsClass = c => {
+      for (let i = (c.series || []).length - 1; i >= 0; i--) {
+        if (c.series[i][2]) return c.series[i][2];
+      }
+      return "Other";
+    };
+    const classList = sortClasses([...new Set(idx.map(corpsClass))]);
+    const savedCls = localStorage.getItem("dt-corpsclass");
+    let clsFilter = savedCls != null && (savedCls === "" || classList.includes(savedCls))
+      ? savedCls
+      : (classList.includes("World Class") ? "World Class" : "");
+    const classMatch = c => !clsFilter || corpsClass(c) === clsFilter;
+
     // --- selection state: hash query > session > sensible default ---
     const params = parseHashQuery(qs);
     const explicit = params.c != null || params.y != null;
@@ -352,6 +374,7 @@
       <div class="card">
         <h2>Compare <span class="sub">any corps, any seasons, one chart</span></h2>
         <div class="filters" style="margin-bottom:10px">
+          <select class="ctrl" id="fClass" title="Corps type"></select>
           <div id="corpsSel"></div>
           <div id="yearSel"></div>
           <button class="tab" id="clearSel" title="Reset selection">Clear</button>
@@ -376,13 +399,28 @@
     // --- multiselects ---
     const corpsSet = new Set(corpsSel);
     const yearSet = new Set(yearsSel.map(String));
+    const corpsOptions = () => idx.filter(classMatch)
+      .sort((a, b) => b.last - a.last || a.name.localeCompare(b.name))
+      .map(c => ({ value: c.slug, label: c.name, hint: c.first === c.last ? String(c.first) : `${c.first}–${c.last}` }));
     const msCorps = multiSelect(document.getElementById("corpsSel"), {
       label: "Select corps…", searchable: true,
-      options: idx.slice().sort((a, b) => b.last - a.last || a.name.localeCompare(b.name))
-        .map(c => ({ value: c.slug, label: c.name, hint: c.first === c.last ? String(c.first) : `${c.first}–${c.last}` })),
+      labelFor: v => (bySlug.get(v) || { name: v }).name,
+      options: corpsOptions(),
       selected: corpsSet,
       onChange: v => { corpsSel = v; persist(); draw(); renderRows(); },
     });
+
+    // corps-type filter drives both the dropdown and the directory
+    const fClass = document.getElementById("fClass");
+    fClass.add(new Option("All types", ""));
+    classList.forEach(c => fClass.add(new Option(c, c)));
+    fClass.value = clsFilter;
+    fClass.onchange = () => {
+      clsFilter = fClass.value;
+      localStorage.setItem("dt-corpsclass", clsFilter);
+      msCorps.setOptions(corpsOptions());
+      renderRows();
+    };
     const msYears = multiSelect(document.getElementById("yearSel"), {
       label: "Select seasons…", searchable: allYears.length > 15, bulk: true,
       presets: [{ label: "Past 5", values: () => allYears.slice(0, 5) }],
@@ -480,6 +518,7 @@
     function renderRows() {
       const q = (document.getElementById("q").value || "").toLowerCase();
       const list = idx.filter(c =>
+        classMatch(c) &&
         (!q || c.name.toLowerCase().includes(q)) &&
         (filter !== "active" || c.last >= nowYear - 1))
         .sort((a, b) => b.last - a.last || (b.best || 0) - (a.best || 0));
