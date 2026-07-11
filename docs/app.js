@@ -114,6 +114,10 @@
           return b;
         };
         bar.appendChild(mk("Select all", () => cfg.options.forEach(o => cfg.selected.add(String(o.value)))));
+        (cfg.presets || []).forEach(p => bar.appendChild(mk(p.label, () => {
+          cfg.selected.clear();
+          p.values().forEach(v => cfg.selected.add(String(v)));
+        })));
         bar.appendChild(mk("None", () => cfg.selected.clear()));
         panel.appendChild(bar);
       }
@@ -381,6 +385,7 @@
     });
     const msYears = multiSelect(document.getElementById("yearSel"), {
       label: "Select seasons…", searchable: allYears.length > 15, bulk: true,
+      presets: [{ label: "Past 5", values: () => allYears.slice(0, 5) }],
       options: allYears.map(y => ({ value: String(y), label: String(y) })),
       selected: yearSet,
       onChange: v => { yearsSel = v.map(Number).sort((a, b) => b - a); persist(); draw(); },
