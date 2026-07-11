@@ -1,7 +1,4 @@
-mode=update started=2026-07-11 19:32:05 UTC
-dci.org current season: OK (55s)
-upcoming events: OK (88s)
-dci.org history chunk: OK (354s)
-dcx history chunk: OK (3s)
+mode=backfill started=2026-07-11 20:49:34 UTC
+dci.org backfill chunk: OK (821s)
 build site data: OK (4s)
-finished=2026-07-11 19:40:29 UTC
+finished=2026-07-11 21:03:19 UTC
