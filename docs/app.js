@@ -116,6 +116,8 @@
     applyRows();
   }
 
+  const CAP_KEY_NOTE = "<p class='capkey'>GE General Effect · VP Visual Proficiency · VA Visual Analysis · CG Color Guard · BR Brass · MA Music Analysis · PC Percussion</p>";
+
   const CLASS_ORDER = ["World Class", "Open Class", "All-Age", "International"];
   const sortClasses = names => names.sort((a, b) => {
     const ia = CLASS_ORDER.indexOf(a), ib = CLASS_ORDER.indexOf(b);
@@ -1043,7 +1045,7 @@
       arr.push(r);
       capByClass.set(r[2], arr);
     });
-    const CAP_HEAD = [["ge", "GE"], ["vp", "Vis Prof"], ["va", "Vis Anlys"], ["cg", "Guard"], ["br", "Brass"], ["ma", "Mus Anlys"], ["pc", "Perc"], ["tot", "Total"]];
+    const CAP_HEAD = [["ge", "GE"], ["vp", "VP"], ["va", "VA"], ["cg", "CG"], ["br", "BR"], ["ma", "MA"], ["pc", "PC"], ["tot", "Total"]];
     const CIDX = { date: 0, event: 1, cls: 2, corps: 3, ge1: 4, ge2: 5, ge: 6, vp: 7, va: 8, cg: 9, vis: 10, br: 11, ma: 12, pc: 13, mus: 14, pen: 15, tot: 16 };
     const capTable = cls => {
       const rows = (capByClass.get(cls) || []).slice().sort((a, b) => b[CIDX.tot] - a[CIDX.tot]);
@@ -1052,7 +1054,7 @@
         <div class="tscroll"><table class="t"><thead><tr><th>Corps</th>${CAP_HEAD.map(([, l]) => `<th class="num">${l}</th>`).join("")}</tr></thead><tbody>
         ${rows.map(r => `<tr><td>${corpsLink(r[CIDX.corps])}</td>${CAP_HEAD.map(([k]) =>
           `<td class="num${k === "tot" ? " score" : ""}">${r[CIDX[k]] == null ? "—" : (+r[CIDX[k]]).toFixed(k === "tot" ? 3 : 2)}</td>`).join("")}</tr>`).join("")}
-        </tbody></table></div>`;
+        </tbody></table></div>${CAP_KEY_NOTE}`;
     };
 
     app.innerHTML = h`
@@ -1119,6 +1121,7 @@
         <h2 id="spotTitle">Corps Spotlight</h2>
         <div class="filters" style="margin:2px 0 8px"><select class="ctrl" id="spotCorps"></select></div>
         <div class="chartwrap" id="spotChart"></div>
+        ${CAP_KEY_NOTE}
       </div>
       <div class="secdiv">All-Time</div>
       <div class="card">
@@ -1128,6 +1131,7 @@
           <button class="tab" id="titlesMode">Career totals</button>
         </div>
         <div id="titlesBody"><div class="loading">Loading…</div></div>
+        ${CAP_KEY_NOTE}
       </div>`;
 
     document.getElementById("capYear").value = String(year);
@@ -1241,8 +1245,8 @@
     }
 
     // caption-by-caption bars for one corps: latest show vs season best
-    const SPOT_CAPS = [["ge1", "GE 1"], ["ge2", "GE 2"], ["vp", "Vis Prof"], ["va", "Vis Anlys"],
-      ["cg", "Guard"], ["br", "Brass"], ["ma", "Mus Anlys"], ["pc", "Perc"]];
+    const SPOT_CAPS = [["ge1", "GE1"], ["ge2", "GE2"], ["vp", "VP"], ["va", "VA"],
+      ["cg", "CG"], ["br", "BR"], ["ma", "MA"], ["pc", "PC"]];
     function renderSpot(board) {
       const sel = document.getElementById("spotCorps");
       if (!sel) return;
@@ -1295,14 +1299,15 @@
     }
 
     // ---- caption titles: who took each caption at the championships ----
-    const TITLE_CAPS = [["ge", "GE"], ["vis", "Visual"], ["vp", "Vis Prof"], ["va", "Vis Anlys"],
-      ["cg", "Guard"], ["mus", "Music"], ["br", "Brass"], ["ma", "Mus Anlys"], ["pc", "Perc"]];
+    // [key, column code, picker label]
+    const TITLE_CAPS = [["ge", "GE", "General Effect"], ["vis", "VIS", "Visual Total"], ["vp", "VP", "Visual Proficiency"], ["va", "VA", "Visual Analysis"],
+      ["cg", "CG", "Color Guard"], ["mus", "MUS", "Music Total"], ["br", "BR", "Brass"], ["ma", "MA", "Music Analysis"], ["pc", "PC", "Percussion"]];
     const titleSel = new Set(["ge", "br", "pc", "cg"]);
     let titlesMode = "years";
     let titlesData = null;
     multiSelect(document.getElementById("titlesCaps"), {
       label: "Pick captions…", bulk: true,
-      options: TITLE_CAPS.map(([k, l]) => ({ value: k, label: l })),
+      options: TITLE_CAPS.map(([k, , full]) => ({ value: k, label: full })),
       selected: titleSel, onChange: renderTitles,
     });
     document.getElementById("titlesMode").onclick = () => {
@@ -1382,8 +1387,8 @@
     captions: {
       label: "Caption Scores",
       cols: ["Year", "Date", "Event", "Class", "Corps",
-             "GE1", "GE2", "GE", "VisProf", "VisAnlys", "Guard", "Visual",
-             "Brass", "MusAnlys", "Perc", "Music", "Pen", "Total"],
+             "GE1", "GE2", "GE", "VP", "VA", "CG", "VIS",
+             "BR", "MA", "PC", "MUS", "Pen", "Total"],
       corpsIdx: 4, clsIdx: 3, evIdx: 2, dateIdx: 1, scoreCols: [17],
       load: loadCaptionRows,
     },
