@@ -301,18 +301,24 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14.5px; }
   .updated { display: none; } /* keep the 4-tab nav on one sticky row */
 }
 @media (max-width: 640px) {
-  /* app-style icon tabs, kept in the top bar — our look, not theirs */
-  .topbar { flex-wrap: nowrap; gap: 8px; padding: 8px 10px; }
-  .brand span { display: none; }
-  .updated { display: none; }
-  #nav { flex: 1; flex-wrap: nowrap; gap: 0; }
-  #nav a {
-    flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; gap: 3px;
-    padding: 6px 3px; font-size: 11.5px; font-weight: 650;
-    text-align: center; min-width: 0; border-radius: 10px; white-space: nowrap;
+  /* app chrome: navy brand bar up top, big icon tab bar fixed to the bottom */
+  .topbar { flex-wrap: nowrap; gap: 8px; padding: 10px 14px; }
+  .updated { display: block; margin-left: auto; }
+  #nav {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 90;
+    display: flex; gap: 0; background: var(--navy);
+    box-shadow: 0 -4px 16px rgba(22,35,61,0.25);
+    padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
   }
-  #nav a svg { display: block; width: 23px; height: 23px; }
-  main { padding: 14px 12px 50px; }
+  #nav a {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 7px 2px; font-size: 12px; font-weight: 650; color: rgba(255,255,255,0.75);
+    border-radius: 12px; min-width: 0; white-space: nowrap;
+  }
+  #nav a svg { display: block; width: 26px; height: 26px; }
+  #nav a:hover { background: none; color: rgba(255,255,255,0.9); }
+  #nav a.active { color: var(--navy); background: var(--gold); }
+  main { padding: 14px 12px 110px; }
   h1.page { font-size: 21px; }
   .evwhen { font-size: 11px; }
   .evmain b { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
