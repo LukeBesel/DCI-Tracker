@@ -38,17 +38,6 @@
     const [y, m, d] = iso.split("-").map(Number);
     return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(y, 4, 31)) / 86400000);
   }
-  function interpAt(pts, day) { // linear interpolation on sorted {x,y} points
-    if (!pts.length || day < pts[0].x || day > pts[pts.length - 1].x) return null;
-    for (let i = 0; i < pts.length; i++) {
-      if (pts[i].x === day) return pts[i].y;
-      if (pts[i].x > day) {
-        const a = pts[i - 1], b = pts[i];
-        return a.y + (b.y - a.y) * (day - a.x) / (b.x - a.x);
-      }
-    }
-    return pts[pts.length - 1].y;
-  }
   function dayLabel(day) { // inverse for a non-leap reference
     const dt = new Date(Date.UTC(2001, 4, 31 + Math.round(day)));
     return `${MONTHS[dt.getUTCMonth()]} ${dt.getUTCDate()}`;
@@ -299,7 +288,6 @@
         <div class="filters" style="margin:2px 0 8px"><div id="trendCorpsSel"></div><button class="tab" id="trendReset" hidden>Top 12</button></div>
         <div class="chartwrap" id="trendChart"></div>
       </div>
-      <div class="card" id="paceCard" style="margin-top:14px" hidden></div>
       <div class="grid cols-2" style="margin-top:14px">
         <div class="card">
           <h2 id="standTitle"></h2>
@@ -353,84 +341,6 @@
       drawTrend();
     };
     drawTrend();
-
-    // championship pace: the field vs past champions at the same date
-    (async () => {
-      const pace = ((await data("pace.json").catch(() => null)) || {})[cls];
-      const recAll = ((await data("records.json").catch(() => null)) || {})[cls];
-      const classRecord = recAll && recAll.top && recAll.top[0] ? recAll.top[0][3] : 100;
-      const el = document.getElementById("paceCard");
-      const live = document.getElementById("clsSel");
-      // class switched while loading → this run's card belongs to the old class
-      if (stale() || !el || !pace || !pace.length || !block.rows.length || (live && live.value !== cls)) return;
-      el.hidden = false;
-      let corps = block.rows[0].corps;
-      const champPick = new Set(pace.slice(0, 5).map(e => String(e.y)));
-      el.innerHTML = `
-        <h2>Championship Pace <span class="sub">the field vs past champions, day by day</span></h2>
-        <div class="filters" style="margin:2px 0 8px">
-          <select class="ctrl" id="paceCorps"></select>
-          <div id="paceYears"></div>
-        </div>
-        <div class="chartwrap" id="paceChart"></div>
-        <div class="grid cols-tiles" id="paceTiles" style="margin-top:12px"></div>
-        <p style="color:var(--muted);font-size:12px;margin:10px 2px 0" id="paceNote"></p>`;
-      const cSel = document.getElementById("paceCorps");
-      block.rows.forEach(r => cSel.add(new Option(`#${r.rank}  ${r.corps}`, r.corps)));
-      cSel.value = corps;
-      cSel.onchange = () => { corps = cSel.value; drawPace(); };
-      multiSelect(document.getElementById("paceYears"), {
-        label: "Past champions…", bulk: true, bulkAll: false,
-        presets: [{ label: "Past 5", values: () => pace.slice(0, 5).map(e => String(e.y)) }],
-        options: pace.map(e => ({ value: String(e.y), label: `\u2019${String(e.y).slice(2)} ${e.corps}` })),
-        selected: champPick,
-        onChange: drawPace,
-      });
-      const med = a => { const so = a.slice().sort((x, y) => x - y); const m = so.length >> 1; return so.length % 2 ? so[m] : (so[m - 1] + so[m]) / 2; };
-      function drawPace() {
-        const chartEl = document.getElementById("paceChart");
-        if (!chartEl) return;
-        const row = block.rows.find(r => r.corps === corps);
-        const curPts = (row ? row.trend : []).map(t => ({ x: dayOfSeason(t[0]), y: t[1] }));
-        const chosen = pace.filter(e => champPick.has(String(e.y)));
-        const series = chosen.map(e => ({
-          name: `\u2019${String(e.y).slice(2)} ${e.corps}`,
-          color: PALETTE[e.y % PALETTE.length], dash: "6 4",
-          points: e.pts.map(([d, sc]) => ({ x: dayOfSeason(d), y: sc })),
-        }));
-        if (curPts.length) series.push({ name: `${corps} \u2019${String(rk.season).slice(2)}`, color: corpsColor(corps), points: curPts });
-        lineChart(chartEl, { linearX: true, series, height: 330, xFmt: dayLabel, yFmt: v => v.toFixed(1) });
-        const tiles = document.getElementById("paceTiles");
-        const note = document.getElementById("paceNote");
-        if (!curPts.length) { tiles.innerHTML = ""; note.textContent = "No scores yet this season."; return; }
-        const day = curPts[curPts.length - 1].x, cur = curPts[curPts.length - 1].y;
-        const atD = [], deltas = [];
-        chosen.forEach(e => {
-          const pts = e.pts.map(([d, sc]) => ({ x: dayOfSeason(d), y: sc }));
-          const v = interpAt(pts, day);
-          if (v != null) { atD.push(v); deltas.push(e.final - v); }
-        });
-        if (atD.length >= 2) {
-          const vs = cur - med(atD);
-          const cap = v => Math.min(100, v);
-          const raw = cur + med(deltas);
-          const lo = cap(cur + Math.min(...deltas)), hi = cap(cur + Math.max(...deltas));
-          // ahead of every title pace on record → say that, not a fake number
-          const projTile = raw > classRecord
-            ? `<div class="tile"><div class="label">Projected finals</div><div class="value">${score3(classRecord)}+</div><div class="sub">record pace — the all-time best is ${score3(classRecord)}</div></div>`
-            : `<div class="tile"><div class="label">Projected finals</div><div class="value">${raw.toFixed(2)}</div><div class="sub">range ${lo.toFixed(2)} – ${hi.toFixed(2)}</div></div>`;
-          tiles.innerHTML = `
-            <div class="tile"><div class="label">${esc(corps)} — latest</div><div class="value">${score3(cur)}</div><div class="sub">${esc(dayLabel(day))}</div></div>
-            <div class="tile"><div class="label">vs champions at this date</div><div class="value">${vs >= 0 ? "+" : ""}${vs.toFixed(2)}</div><div class="sub">against the median of ${atD.length} title runs</div></div>
-            ${projTile}`;
-          note.textContent = "Projection applies the late-season climb past champions managed from this same calendar date — a pace measure, not a prophecy.";
-        } else {
-          tiles.innerHTML = "";
-          note.textContent = "Too early in the season to measure against champion pace.";
-        }
-      }
-      drawPace();
-    })();
 
     document.getElementById("standTitle").innerHTML =
       `${esc(cls)} Standings <span class="sub">each corps' most recent score</span>`;
@@ -1195,6 +1105,7 @@
         <select class="ctrl" id="capKey">${CAPTION_DEFS.map(([k, l]) => `<option value="${k}">${l}</option>`).join("")}</select>
         <select class="ctrl" id="capCls"></select>
       </div>
+      <div class="secdiv" id="capSeasonDiv"></div>
       <div class="card">
         <h2 id="capChartTitle"></h2>
         <div class="filters" style="margin:2px 0 8px"><div id="capCorpsSel"></div><button class="tab" id="capReset" hidden>Top 8</button></div>
@@ -1209,7 +1120,8 @@
         <div class="filters" style="margin:2px 0 8px"><select class="ctrl" id="spotCorps"></select></div>
         <div class="chartwrap" id="spotChart"></div>
       </div>
-      <div class="card" style="margin-top:14px">
+      <div class="secdiv">All-Time</div>
+      <div class="card">
         <h2 id="titlesTitle">Caption Titles</h2>
         <div class="filters" style="margin:2px 0 8px">
           <div id="titlesCaps"></div>
@@ -1277,8 +1189,10 @@
       lastBoard = board;
       const capDefault = capIsDefault();
       const chosen = board.filter(b => capPick.has(b.corps));
+      const div = document.getElementById("capSeasonDiv");
+      if (div) div.textContent = `${year} Season — Caption Scores`;
       document.getElementById("capChartTitle").innerHTML =
-        `${esc(label)} Progression <span class="sub">${esc(String(year))} · ${capDefault ? "top 12" : chosen.length + " selected"}</span>`;
+        `${esc(label)} Progression — ${esc(String(year))} <span class="sub">${capDefault ? "top 12" : chosen.length + " selected"}</span>`;
       document.getElementById("capReset").hidden = capDefault;
       document.getElementById("capReset").textContent = "Top 12";
       lineChart(document.getElementById("capChart"), {
@@ -1291,7 +1205,7 @@
       });
 
       document.getElementById("capBoardTitle").innerHTML =
-        `${esc(label)} Leaders <span class="sub">best single-show score, ${esc(String(year))} ${esc(cls)}</span>`;
+        `${esc(label)} Leaders — ${esc(String(year))} <span class="sub">best single-show score, ${esc(cls)}</span>`;
       document.getElementById("capBoard").innerHTML = board.length ? `
         <table class="t"><thead><tr><th>#</th><th>Corps</th><th class="num">Best</th><th>At</th><th class="num col-high">Latest</th><th class="num col-perfs">Scored shows</th></tr></thead><tbody>
         ${board.map(b => h`<tr>
