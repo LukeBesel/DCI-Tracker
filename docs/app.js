@@ -2514,7 +2514,7 @@
       : mins < 36 * 60 ? `${Math.round(mins / 60)} h ago`
       : `${Math.round(mins / 1440)} d ago`;
     el.textContent = `Updated ${ago}`;
-    el.title = `Data from ${s} — refreshes every 30 min, every 3 min on show nights`;
+    el.title = `Data from ${s} — refreshes several times an hour — every 3 min on show nights`;
   }
   setInterval(() => paintUpdated(), 30 * 1000);
 

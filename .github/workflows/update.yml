@@ -2,9 +2,10 @@ name: Data update
 
 on:
   schedule:
-    # every 30 minutes, year-round — scores publish, the site follows
+    # every 15 minutes, year-round — GitHub's shared cron often fires late
+    # or skips, so the tighter schedule keeps real gaps near half an hour
     # (the show-night watcher covers the minutes in between)
-    - cron: "*/30 * * * *"
+    - cron: "*/15 * * * *"
   workflow_dispatch: {}
 
 permissions:
@@ -29,7 +30,11 @@ jobs:
           python-version: "3.12"
       - run: pip install -r scraper/requirements.txt
       - name: Run update scrape
-        run: bash scraper/run_all.sh update
+        # the ~09:00 UTC run each day also does the deep passes
+        # (Wikipedia profiles + history archive chunks)
+        run: |
+          if [ "$(date -u +%H)" = "09" ]; then export RUN_HISTORY=1; fi
+          bash scraper/run_all.sh update
       - name: Commit results
         if: always()
         run: |
