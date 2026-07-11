@@ -1478,6 +1478,7 @@
     let msShowCorps = null;
     const showPick = new Set();
     let showPickKey = ""; // reseed the corps filter when the show changes
+    let showCorpsN = 0;   // sheet size backing the "All corps" summary
     function renderShowCmp() {
       const body = document.getElementById("showCmpBody");
       if (!body) return;
@@ -1521,6 +1522,7 @@
       const rc = rev && (rev.classes || []).find(c => c.c === cls);
       if (rc) {
         const names = rc.rows.map(r => r[0]);
+        showCorpsN = names.length;
         const key = d + "|" + evName + "|" + cls;
         if (showPickKey !== key) {
           showPickKey = key;
@@ -1533,7 +1535,7 @@
           if (!msShowCorps) {
             msShowCorps = multiSelect(corpsSel, {
               label: "All corps", bulk: true,
-              summary: () => showPick.size === rc.rows.length ? "All corps" : null,
+              summary: () => !showPick.size || showPick.size === showCorpsN ? "All corps" : null,
               options: corpsOpts, selected: showPick,
               onChange: renderShowCmp,
             });
