@@ -787,7 +787,6 @@
       </div>` : "";
 
     mount().innerHTML = h`
-      ${profHtml}
       <div class="filters"><div id="yearSel2"></div></div>
       <div class="card"><h2 id="corpsChartTitle"></h2><div class="chartwrap" id="corpsChart"></div></div>
       <div class="card" style="margin-top:14px"><h2 id="perfTitle">Performance Log</h2>
@@ -805,7 +804,8 @@
         <a class="tile click" href="#/captions?corps=${encodeURIComponent(detail.name)}">
           <div class="label">Caption Scores</div><div class="value">GE · VIS · MUS</div>
           <div class="sub">judge-by-judge breakdowns →</div></a>
-      </div>`;
+      </div>
+      ${profHtml ? `<div style="margin-top:14px">${profHtml}</div>` : ""}`;
 
     // the year filter drives BOTH the chart and the log; one year shows the
     // full season show-by-show, several show top score per year
