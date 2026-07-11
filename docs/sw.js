@@ -1,7 +1,7 @@
 /* DCI Tracker service worker — network-first with cache fallback.
    Fresh data always wins when online; the app shell and the last-seen data
    keep working offline. Nothing is ever served stale while connected. */
-const CACHE = "dci-tracker-v1";
+const CACHE = "dci-tracker-v2";
 const SHELL = ["./", "index.html", "app.css", "app.js", "charts.js", "manifest.webmanifest"];
 
 self.addEventListener("install", e => {
@@ -20,7 +20,9 @@ self.addEventListener("fetch", e => {
   const req = e.request;
   if (req.method !== "GET" || !req.url.startsWith(self.location.origin)) return;
   e.respondWith(
-    fetch(req)
+    // no-cache: revalidate with the server instead of trusting the browser's
+    // 10-minute HTTP cache — new deploys appear on the next reload
+    fetch(req, { cache: "no-cache" })
       .then(res => {
         if (res.ok) {
           const copy = res.clone();
