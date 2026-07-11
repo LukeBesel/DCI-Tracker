@@ -96,6 +96,27 @@
     }
     function renderPanel() {
       panel.innerHTML = "";
+      if (cfg.bulk) {
+        const bar = document.createElement("div");
+        bar.className = "msel-bulk";
+        const mk = (txt, fn) => {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = "msel-bulk-btn";
+          b.textContent = txt;
+          b.onclick = e => {
+            e.stopPropagation();
+            fn();
+            renderBtn();
+            renderPanel();
+            cfg.onChange([...cfg.selected]);
+          };
+          return b;
+        };
+        bar.appendChild(mk("Select all", () => cfg.options.forEach(o => cfg.selected.add(String(o.value)))));
+        bar.appendChild(mk("None", () => cfg.selected.clear()));
+        panel.appendChild(bar);
+      }
       if (cfg.searchable) {
         const inp = document.createElement("input");
         inp.className = "ctrl msel-search";
@@ -359,7 +380,7 @@
       onChange: v => { corpsSel = v; persist(); draw(); renderRows(); },
     });
     const msYears = multiSelect(document.getElementById("yearSel"), {
-      label: "Select seasons…", searchable: allYears.length > 15,
+      label: "Select seasons…", searchable: allYears.length > 15, bulk: true,
       options: allYears.map(y => ({ value: String(y), label: String(y) })),
       selected: yearSet,
       onChange: v => { yearsSel = v.map(Number).sort((a, b) => b - a); persist(); draw(); },
@@ -519,25 +540,64 @@
     app.innerHTML = h`
       <div class="crumbs"><a href="#/corps">Corps</a> / ${esc(detail.name)}</div>
       <h1 class="page">${esc(detail.name)}</h1>
-      <div class="grid cols-tiles" style="margin-bottom:14px">
+      <div class="filters"><select class="ctrl" id="yearSel2"><option value="">All years</option>
+        ${years.slice().reverse().map(y => `<option>${y}</option>`).join("")}</select></div>
+      <div class="card"><h2 id="corpsChartTitle"></h2><div class="chartwrap" id="corpsChart"></div></div>
+      <div class="card" style="margin-top:14px"><h2 id="perfTitle">Performance log</h2>
+        <div id="perfTable"></div></div>
+      <div class="grid cols-tiles" style="margin-top:14px">
         <div class="tile"><div class="label">Performances</div><div class="value">${perfs.length}</div><div class="sub">${years[0]}–${years[years.length - 1]}</div></div>
         <div class="tile"><div class="label">Best score</div><div class="value">${scored.length ? score3(Math.max(...scored.map(p => p.s))) : "—"}</div></div>
         <div class="tile"><div class="label">Titles</div><div class="value">${titles.length}</div><div class="sub">${esc(titles.slice(-3).join(" · ") || "—")}</div></div>
-      </div>
-      <div class="card"><h2>Season-best score by year <span class="sub"><a href="#/corps?c=${slug}&y=${cmpYears}">compare seasons on one chart →</a></span></h2><div class="chartwrap" id="corpsChart"></div></div>
-      <div class="card" style="margin-top:14px"><h2>Performance log</h2>
-        <div class="filters"><select class="ctrl" id="yearSel2"><option value="">All years</option>
-          ${years.slice().reverse().map(y => `<option>${y}</option>`).join("")}</select></div>
-        <div id="perfTable"></div></div>`;
+      </div>`;
 
-    lineChart(document.getElementById("corpsChart"), {
-      linearX: true,
-      series: [{ name: "Season best", points: years.map((y, i) => ({ x: y, y: bestByYear[i] })).filter(p => p.y) }],
-      height: 260, yFmt: v => v.toFixed(0), xFmt: v => String(Math.round(v)),
-    });
+    // the year filter drives BOTH the chart and the log
+    function renderChart() {
+      const yv = document.getElementById("yearSel2").value;
+      const title = document.getElementById("corpsChartTitle");
+      if (yv) {
+        title.innerHTML = `${yv} season progression <span class="sub">score by date · <a href="#/corps?c=${slug}&y=${cmpYears}">compare seasons →</a></span>`;
+        const pts = (byYear.get(+yv) || []).filter(p => p.s && p.d)
+          .map(p => ({ x: dayOfSeason(p.d), y: p.s })).sort((a, b) => a.x - b.x);
+        lineChart(document.getElementById("corpsChart"), {
+          linearX: true, series: [{ name: yv, points: pts }],
+          height: 260, xFmt: dayLabel, yFmt: v => v.toFixed(1),
+        });
+        return;
+      }
+      // All years: every scored performance in time order — no smoothing, no
+      // interpolation across seasons the corps didn't march (line breaks there)
+      const dated = perfs.filter(p => p.s && p.d)
+        .map(p => ({ x: p.y + Math.min(Math.max(dayOfSeason(p.d), 0), 120) / 130, y: p.s }))
+        .sort((a, b) => a.x - b.x);
+      if (dated.length >= 5) {
+        title.innerHTML = `Every scored performance <span class="sub">${years[0]}–${years[years.length - 1]} · gaps = seasons not marched · <a href="#/corps?c=${slug}&y=${cmpYears}">compare seasons →</a></span>`;
+        const segs = [];
+        let cur = [];
+        for (const p of dated) {
+          if (cur.length && p.x - cur[cur.length - 1].x > 1.2) { segs.push(cur); cur = []; }
+          cur.push(p);
+        }
+        if (cur.length) segs.push(cur);
+        lineChart(document.getElementById("corpsChart"), {
+          linearX: true, noLegend: true,
+          series: segs.map(pts => ({ name: "Score", points: pts, color: PALETTE[0] })),
+          height: 260, yFmt: v => v.toFixed(0), xFmt: v => String(Math.floor(v)),
+        });
+      } else {
+        title.innerHTML = `Season-best score by year <span class="sub"><a href="#/corps?c=${slug}&y=${cmpYears}">compare seasons on one chart →</a></span>`;
+        lineChart(document.getElementById("corpsChart"), {
+          linearX: true,
+          series: [{ name: "Season best", points: years.map((y, i) => ({ x: y, y: bestByYear[i] })).filter(p => p.y) }],
+          height: 260, yFmt: v => v.toFixed(0), xFmt: v => String(Math.round(v)),
+        });
+      }
+    }
 
     function renderPerfs() {
       const yv = document.getElementById("yearSel2").value;
+      document.getElementById("perfTitle").innerHTML =
+        `Performance log${yv ? ` <span class="sub">${esc(yv)} only</span>` : ""}`;
       const list = perfs.filter(p => !yv || p.y === +yv)
         .sort((a, b) => (b.d || "").localeCompare(a.d || "") || b.y - a.y);
       document.getElementById("perfTable").innerHTML = `<div class="tscroll"><table class="t">
@@ -548,7 +608,8 @@
           <td><span class="pill">${esc(p.cls || "")}</span></td>
           <td class="num">${p.p ?? "—"}</td><td class="num score">${score3(p.s)}</td></tr>`).join("")}</tbody></table></div>`;
     }
-    document.getElementById("yearSel2").addEventListener("change", renderPerfs);
+    document.getElementById("yearSel2").addEventListener("change", () => { renderChart(); renderPerfs(); });
+    renderChart();
     renderPerfs();
   }
 

@@ -216,7 +216,7 @@
     });
     hover.addEventListener("pointerleave", () => { cross.setAttribute("opacity", 0); hideTip(); });
 
-    if (series.length >= 2) {
+    if (series.length >= 2 && !opts.noLegend) {
       const lg = document.createElement("div");
       lg.className = "legend";
       series.forEach(s => {
