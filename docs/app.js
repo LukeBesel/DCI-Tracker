@@ -746,8 +746,11 @@
         <a href="#/compare">Browse all corps →</a></div>`;
       return;
     }
-    const champs = await data("champions.json").catch(() => ({}));
+    const [champs, profs] = await Promise.all([
+      data("champions.json").catch(() => ({})),
+      data("profiles.json").catch(() => ({}))]);
     if (stale() || !mount()) return;
+    const prof = profs[slug];
     const perfs = detail.performances;
     const titles = [];
     for (const [yr, byCls] of Object.entries(champs))
@@ -763,7 +766,28 @@
     const bestPerf = scored.length ? scored.reduce((m, p) => p.s > m.s ? p : m, scored[0]) : null;
     const pt = document.getElementById("corpsPageTitle");
     if (pt) pt.textContent = detail.name;
+    // profile card: who this corps is, straight from Wikipedia
+    const factRow = (label, v) => v ? `<span><b>${label}</b> ${esc(v)}</span>` : "";
+    const site = prof && prof.website ? (/^https?:/i.test(prof.website) ? prof.website : "https://" + prof.website) : null;
+    const profHtml = prof ? h`
+      <div class="card profcard" style="margin-bottom:14px">
+        ${prof.img ? `<img src="${encodeURI(prof.img)}" alt="${esc(detail.name)} logo" loading="lazy" onerror="this.hidden=true">` : ""}
+        <div style="min-width:0">
+          <p style="margin:0 0 8px">${esc(prof.summary || "")}</p>
+          <div class="facts">
+            ${factRow("Founded", prof.founded)}
+            ${factRow("Home", prof.location)}
+            ${factRow("Division", prof.division)}
+            ${prof.disbanded ? factRow("Disbanded", prof.disbanded) : ""}
+            ${factRow("Director", prof.director)}
+            ${site ? `<span><a href="${encodeURI(site)}" target="_blank" rel="noopener">Website ↗</a></span>` : ""}
+            ${prof.wiki ? `<span><a href="${encodeURI(prof.wiki)}" target="_blank" rel="noopener">Wikipedia ↗</a></span>` : ""}
+          </div>
+        </div>
+      </div>` : "";
+
     mount().innerHTML = h`
+      ${profHtml}
       <div class="filters"><div id="yearSel2"></div></div>
       <div class="card"><h2 id="corpsChartTitle"></h2><div class="chartwrap" id="corpsChart"></div></div>
       <div class="card" style="margin-top:14px"><h2 id="perfTitle">Performance Log</h2>

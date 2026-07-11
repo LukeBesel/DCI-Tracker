@@ -16,6 +16,26 @@ self.addEventListener("activate", e => {
   );
 });
 
+/* score alerts (Web Push) */
+self.addEventListener("push", e => {
+  let d = {};
+  try { d = e.data.json(); } catch (err) {}
+  e.waitUntil(self.registration.showNotification(d.title || "Cadence", {
+    body: d.body || "New DCI scores are in.",
+    icon: "icons/icon-192.png",
+    badge: "icons/icon-192.png",
+    tag: d.tag || "cadence-scores",
+    data: { url: d.url || "./" },
+  }));
+});
+self.addEventListener("notificationclick", e => {
+  e.notification.close();
+  e.waitUntil(clients.matchAll({ type: "window", includeUncontrolled: true }).then(ws => {
+    for (const w of ws) if ("focus" in w) return w.focus();
+    return clients.openWindow((e.notification.data || {}).url || "./");
+  }));
+});
+
 self.addEventListener("fetch", e => {
   const req = e.request;
   if (req.method !== "GET" || !req.url.startsWith(self.location.origin)) return;

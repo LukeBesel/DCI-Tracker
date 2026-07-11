@@ -33,6 +33,7 @@ elif [ "$MODE" = "history" ]; then
 else
   run "dci.org current season" python scraper/scrape_dci.py --season "$YEAR" --force
   run "upcoming events"        python scraper/scrape_upcoming.py
+  run "corps profiles"         python scraper/scrape_corps_profiles.py
   # opportunistically continue both history backfills a little each night
   run "dci.org history chunk"  python scraper/scrape_dci.py --max-fetches 150
   run "dcx history chunk"      python scraper/scrape_history.py --max-fetches 150

@@ -46,7 +46,8 @@
 
 <footer class="foot">
   <div><a href="#" id="installBtn" hidden><b>📲 Get the App</b> — install on this device</a></div>
-  <div>Scores from <a href="https://www.dci.org/scores" rel="noopener">DCI.org</a> · live every 30 min on show nights</div>
+  <div><a href="#" id="pushBtn"><b>🔔 Score alerts</b> — get a ping when scores drop</a></div>
+  <div>Scores from <a href="https://www.dci.org/scores" rel="noopener">DCI.org</a> · refreshed every 30 minutes, minute-by-minute on show nights</div>
   <div><a href="#/suggestions"><b>Suggestions</b> — tell us what to build next →</a></div>
   <div class="credit">Created by Lucas Besel</div>
 </footer>
@@ -101,6 +102,80 @@ if ("serviceWorker" in navigator) {
     alert(msg);
   });
   addEventListener("appinstalled", () => { btn.hidden = true; });
+})();
+// score alerts: Web Push via the Cadence push relay
+(function () {
+  const PUSH_SERVER = "https://cadence-push-production.up.railway.app";
+  const btn = document.getElementById("pushBtn");
+  if (!btn) return;
+  const canPush = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+
+  async function currentSub() {
+    if (!canPush) return null;
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      return await reg.pushManager.getSubscription();
+    } catch (e) { return null; }
+  }
+  async function paint() {
+    const sub = await currentSub();
+    btn.innerHTML = sub
+      ? "<b>🔕 Score alerts on</b> — tap to turn off"
+      : "<b>🔔 Score alerts</b> — get a ping when scores drop";
+  }
+  function b64ToU8(s) {
+    const pad = "=".repeat((4 - s.length % 4) % 4);
+    const raw = atob((s + pad).replace(/-/g, "+").replace(/_/g, "/"));
+    return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+  }
+
+  btn.addEventListener("click", async e => {
+    e.preventDefault();
+    const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+    if (!canPush) {
+      alert(/iPhone|iPad|iPod/.test(navigator.userAgent) && !standalone
+        ? "Score alerts on iPhone/iPad need the app installed first:\n\n1. Tap Share → 'Add to Home Screen'\n2. Open Cadence from your home screen\n3. Tap '🔔 Score alerts' again"
+        : "This browser doesn't support notifications.");
+      return;
+    }
+    const existing = await currentSub();
+    if (existing) { // toggle off
+      try {
+        await fetch(PUSH_SERVER + "/unsubscribe", { method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ endpoint: existing.endpoint }) });
+      } catch (err) {}
+      await existing.unsubscribe();
+      await paint();
+      return;
+    }
+    let vapid;
+    try {
+      vapid = (await (await fetch(PUSH_SERVER + "/vapid")).json()).key;
+    } catch (err) {
+      alert("The alert server isn't reachable right now — try again in a bit.");
+      return;
+    }
+    const perm = await Notification.requestPermission();
+    if (perm !== "granted") return;
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: b64ToU8(vapid),
+      });
+      let favs = [];
+      try { favs = JSON.parse(localStorage.getItem("cad-favs") || "[]"); } catch (err) {}
+      await fetch(PUSH_SERVER + "/subscribe", { method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ subscription: sub.toJSON(), favs }) });
+      btn.innerHTML = "<b>✅ Alerts on!</b> — you'll get a ping when scores drop";
+      setTimeout(paint, 4000);
+    } catch (err) {
+      alert("Couldn't turn on alerts: " + err.message);
+    }
+  });
+  paint();
 })();
 </script>
 </body>

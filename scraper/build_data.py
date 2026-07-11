@@ -975,6 +975,13 @@ def main():
     build_records(events)
     build_upcoming()
 
+    # corps profiles (Wikipedia lead + infobox), when the scraper has run
+    prof_p = PARSED / "corps_profiles.json"
+    if prof_p.exists():
+        profs = {k: v for k, v in json.loads(prof_p.read_text()).items() if v}
+        write_json("profiles.json", profs)
+        log(f"profiles: {len(profs)} corps")
+
     write_json("champions.json", champions)
     write_json("rankings.json", rankings)
     write_json("meta.json", {
