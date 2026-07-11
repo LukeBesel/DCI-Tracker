@@ -503,7 +503,7 @@
         <div id="cmpTable" style="margin-top:12px"></div>
       </div>
       <div class="card" style="margin-top:14px">
-        <h2>All Corps <span class="sub">tap a corps for its full history · ⊕ adds it to the chart</span></h2>
+        <h2 id="dirTitle">All Corps <span class="sub">tap a corps for its full history · ⊕ adds it to the chart</span></h2>
         <div class="filters">
           <input class="ctrl" id="q" placeholder="Search corps…">
         </div>
@@ -639,6 +639,9 @@
         classMatch(c) &&
         (!q || c.name.toLowerCase().includes(q)))
         .sort((a, b) => b.last - a.last || (b.best || 0) - (a.best || 0));
+      // the type dropdown above filters this list too — say so in the title
+      document.getElementById("dirTitle").innerHTML =
+        `All Corps${clsFilter ? ` — ${esc(clsFilter)}` : ""} <span class="sub">${list.length} corps · tap one for its history · ⊕ adds it to the chart</span>`;
       rowsEl.innerHTML = list.map(c => h`
         <tr class="rowlink" data-slug="${c.slug}">
           <td class="addcell"><button class="addbtn${corpsSet.has(c.slug) ? " on" : ""}" data-add="${c.slug}" title="${corpsSet.has(c.slug) ? "Remove from" : "Add to"} compare">${corpsSet.has(c.slug) ? "✓" : "+"}</button></td>
