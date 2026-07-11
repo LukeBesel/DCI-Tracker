@@ -508,7 +508,7 @@
           <input class="ctrl" id="q" placeholder="Search corps…">
         </div>
         <div class="tscroll"><table class="t"><thead>
-          <tr><th></th><th>Corps</th><th class="num">Seasons</th><th>Years</th><th class="num">Best score</th></tr>
+          <tr><th></th><th>Corps</th><th>Years</th><th class="num">Best score</th></tr>
         </thead><tbody id="rows"></tbody></table></div>
       </div>`;
 
@@ -642,10 +642,10 @@
       rowsEl.innerHTML = list.map(c => h`
         <tr class="rowlink" data-slug="${c.slug}">
           <td class="addcell"><button class="addbtn${corpsSet.has(c.slug) ? " on" : ""}" data-add="${c.slug}" title="${corpsSet.has(c.slug) ? "Remove from" : "Add to"} compare">${corpsSet.has(c.slug) ? "✓" : "+"}</button></td>
-          <td><b>${esc(c.name)}</b></td><td class="num">${c.seasons}</td>
+          <td><b>${esc(c.name)}</b></td>
           <td style="color:var(--muted)">${c.first === c.last ? c.first : c.first + "–" + c.last}</td>
           <td class="num score">${score3(c.best)}</td></tr>`).join("")
-        || "<tr><td colspan='5' class='empty'>No matches.</td></tr>";
+        || "<tr><td colspan='4' class='empty'>No matches.</td></tr>";
       rowsEl.querySelectorAll("tr[data-slug]").forEach(tr => {
         tr.onclick = e => {
           if (e.target.closest(".addbtn")) return;
@@ -697,8 +697,7 @@
     app.innerHTML = h`
       <div class="crumbs"><a href="#/corps">Corps</a> / ${esc(detail.name)}</div>
       <h1 class="page">${esc(detail.name)}</h1>
-      <div class="filters"><select class="ctrl" id="yearSel2"><option value="">All years</option>
-        ${years.slice().reverse().map(y => `<option>${y}</option>`).join("")}</select></div>
+      <div class="filters"><div id="yearSel2"></div></div>
       <div class="card"><h2 id="corpsChartTitle"></h2><div class="chartwrap" id="corpsChart"></div></div>
       <div class="card" style="margin-top:14px"><h2 id="perfTitle">Performance Log</h2>
         <div id="perfTable"></div></div>
@@ -708,25 +707,38 @@
         <div class="tile"><div class="label">Titles</div><div class="value">${titles.length}</div><div class="sub">${esc(titles.slice(-3).join(" · ") || "—")}</div></div>
       </div>`;
 
-    // the year filter drives BOTH the chart and the log
+    // the year filter drives BOTH the chart and the log; one year shows the
+    // full season show-by-show, several show top score per year
+    const yearSet = new Set();
+    const msYears = multiSelect(document.getElementById("yearSel2"), {
+      label: "All years", searchable: years.length > 15, bulk: true, bulkAll: false,
+      presets: [{ label: "Past 5", values: () => years.slice(-5).map(String) }],
+      options: years.slice().reverse().map(y => ({ value: String(y), label: String(y) })),
+      selected: yearSet,
+      onChange: () => { renderChart(); renderPerfs(); },
+    });
+    function selYears() { return [...yearSet].map(Number).sort((a, b) => a - b); }
     function renderChart() {
-      const yv = document.getElementById("yearSel2").value;
+      const sel = selYears();
       const title = document.getElementById("corpsChartTitle");
-      if (yv) {
+      if (sel.length === 1) {
+        const yv = sel[0];
         title.innerHTML = `${yv} Season Progression <span class="sub">score by date · <a href="#/corps?c=${slug}&y=${cmpYears}">compare seasons →</a></span>`;
-        const pts = (byYear.get(+yv) || []).filter(p => p.s && p.d)
+        const pts = (byYear.get(yv) || []).filter(p => p.s && p.d)
           .map(p => ({ x: dayOfSeason(p.d), y: p.s })).sort((a, b) => a.x - b.x);
         lineChart(document.getElementById("corpsChart"), {
-          linearX: true, series: [{ name: yv, points: pts, color: corpsColor(detail.name) }],
+          linearX: true, series: [{ name: String(yv), points: pts, color: corpsColor(detail.name) }],
           height: 260, xFmt: dayLabel, yFmt: v => v.toFixed(1),
         });
         return;
       }
-      // All years: top score per season — the line only connects consecutive
-      // seasons, so years the corps didn't march show as real gaps and an
-      // in-progress season sits as its own point instead of dragging the line
-      title.innerHTML = `Top Score by Year <span class="sub">gaps = seasons not marched · <a href="#/corps?c=${slug}&y=${cmpYears}">compare seasons →</a></span>`;
-      const ptsAll = years.map((y, i) => ({ x: y, y: bestByYear[i] })).filter(p => p.y);
+      // top score per season — the line only connects consecutive seasons,
+      // so years the corps didn't march show as real gaps and an in-progress
+      // season sits as its own point instead of dragging the line
+      const range = sel.length ? `${sel[0]}–${sel[sel.length - 1]}` : "";
+      title.innerHTML = `Top Score by Year${range ? ` — ${range}` : ""} <span class="sub">gaps = seasons not marched · <a href="#/corps?c=${slug}&y=${cmpYears}">compare seasons →</a></span>`;
+      const ptsAll = years.map((y, i) => ({ x: y, y: bestByYear[i] }))
+        .filter(p => p.y && (!sel.length || yearSet.has(String(p.x))));
       const segs = [];
       let cur = [];
       for (const p of ptsAll) {
@@ -742,10 +754,11 @@
     }
 
     function renderPerfs() {
-      const yv = document.getElementById("yearSel2").value;
+      const sel = selYears();
+      const selNote = sel.length === 0 ? "" : sel.length === 1 ? `${sel[0]} only` : `${sel.length} seasons`;
       document.getElementById("perfTitle").innerHTML =
-        `Performance Log${yv ? ` <span class="sub">${esc(yv)} only</span>` : ""}`;
-      const list = perfs.filter(p => !yv || p.y === +yv)
+        `Performance Log${selNote ? ` <span class="sub">${esc(selNote)}</span>` : ""}`;
+      const list = perfs.filter(p => !sel.length || yearSet.has(String(p.y)))
         .sort((a, b) => (b.d || "").localeCompare(a.d || "") || b.y - a.y);
       document.getElementById("perfTable").innerHTML = `<div class="tscroll"><table class="t">
         <thead><tr><th>Date</th><th>Event</th><th>Class</th><th class="num">Place</th><th class="num">Score</th></tr></thead>
@@ -756,7 +769,6 @@
           <td class="num">${p.p ?? "—"}</td><td class="num score">${score3(p.s)}</td></tr>`).join("")}</tbody></table></div>`;
       collapseRows(document.getElementById("perfRows"), 5, "performances");
     }
-    document.getElementById("yearSel2").addEventListener("change", () => { renderChart(); renderPerfs(); });
     renderChart();
     renderPerfs();
   }
