@@ -1807,9 +1807,12 @@
 
       // finals per year, rows kept sorted by score
       const champBy = {};
+      const champsOf = {};   // year -> every corps sharing the winning score
       Object.entries(d.finals).forEach(([y, rows]) => {
         if (!inEra(+y)) return;
-        champBy[+y] = rows.slice().sort((a, b) => (b[1] || 0) - (a[1] || 0));
+        const sorted = rows.slice().sort((a, b) => (b[1] || 0) - (a[1] || 0));
+        champBy[+y] = sorted;
+        champsOf[+y] = sorted.filter(r => r[1] === sorted[0][1]).map(r => r[0]);
       });
       const champYears = Object.keys(champBy).map(Number).sort((a, b) => a - b);
 
@@ -1822,12 +1825,13 @@
       // 2 — championship titles
       const titleBy = new Map();
       champYears.forEach(y => {
-        const c = champBy[y][0][0];
-        if (!inCorps(c)) return;
-        const t = titleBy.get(c) || { n: 0, years: [] };
-        t.n++;
-        t.years.push(y);
-        titleBy.set(c, t);
+        champsOf[y].forEach(c => {
+          if (!inCorps(c)) return;
+          const t = titleBy.get(c) || { n: 0, years: [] };
+          t.n++;
+          t.years.push(y);
+          titleBy.set(c, t);
+        });
       });
       const titles = [...titleBy.entries()].sort((a, b) => b[1].n - a[1].n || b[1].years[b[1].years.length - 1] - a[1].years[a[1].years.length - 1]);
       const titlesHtml = titles.length ? `<div class="tscroll"><table class="t"><thead><tr><th>Corps</th><th class="num">Titles</th><th>Years</th></tr></thead><tbody id="recTitles">
@@ -1836,16 +1840,23 @@
 
       // 3 — dynasties: consecutive titles over contested seasons
       const streaks = [];
-      let cur = null;
-      champYears.forEach(y => {
-        const c = champBy[y][0][0];
-        if (cur && cur.corps === c) { cur.end = y; cur.len++; }
-        else {
-          if (cur && cur.len >= 2 && inCorps(cur.corps)) streaks.push(cur);
-          cur = { corps: c, start: y, end: y, len: 1 };
-        }
+      const running = new Map();   // corps -> current run
+      champYears.forEach((y, yi) => {
+        const prevChamps = yi > 0 ? champsOf[champYears[yi - 1]] : [];
+        champsOf[y].forEach(c => {
+          const run = running.get(c);
+          if (run && prevChamps.includes(c)) { run.end = y; run.len++; }
+          else running.set(c, { corps: c, start: y, end: y, len: 1 });
+        });
+        // close out runs that didn't continue this year
+        [...running.entries()].forEach(([c, run]) => {
+          if (!champsOf[y].includes(c) && run.end !== y) {
+            if (run.len >= 2 && inCorps(c)) streaks.push(run);
+            running.delete(c);
+          }
+        });
       });
-      if (cur && cur.len >= 2 && inCorps(cur.corps)) streaks.push(cur);
+      running.forEach((run, c) => { if (run.len >= 2 && inCorps(c)) streaks.push(run); });
       streaks.sort((a, b) => b.len - a.len || b.end - a.end);
       const streaksHtml = streaks.length ? `<div class="tscroll"><table class="t"><thead><tr><th>Corps</th><th class="num">In a row</th><th>Span</th></tr></thead><tbody id="recStreaks">
         ${streaks.map(t => `<tr><td>${corpsLink(t.corps)}</td><td class="num score">${t.len}</td><td class="kicker">${t.start}–${t.end}</td></tr>`).join("")}

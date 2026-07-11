@@ -202,6 +202,10 @@ def is_champ_finals(ev) -> bool:
         return False
     if ev.get("source") == "dcx" and "dci" not in n:
         return False
+    # side championships crown their own divisions, not the DCI title —
+    # the archive labels their sections as the top division, so exclude by name
+    if re.search(r"class a\b|all[- ]?girl|division i{2,3}\b", n):
+        return False
     return "world championship" in n or "dci championship" in n
 
 
@@ -223,7 +227,9 @@ def build_champions(events):
                 cls = "All-Age"
             cur = champs[ev["year"]].get(cls)
             if cur is None or (res[0]["score"] or 0) > (cur["score"] or 0):
-                champs[ev["year"]][cls] = {"corps": res[0]["corps"], "score": res[0]["score"]}
+                top = res[0]["score"]
+                winners = list(dict.fromkeys(r["corps"] for r in res if r["score"] == top))
+                champs[ev["year"]][cls] = {"corps": " & ".join(winners), "score": top}
 
     # fall back to the documented public record (Wikipedia) for seasons
     # where no championship-finals event has been scraped
@@ -652,6 +658,16 @@ def build_records(events):
                 cur = finals[fcls].get(ev["year"])
                 if cur is None or rows[0][1] > cur[0][1]:
                     finals[fcls][ev["year"]] = rows
+    # seasons whose championship finals never scraped still have a documented
+    # champion (public record) — give the record book a one-row finals entry
+    # so titles and dynasties count those years
+    wp = PARSED / "wiki_champions.json"
+    if wp.exists():
+        for year, w in json.loads(wp.read_text()).items():
+            y = int(year)
+            if w.get("corps") and y not in finals["World Class"]:
+                finals["World Class"][y] = [[canon_corps(w["corps"]), w.get("score")]]
+
     out = {}
     for cls in main_classes:
         top = []
