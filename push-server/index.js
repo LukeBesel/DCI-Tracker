@@ -46,7 +46,9 @@ let lastState = null;   // corps -> "date|event|score" per class
 let status = { lastCheck: null, lastChange: null, lastError: null, sent: 0 };
 
 async function fetchJson(p) {
-  const r = await fetch(SITE + p, { headers: { "cache-control": "no-cache" } });
+  // unique query per poll: GitHub Pages' CDN caches for ~10 minutes and
+  // ignores request cache-control — a busted URL is always fresh
+  const r = await fetch(`${SITE}${p}?cb=${Date.now()}`, { headers: { "cache-control": "no-cache" } });
   if (!r.ok) throw new Error(p + " " + r.status);
   return r.json();
 }
