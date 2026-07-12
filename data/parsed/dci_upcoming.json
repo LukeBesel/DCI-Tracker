@@ -2504,80 +2504,6 @@
   "bag_policy": "DATCU Stadium does have a Clear Bag Policy and more information can be found here . All bags are subject to search by event staff and security. For security and efficiency, all attendees are encouraged to keep all items to a minimum."
  },
  {
-  "url": "https://www.dci.org/events/2026-dci-houston/",
-  "name": "DCI Houston",
-  "location": "Houston, TX",
-  "date_display": "July 17, 2026",
-  "date": "2026-07-17",
-  "lineup": [
-   "Spartans",
-   "Genesis",
-   "Crossmen",
-   "The Academy",
-   "The Cavaliers",
-   "Blue Stars",
-   "Blue Devils",
-   "Carolina Crown",
-   "Bluecoats",
-   "Boston Crusaders"
-  ],
-  "schedule": [
-   [
-    "6:30 PM",
-    "Gates Open"
-   ],
-   [
-    "8:00 PM",
-    "Welcome & National Anthem"
-   ],
-   [
-    "8:10 PM",
-    "Spartans"
-   ],
-   [
-    "8:27 PM",
-    "Genesis"
-   ],
-   [
-    "8:44 PM",
-    "Crossmen"
-   ],
-   [
-    "9:01 PM",
-    "The Academy"
-   ],
-   [
-    "9:18 PM",
-    "The Cavaliers"
-   ],
-   [
-    "9:35 PM",
-    "Blue Stars"
-   ],
-   [
-    "9:52 PM",
-    "Blue Devils"
-   ],
-   [
-    "10:09 PM",
-    "Carolina Crown"
-   ],
-   [
-    "10:26 PM",
-    "Bluecoats"
-   ],
-   [
-    "10:43 PM",
-    "Boston Crusaders"
-   ],
-   [
-    "11:08 PM",
-    "Scores Announced"
-   ]
-  ],
-  "bag_policy": "All guests will be required to abide by Katy ISD Clear Bag Policy and pass through security screening including the use of walk-through and hand wand metal detectors. Outside food and beverage, are prohibited and will not be allowed in the stadium. For a list of other prohibited items, visit katyisd.or g . One empty reusable water bottle or one full sealed bottle of water will be permitted into the stadium."
- },
- {
   "url": "https://www.dci.org/events/2026-sounds-by-the-seaport/",
   "name": "Sounds by the Seaport",
   "location": "New London, CT",
@@ -4274,6 +4200,74 @@
   "bag_policy": "Navy-Marine Corps Memorial Stadium does have a Clear Bag Policy. More detailed information regarding bags and stadium policies can be found here . All bags are subject to search by event staff and security. For security and efficiency, all attendees are encouraged to keep all items to a minimum."
  },
  {
+  "url": "https://www.dci.org/events/2026-dci-huntington/",
+  "name": "DCI Huntington",
+  "location": "Huntington, WV",
+  "date_display": "July 29, 2026",
+  "date": "2026-07-29",
+  "lineup": [
+   "Memphis Blues",
+   "7th Regiment",
+   "Columbians",
+   "Gold",
+   "The Battalion",
+   "Madison Scouts",
+   "Santa Clara Vanguard",
+   "Seattle Cascades",
+   "The Cavaliers"
+  ],
+  "schedule": [
+   [
+    "6:30 PM",
+    "Gates Open"
+   ],
+   [
+    "7:30 PM",
+    "Welcome & National Anthem"
+   ],
+   [
+    "7:40 PM",
+    "Memphis Blues"
+   ],
+   [
+    "7:57 PM",
+    "7th Regiment"
+   ],
+   [
+    "8:14 PM",
+    "Columbians"
+   ],
+   [
+    "8:31 PM",
+    "Gold"
+   ],
+   [
+    "8:48 PM",
+    "The Battalion"
+   ],
+   [
+    "10:21 PM",
+    "Scores Announced"
+   ],
+   [
+    "TBD",
+    "Madison Scouts"
+   ],
+   [
+    "TBD",
+    "Santa Clara Vanguard"
+   ],
+   [
+    "TBD",
+    "Seattle Cascades"
+   ],
+   [
+    "TBD",
+    "The Cavaliers"
+   ]
+  ]
+ },
+ {
   "url": "https://www.dci.org/events/2026-summer-music-games-of-southwest-virginia/",
   "name": "Summer Music Games of Southwest Virginia",
   "location": "Salem, VA",
@@ -4491,6 +4485,93 @@
   "bag_policy": "Marion Harding Football Stadium does not have a clear bag policy. However, all bags are subject to search by event staff and security. For security and efficiency, please keep all bags and items to a minimum. This event is in partnership with The Marion Arts Legacy Alliance, Inc. Instagram: @malaohio Facebook: The Marion Arts Legacy Alliance, Inc."
  },
  {
+  "url": "https://www.dci.org/events/2026-dci-eastern-classic-2/",
+  "name": "DCI Eastern Classic",
+  "location": "Allentown, PA",
+  "date_display": "July 31, 2026",
+  "date": "2026-07-31",
+  "lineup": [
+   "Bushwackers",
+   "Reading Buccaneers",
+   "Hawthorne Caballeros",
+   "Blue Devils",
+   "Blue Knights",
+   "Blue Stars",
+   "Bluecoats",
+   "Colts",
+   "Genesis",
+   "Music City",
+   "Spirit of Atlanta",
+   "Troopers"
+  ],
+  "schedule": [
+   [
+    "5:30 PM",
+    "Gates Open"
+   ],
+   [
+    "7:00 PM",
+    "Welcome & National Anthem"
+   ],
+   [
+    "7:10 PM",
+    "Bushwackers"
+   ],
+   [
+    "7:27 PM",
+    "Reading Buccaneers"
+   ],
+   [
+    "7:44 PM",
+    "Hawthorne Caballeros"
+   ],
+   [
+    "8:52 PM",
+    "Intermission"
+   ],
+   [
+    "10:42 PM",
+    "Scores Announced"
+   ],
+   [
+    "TBD",
+    "Blue Devils"
+   ],
+   [
+    "TBD",
+    "Blue Knights"
+   ],
+   [
+    "TBD",
+    "Blue Stars"
+   ],
+   [
+    "TBD",
+    "Bluecoats"
+   ],
+   [
+    "TBD",
+    "Colts"
+   ],
+   [
+    "TBD",
+    "Genesis"
+   ],
+   [
+    "TBD",
+    "Music City"
+   ],
+   [
+    "TBD",
+    "Spirit of Atlanta"
+   ],
+   [
+    "TBD",
+    "Troopers"
+   ]
+  ]
+ },
+ {
   "url": "https://www.dci.org/events/2026-dci-michigan/",
   "name": "DCI Michigan",
   "location": "Allendale, MI",
@@ -4568,65 +4649,84 @@
   ]
  },
  {
-  "url": "https://www.dci.org/events/2026-dci-pittsburgh/",
-  "name": "DCI Pittsburgh",
-  "location": "Pittsburgh, PA",
+  "url": "https://www.dci.org/events/2026-dci-eastern-classic/",
+  "name": "DCI Eastern Classic",
+  "location": "Allentown, PA",
   "date_display": "August 1, 2026",
   "date": "2026-08-01",
   "lineup": [
-   "Sonus Brass Theater",
-   "Columbus Saints",
-   "White Sabers",
-   "Rogues Hollow Regiment",
-   "Hurricanes",
-   "Bushwackers",
-   "Music City",
-   "Spirit of Atlanta"
+   "Boston Crusaders",
+   "Carolina Crown",
+   "Crossmen",
+   "Madison Scouts",
+   "Pacific Crest",
+   "Phantom Regiment",
+   "Santa Clara Vanguard",
+   "Seattle Cascades",
+   "Spartans",
+   "The Academy",
+   "The Cavaliers"
   ],
   "schedule": [
    [
-    "6:00 PM",
+    "5:30 PM",
     "Gates Open"
    ],
    [
-    "7:30 PM",
-    "Welcome"
+    "7:00 PM",
+    "Welcome & National Anthem"
    ],
    [
-    "7:40 PM",
-    "Sonus Brass Theater"
+    "8:35 PM",
+    "Intermission"
    ],
    [
-    "7:52 PM",
-    "Columbus Saints"
-   ],
-   [
-    "8:09 PM",
-    "White Sabers"
-   ],
-   [
-    "8:26 PM",
-    "Rogues Hollow Regiment"
-   ],
-   [
-    "8:43 PM",
-    "Hurricanes"
-   ],
-   [
-    "9:00 PM",
-    "Bushwackers"
-   ],
-   [
-    "9:59 PM",
+    "10:42 PM",
     "Scores Announced"
    ],
    [
     "TBD",
-    "Music City"
+    "Boston Crusaders"
    ],
    [
     "TBD",
-    "Spirit of Atlanta"
+    "Carolina Crown"
+   ],
+   [
+    "TBD",
+    "Crossmen"
+   ],
+   [
+    "TBD",
+    "Madison Scouts"
+   ],
+   [
+    "TBD",
+    "Pacific Crest"
+   ],
+   [
+    "TBD",
+    "Phantom Regiment"
+   ],
+   [
+    "TBD",
+    "Santa Clara Vanguard"
+   ],
+   [
+    "TBD",
+    "Seattle Cascades"
+   ],
+   [
+    "TBD",
+    "Spartans"
+   ],
+   [
+    "TBD",
+    "The Academy"
+   ],
+   [
+    "TBD",
+    "The Cavaliers"
    ]
   ]
  },
