@@ -2002,12 +2002,12 @@
   "date": "2026-07-12",
   "lineup": [
    "Sacramento Freelancers",
-   "Retreat",
-   "Blue Devils B",
    "Blue Devils C",
-   "Gold",
    "Golden Empire",
-   "Impulse"
+   "Impulse",
+   "Gold",
+   "Blue Devils B",
+   "Retreat"
   ],
   "schedule": [
    [
@@ -2023,32 +2023,32 @@
     "Sacramento Freelancers"
    ],
    [
+    "7:27 PM",
+    "Blue Devils C"
+   ],
+   [
+    "7:44 PM",
+    "Golden Empire"
+   ],
+   [
     "8:01 PM",
     "Intermission"
    ],
    [
-    "9:17 PM",
-    "Retreat"
+    "8:18 PM",
+    "Impulse"
    ],
    [
-    "TBD",
-    "Blue Devils B"
-   ],
-   [
-    "TBD",
-    "Blue Devils C"
-   ],
-   [
-    "TBD",
+    "8:35 PM",
     "Gold"
    ],
    [
-    "TBD",
-    "Golden Empire"
+    "8:52 PM",
+    "Blue Devils B"
    ],
    [
-    "TBD",
-    "Impulse"
+    "9:17 PM",
+    "Retreat"
    ]
   ]
  },
