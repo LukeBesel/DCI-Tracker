@@ -3369,64 +3369,6 @@
   "bag_policy": "Jaguar Stadium does not have a Clear Bag Policy. However, all bags are subject to search by event staff and security. For security and efficiency, all attendees are encouraged to keep all items to a minimum."
  },
  {
-  "url": "https://www.dci.org/events/2026-dci-middle-tennessee/",
-  "name": "DCI Middle Tennessee",
-  "location": "Murfreesboro, TN",
-  "date_display": "July 24, 2026",
-  "date": "2026-07-24",
-  "lineup": [
-   "Blue Devils",
-   "Bluecoats",
-   "Boston Crusaders",
-   "Carolina Crown",
-   "Colts",
-   "Music City",
-   "Spirit of Atlanta"
-  ],
-  "schedule": [
-   [
-    "6:00 PM",
-    "Gates Open"
-   ],
-   [
-    "7:30 PM",
-    "Welcome & National Anthem"
-   ],
-   [
-    "10:11 PM",
-    "Scores Announced"
-   ],
-   [
-    "TBD",
-    "Blue Devils"
-   ],
-   [
-    "TBD",
-    "Bluecoats"
-   ],
-   [
-    "TBD",
-    "Boston Crusaders"
-   ],
-   [
-    "TBD",
-    "Carolina Crown"
-   ],
-   [
-    "TBD",
-    "Colts"
-   ],
-   [
-    "TBD",
-    "Music City"
-   ],
-   [
-    "TBD",
-    "Spirit of Atlanta"
-   ]
-  ]
- },
- {
   "url": "https://www.dci.org/events/2026-dci-syracuse/",
   "name": "DCI Syracuse",
   "location": "Central Square, NY",
