@@ -12,6 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import webpush from "web-push";
 
+const VERSION = 3; // bump on every behavior change — /status shows what's really deployed
 const SITE = process.env.SITE_URL || "https://lukebesel.github.io/DCI-Tracker/";
 const PORT = process.env.PORT || 8787;
 const POLL_MS = +(process.env.POLL_SECONDS || 120) * 1000;
@@ -148,7 +149,7 @@ http.createServer(async (req, res) => {
     return res.writeHead(302, { Location: SITE, ...CORS }).end();
   }
   if (req.method === "GET" && url.pathname === "/status") {
-    return send(res, 200, { ok: true, service: "cadence-push", subscribers: subs.size, ...status });
+    return send(res, 200, { ok: true, service: "cadence-push", version: VERSION, subscribers: subs.size, ...status });
   }
   if (req.method === "GET" && url.pathname === "/vapid") {
     return send(res, 200, { key: keys.publicKey });
