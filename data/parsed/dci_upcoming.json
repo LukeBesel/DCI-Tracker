@@ -2789,79 +2789,6 @@
   "bag_policy": "The Alamodome enforces a clear bag policy. More detailed information on the Alamodome bag policy can be found here . All bags are subject to search by event staff and security. For security and efficiency, all attendees are encouraged to keep all items to a minimum."
  },
  {
-  "url": "https://www.dci.org/events/2026-the-buccaneer-classic/",
-  "name": "The Buccaneer Classic",
-  "location": "Landisville, PA",
-  "date_display": "July 18, 2026",
-  "date": "2026-07-18",
-  "lineup": [
-   "Buccaneer Banner Brass",
-   "Buccaneers Alumni",
-   "Les Stentors",
-   "Raiders",
-   "Sunrisers",
-   "White Sabers",
-   "Bushwackers",
-   "Reading Buccaneers",
-   "Hawthorne Caballeros Alumni"
-  ],
-  "schedule": [
-   [
-    "5:00 PM",
-    "Gates Open"
-   ],
-   [
-    "6:30 PM",
-    "Welcome & National Anthem"
-   ],
-   [
-    "6:40 PM",
-    "Buccaneer Banner Brass"
-   ],
-   [
-    "6:52 PM",
-    "Buccaneers Alumni"
-   ],
-   [
-    "7:09 PM",
-    "Les Stentors"
-   ],
-   [
-    "7:26 PM",
-    "Raiders"
-   ],
-   [
-    "7:43 PM",
-    "Intermission"
-   ],
-   [
-    "8:00 PM",
-    "Sunrisers"
-   ],
-   [
-    "8:17 PM",
-    "White Sabers"
-   ],
-   [
-    "8:34 PM",
-    "Bushwackers"
-   ],
-   [
-    "8:51 PM",
-    "Reading Buccaneers"
-   ],
-   [
-    "9:08 PM",
-    "Hawthorne Caballeros Alumni"
-   ],
-   [
-    "9:33 PM",
-    "Scores Announced"
-   ]
-  ],
-  "bag_policy": "There is no bag policy for this event."
- },
- {
   "url": "https://www.dci.org/events/2026-dci-dallas/",
   "name": "DCI Dallas",
   "location": "Bedford, TX",
@@ -3367,6 +3294,64 @@
    ]
   ],
   "bag_policy": "Jaguar Stadium does not have a Clear Bag Policy. However, all bags are subject to search by event staff and security. For security and efficiency, all attendees are encouraged to keep all items to a minimum."
+ },
+ {
+  "url": "https://www.dci.org/events/2026-dci-middle-tennessee/",
+  "name": "DCI Middle Tennessee",
+  "location": "Murfreesboro, TN",
+  "date_display": "July 24, 2026",
+  "date": "2026-07-24",
+  "lineup": [
+   "Blue Devils",
+   "Bluecoats",
+   "Boston Crusaders",
+   "Carolina Crown",
+   "Colts",
+   "Music City",
+   "Spirit of Atlanta"
+  ],
+  "schedule": [
+   [
+    "6:00 PM",
+    "Gates Open"
+   ],
+   [
+    "7:30 PM",
+    "Welcome & National Anthem"
+   ],
+   [
+    "10:11 PM",
+    "Scores Announced"
+   ],
+   [
+    "TBD",
+    "Blue Devils"
+   ],
+   [
+    "TBD",
+    "Bluecoats"
+   ],
+   [
+    "TBD",
+    "Boston Crusaders"
+   ],
+   [
+    "TBD",
+    "Carolina Crown"
+   ],
+   [
+    "TBD",
+    "Colts"
+   ],
+   [
+    "TBD",
+    "Music City"
+   ],
+   [
+    "TBD",
+    "Spirit of Atlanta"
+   ]
+  ]
  },
  {
   "url": "https://www.dci.org/events/2026-dci-syracuse/",
@@ -5565,21 +5550,6 @@
     "10:11 PM",
     "Phantom Regiment Alumni Corps"
    ]
-  ]
- },
- {
-  "url": "https://www.dci.org/events/2026-shining-a-light-on-music-education/",
-  "name": "Shining a Light on Music Education",
-  "location": "Indianapolis, IN",
-  "date_display": "August 7, 2026",
-  "date": "2026-08-07",
-  "lineup": [
-   "Apogee",
-   "Freelancers",
-   "Green Beret Marching Band",
-   "Mercedes Marching Band",
-   "Rhythm IN BLUE",
-   "Spark"
   ]
  },
  {
