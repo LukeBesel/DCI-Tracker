@@ -508,8 +508,10 @@
       corpsSel = corpsSel.filter(s => bySlug.has(s));
       yearsSel = yearsSel.filter(y => allYears.includes(y));
     }
-    // the page starts empty on purpose — you pick who to compare
+    // corps start empty on purpose — you pick who to compare — but the
+    // current season rides pre-selected so one corps pick draws a line
     // (a shared URL or the session's last selection still restores itself)
+    if (!yearsSel.length && allYears.length) yearsSel = [Math.max(...allYears)];
 
     function persist() {
       if (stale()) return; // never rewrite the URL of a view we've left
@@ -570,7 +572,9 @@
     });
     document.getElementById("clearSel").onclick = () => {
       corpsSet.clear(); yearSet.clear();
-      corpsSel = []; yearsSel = [];
+      corpsSel = [];
+      yearsSel = allYears.length ? [Math.max(...allYears)] : [];
+      yearsSel.forEach(y => yearSet.add(String(y)));
       msCorps.refresh(); msYears.refresh();
       persist();
       draw();
@@ -589,7 +593,7 @@
       if (!corpsSel.length || !yearsSel.length) {
         chartEl.innerHTML = `<div class='empty' style="padding:52px 16px">
           <div style="font-size:30px" aria-hidden="true">📈</div>
-          <div style="font-weight:650;color:var(--text-primary);margin:8px 0 4px">Pick corps and seasons to compare</div>
+          <div style="font-weight:650;color:var(--text-primary);margin:8px 0 4px">Pick corps to compare — this season is already selected</div>
           Select as many corps as you like — each corps-season draws its own line,<br>
           and its row below expands into the full show-by-show log.</div>`;
         tableEl.innerHTML = "";
