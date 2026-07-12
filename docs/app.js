@@ -1548,16 +1548,16 @@
     app.innerHTML = `
       ${dataSubNav("captions")}
       <h1 class="page">Caption Scores</h1>
-      <div class="filters">
-        <div id="capYear"></div>
-        <div id="capKey"></div>
-        <div id="capCls"></div>
-      </div>
-      <div class="secdiv" id="capSeasonDiv"></div>
       <div class="card">
         <h2 id="showCmpTitle">Show Recap <span class="sub">the official judge-by-judge sheet — rank under each score, gold marks each caption's leader</span></h2>
         <div class="filters" style="margin:2px 0 8px"><div id="showSel"></div><div id="showCorpsSel"></div></div>
         <div id="showCmpBody"><div class="empty">Pick a show above.</div></div>
+      </div>
+      <div class="secdiv" id="capSeasonDiv"></div>
+      <div class="filters">
+        <div id="capYear"></div>
+        <div id="capKey"></div>
+        <div id="capCls"></div>
       </div>
       <div class="card" style="margin-top:14px">
         <h2 id="capChartTitle"></h2>
