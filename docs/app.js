@@ -1296,7 +1296,11 @@
         btn.style.cssText = "display:block;margin:2px auto 12px";
         btn.textContent = `Show all ${futureN} upcoming ▾`;
         btn.onclick = () => { upOpen = true; render(); };
-        list.insertBefore(btn, list.children[Math.min(5, list.children.length)] || null);
+        // right after the last visible upcoming row — pinned rows shift the
+        // list, so a fixed position lands mid-block
+        let pos = 0;
+        shownIdxs.forEach(([e], k) => { if (e.future) pos = k + 1; });
+        list.insertBefore(btn, list.children[pos] || null);
       }
       list.querySelectorAll(".evrow").forEach(row => {
         row.querySelector(".evhead").onclick = () => toggle(row);
