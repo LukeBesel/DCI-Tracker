@@ -1231,26 +1231,38 @@
 
     let allOpen = false;
     let upOpen = false;
+    // filters survive tab switches for the session
+    let savedF = {};
+    try { savedF = JSON.parse(sessionStorage.getItem("cad-shows-f") || "{}"); } catch (e) {}
     const corpsPick = new Set();
-    let fClsVal = "";
+    let fClsVal = clsList.includes(savedF.cls) ? savedF.cls : "";
+    const fQEl = document.getElementById("fQ");
+    if (savedF.q) fQEl.value = savedF.q;
+    const persistF = () => {
+      try {
+        sessionStorage.setItem("cad-shows-f",
+          JSON.stringify({ cls: fClsVal, corps: [...corpsPick], q: fQEl.value || "" }));
+      } catch (e) {}
+    };
     singleSelect(document.getElementById("fCls"), {
       label: "All classes",
       options: [{ value: "", label: "All classes" }, ...clsList.map(c => ({ value: c, label: c }))],
-      value: "",
-      onChange: v => { fClsVal = v || ""; allOpen = false; syncToggle(); render(); },
+      value: fClsVal,
+      onChange: v => { fClsVal = v || ""; persistF(); allOpen = false; syncToggle(); render(); },
     });
-    document.getElementById("fQ").addEventListener("input", () => { allOpen = false; syncToggle(); render(); });
+    fQEl.addEventListener("input", () => { persistF(); allOpen = false; syncToggle(); render(); });
     // corps picker: see just one corps' summer (favorites are one tap away)
     const seasonCorps = [...new Set(events.flatMap(ev => [
       ...(ev.lineup || []),
       ...(ev.classes || []).flatMap(c => (c.results || []).map(r => r.corps)),
     ]))].sort();
+    (savedF.corps || []).filter(c => seasonCorps.includes(c)).forEach(c => corpsPick.add(c));
     multiSelect(document.getElementById("fCorps"), {
       label: "All corps", searchable: seasonCorps.length > 12, bulk: true, bulkAll: false,
       presets: FAVS.list().length ? [{ label: "★ Favorites", values: () => FAVS.list().filter(c => seasonCorps.includes(c)) }] : [],
       options: seasonCorps.map(c => ({ value: c, label: c })),
       selected: corpsPick,
-      onChange: () => { allOpen = false; syncToggle(); render(); },
+      onChange: () => { persistF(); allOpen = false; syncToggle(); render(); },
     });
     const toggleBtn = document.getElementById("toggleAll");
     function syncToggle() { toggleBtn.textContent = allOpen ? "Collapse All ▴" : "Expand All ▾"; }
@@ -2438,10 +2450,38 @@
 
   let firstBuildPending = false;
   let navGen = 0; // bumped per navigation; stale async view work bails out
+  /* ===== per-tab memory =====
+     Each top-level tab remembers where you last were (an open event, a
+     corps, a stats sub-page with its filters-in-URL) and takes you back
+     there. Tapping the tab you're already on returns to its front page. */
+  const NAV_DEFAULT = { rankings: "#/", events: "#/events", corps: "#/corps", data: "#/compare" };
+  function sectionOf(hash) {
+    if (/^#\/(events|event\/|season\/)/.test(hash)) return "events";
+    if (/^#\/corps/.test(hash)) return "corps";
+    if (/^#\/(data|compare|captions|champions|seasons|records|database)/.test(hash)) return "data";
+    if (hash === "#/" || hash === "" || hash === "#") return "rankings";
+    return null; // suggestions etc. carry no tab memory
+  }
+  function rememberSpot() {
+    const hash = location.hash || "#/";
+    const sec = sectionOf(hash);
+    if (sec) { try { sessionStorage.setItem("cad-last-" + sec, hash); } catch (e) {} }
+    document.querySelectorAll("#nav a").forEach(a => {
+      const r = a.dataset.route;
+      a.setAttribute("href", r === sec ? NAV_DEFAULT[r]
+        : (sessionStorage.getItem("cad-last-" + r) || NAV_DEFAULT[r]));
+    });
+  }
+  // views fine-tune their URL with replaceState (filters, picked corps…) —
+  // capture those spots too
+  const _replaceState = history.replaceState.bind(history);
+  history.replaceState = (s, t, url) => { _replaceState(s, t, url); rememberSpot(); };
+
   async function route() {
     const gen = ++navGen;
     const stale = () => gen !== navGen;
     const hashv = location.hash || "#/";
+    rememberSpot();
     window.scrollTo(0, 0);
     for (const [re, fn] of routes) {
       const m = hashv.match(re);
@@ -2576,8 +2616,9 @@
   const brandEl = document.querySelector(".brand");
   if (brandEl) brandEl.addEventListener("click", () => {
     ["dt-class", "dt-corpsclass"].forEach(k => localStorage.removeItem(k));
-    sessionStorage.removeItem("cmp-corps");
-    sessionStorage.removeItem("cmp-years");
+    ["cmp-corps", "cmp-years", "cad-shows-f",
+      "cad-last-rankings", "cad-last-events", "cad-last-corps", "cad-last-data"]
+      .forEach(k => sessionStorage.removeItem(k));
     if ((location.hash || "#/") === "#/") route(); // already home: force a fresh render
   });
 
