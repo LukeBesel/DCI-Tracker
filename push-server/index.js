@@ -12,7 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import webpush from "web-push";
 
-const VERSION = 5; // bump on every behavior change — /status shows what's really deployed
+const VERSION = 6; // bump on every behavior change — /status shows what's really deployed
 const SITE = process.env.SITE_URL || "https://lukebesel.github.io/DCI-Tracker/";
 const PORT = process.env.PORT || 8787;
 const POLL_MS = +(process.env.POLL_SECONDS || 120) * 1000;
@@ -46,7 +46,15 @@ const saveSubs = () => {
 };
 
 // ---- score watching ----
+// the baseline persists on the volume: a restart mid-show can't blind the
+// relay to scores that posted while it was rebooting
+const stateFile = path.join(DATA_DIR, "state.json");
 let lastState = null;   // corps -> "date|event|score" per class
+try { lastState = new Map(JSON.parse(fs.readFileSync(stateFile, "utf8"))); } catch {}
+const saveState = () => {
+  try { fs.writeFileSync(stateFile, JSON.stringify([...lastState])); }
+  catch (e) { console.error("saveState failed:", e.message); }
+};
 let status = { lastCheck: null, lastChange: null, lastError: null, sent: 0 };
 
 async function fetchJson(p) {
@@ -89,6 +97,7 @@ async function check() {
       }
     }
     lastState = state;
+    saveState();
   } catch (e) {
     status.lastError = `${new Date().toISOString()} ${e.message}`;
   }
