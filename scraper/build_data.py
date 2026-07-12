@@ -940,7 +940,11 @@ def build_upcoming():
     p = PARSED / "dci_upcoming.json"
     rows = []
     if p.exists():
-        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        # "today" in DCI's world is US time: an event stays upcoming until
+        # ~6 AM Eastern the next day, so tonight's shows never vanish at
+        # midnight UTC (8 PM ET) while corps are still on the field
+        from datetime import timedelta
+        today = (datetime.now(timezone.utc) - timedelta(hours=10)).strftime("%Y-%m-%d")
         for ev in json.loads(p.read_text()):
             if ev.get("date") and ev["date"] >= today:
                 row = {

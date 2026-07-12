@@ -102,6 +102,20 @@
     const fav = FAVS.has(name);
     return `<a href="#/corps/${slugOf(name)}"${fav ? ' class="favname"' : ""}>${fav ? "★ " : ""}${esc(name)}</a>`;
   }
+  // pinned events: keep the shows you're following at the top of the list
+  const PINS = (() => {
+    let s;
+    try { s = new Set(JSON.parse(localStorage.getItem("cad-pins") || "[]")); }
+    catch (e) { s = new Set(); }
+    return {
+      has: k => s.has(k),
+      toggle: k => {
+        s.has(k) ? s.delete(k) : s.add(k);
+        localStorage.setItem("cad-pins", JSON.stringify([...s]));
+      },
+    };
+  })();
+  const pinKeyOf = ev => (ev.date || "") + "|" + (ev.name || "");
   function setNav(route) {
     document.querySelectorAll("#nav a").forEach(a =>
       a.classList.toggle("active", a.dataset.route === route));
@@ -1019,6 +1033,8 @@
   }
 
   function eventBodyHtml(ev, year, i) {
+    const pk = pinKeyOf(ev);
+    const pinBtn = `<button type="button" class="tab evpin" data-pin="${esc(pk)}" style="float:right;margin:0 0 8px 10px;padding:4px 12px;font-size:12px">${PINS.has(pk) ? "📌 Unpin" : "📌 Pin to top"}</button>`;
     if (ev.future) {
       const mapLink = (ev.location
         ? `<p style="font-size:12.5px;color:var(--muted);margin:8px 0 0"><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((ev.name || "") + " " + ev.location)}" target="_blank" rel="noopener">Venue map ↗</a></p>`
@@ -1026,7 +1042,7 @@
         ? `<p style="font-size:12.5px;color:var(--muted);margin:6px 0 0"><a href="${encodeURI(ev.url)}" target="_blank" rel="noopener">🎒 Venue info — bag policy, tickets, parking ↗</a></p>`
         : "");
       if (ev.schedule && ev.schedule.length) {
-        return h`<h3 class="evcls">Schedule <span class="kicker">${ev.lineup.length} corps · venue time</span></h3>
+        return h`${pinBtn}<h3 class="evcls">Schedule <span class="kicker">${ev.lineup.length} corps · venue time</span></h3>
           <table class="t"><tbody>
           ${ev.schedule.map(([t, entry]) => {
             const isCorps = (ev.lineup || []).includes(entry);
@@ -1036,15 +1052,15 @@
           ${mapLink}`;
       }
       return (ev.lineup || []).length
-        ? h`<h3 class="evcls">Scheduled Lineup <span class="kicker">${ev.lineup.length} corps</span></h3>
+        ? h`${pinBtn}<h3 class="evcls">Scheduled Lineup <span class="kicker">${ev.lineup.length} corps</span></h3>
             <table class="t"><tbody>
             ${ev.lineup.map(c => `<tr><td>${corpsLink(c)}</td><td class="num" style="color:var(--muted)">upcoming</td></tr>`).join("")}
             </tbody></table>
             ${mapLink}`
-        : `<div class='empty'>Lineup not announced yet.</div>${mapLink}`;
+        : `${pinBtn}<div class='empty'>Lineup not announced yet.</div>${mapLink}`;
     }
     return h`
-      ${(ev.classes || []).map(c => h`
+      ${pinBtn}${(ev.classes || []).map(c => h`
         <h3 class="evcls">${esc(c.label || c.class)} <span class="kicker">${c.results.length} corps</span></h3>
         <table class="t"><tbody>
         ${c.results.map(r => `<tr><td class="rank">${r.place ?? "—"}</td><td>${corpsLink(r.corps)}</td><td class="num score">${score3(r.score)}</td></tr>`).join("")}
@@ -1190,18 +1206,22 @@
     function render() {
       const cls = fClsVal;
       const q = document.getElementById("fQ").value.trim().toLowerCase();
-      const idxs = events.map((ev, i) => [ev, i]).filter(([ev]) => matches(ev, cls, q));
-      // reading order for "what's happening": the next few shows, then the
-      // most recent results, back through the season
+      // pinned events ride above everything and ignore the filters
+      const idxs = events.map((ev, i) => [ev, i])
+        .filter(([ev]) => PINS.has(pinKeyOf(ev)) || matches(ev, cls, q));
+      // reading order for "what's happening": pinned shows, the next few
+      // upcoming, then the most recent results, back through the season
       idxs.sort(([a], [b]) => {
+        const pa = PINS.has(pinKeyOf(a)), pb = PINS.has(pinKeyOf(b));
+        if (pa !== pb) return pa ? -1 : 1;
         if (!!a.future !== !!b.future) return a.future ? -1 : 1;
         const cmpd = (a.date || "").localeCompare(b.date || "");
         return a.future ? cmpd : -cmpd;
       });
-      const futureN = idxs.filter(([e]) => e.future).length;
+      const futureN = idxs.filter(([e]) => e.future && !PINS.has(pinKeyOf(e))).length;
       const upCap = upOpen ? Infinity : 5;
       let upSeen = 0;
-      const shownIdxs = idxs.filter(([e]) => !e.future || upSeen++ < upCap);
+      const shownIdxs = idxs.filter(([e]) => PINS.has(pinKeyOf(e)) || !e.future || upSeen++ < upCap);
       document.getElementById("evcount").textContent =
         idxs.length === events.length ? "" : `${idxs.length} of ${events.length} events match`;
       list.innerHTML = shownIdxs.map(([ev, i]) => {
@@ -1209,7 +1229,7 @@
         return h`<div class="evrow card" data-i="${i}">
           <button class="evhead" aria-expanded="false">
             <span class="evwhen">${fmtDate2(ev.date, ev.date_display)}</span>
-            <span class="evmain"><b>${esc(ev.name)}${ev.has_recap ? ' <span class="pill evpill">recap</span>' : ""}</b><span class="evloc">${esc(ev.location || "")}</span></span>
+            <span class="evmain"><b>${PINS.has(pinKeyOf(ev)) ? "📌 " : ""}${esc(ev.name)}${ev.has_recap ? ' <span class="pill evpill">recap</span>' : ""}</b><span class="evloc">${esc(ev.location || "")}</span></span>
             <span class="evwin">${ev.future ? '<span class="pill">upcoming</span>' : winner ? h`${esc(winner.corps)}<b>${score3(winner.score)}</b>` : ""}</span>
             <span class="caret">▸</span>
           </button>
@@ -1228,6 +1248,19 @@
         row.querySelector(".evhead").onclick = () => toggle(row);
       });
     }
+    // pin/unpin from inside an event card; the card stays open where it lands
+    list.addEventListener("click", e => {
+      const bt = e.target.closest(".evpin");
+      if (!bt) return;
+      const row = bt.closest(".evrow");
+      const i = row ? row.dataset.i : null;
+      PINS.toggle(bt.dataset.pin);
+      render();
+      if (i != null) {
+        const again = list.querySelector(`.evrow[data-i="${i}"]`);
+        if (again) toggle(again, true);
+      }
+    });
 
     let allOpen = false;
     let upOpen = false;
