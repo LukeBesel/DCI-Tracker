@@ -26,7 +26,10 @@ self.addEventListener("push", e => {
     // status-bar badge must be monochrome-on-transparent or Android
     // flattens it into a white square
     badge: "icons/badge-96.png",
-    tag: d.tag || "cadence-scores",
+    // tag keyed to the title: each show's scores get their OWN alert, and a
+    // re-post for the same show replaces (and re-chimes) its earlier one
+    tag: (d.tag || "cadence") + ":" + (d.title || "").slice(0, 48),
+    renotify: true,
     data: { url: d.url || "./" },
   }));
 });
