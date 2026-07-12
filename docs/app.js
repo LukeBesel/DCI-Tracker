@@ -1032,6 +1032,52 @@
     return winner;
   }
 
+  /* ===== venue-local schedule times → the viewer's own clock =====
+     DCI event pages print wall-clock venue time with no zone; the venue's
+     state gives us its IANA zone, Intl does the DST-correct conversion. */
+  const STATE_TZ = (() => {
+    const m = {};
+    const put = (tz, sts) => sts.split(" ").forEach(st => { m[st] = tz; });
+    put("America/New_York", "CT DE DC FL GA IN KY MA MD ME MI NC NH NJ NY OH PA RI SC VA VT WV");
+    put("America/Chicago", "AL AR IA IL KS LA MN MO MS ND NE OK SD TN TX WI");
+    put("America/Denver", "CO ID MT NM UT WY");
+    put("America/Phoenix", "AZ");
+    put("America/Los_Angeles", "CA NV OR WA");
+    put("America/Anchorage", "AK");
+    put("Pacific/Honolulu", "HI");
+    return m;
+  })();
+  function venueZone(location) {
+    const m = /,\s*([A-Z]{2})\b/.exec(location || "");
+    return m ? STATE_TZ[m[1]] : null;
+  }
+  function tzOffsetMin(tz, date) {
+    const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+      timeZone: tz, hour12: false, year: "numeric", month: "2-digit",
+      day: "2-digit", hour: "2-digit", minute: "2-digit",
+    }).formatToParts(date).map(p => [p.type, p.value]));
+    const asUTC = Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour % 24, +parts.minute);
+    return (asUTC - date.getTime()) / 60000;
+  }
+  function tzAbbr(tz, date) {
+    const p = new Intl.DateTimeFormat("en-US", { timeZone: tz, timeZoneName: "short" })
+      .formatToParts(date).find(x => x.type === "timeZoneName");
+    return p ? p.value : "";
+  }
+  // "7:52 PM" at the venue on isoDate → the same instant on the viewer's clock
+  function localizeVenueTime(t, isoDate, tz) {
+    const m = /^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i.exec((t || "").trim());
+    if (!m || !isoDate || !tz) return null;
+    let h = +m[1] % 12;
+    if (/pm/i.test(m[3])) h += 12;
+    const [y, mo, d] = isoDate.split("-").map(Number);
+    const min = +(m[2] || 0);
+    let utc = Date.UTC(y, mo - 1, d, h, min);
+    utc -= tzOffsetMin(tz, new Date(utc)) * 60000;
+    utc = Date.UTC(y, mo - 1, d, h, min) - tzOffsetMin(tz, new Date(utc)) * 60000;
+    return new Date(utc).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  }
+
   function eventBodyHtml(ev, year, i) {
     const pk = pinKeyOf(ev);
     const pinBtn = `<button type="button" class="tab evpin" data-pin="${esc(pk)}" style="float:right;margin:0 0 8px 10px;padding:4px 12px;font-size:12px">${PINS.has(pk) ? "📌 Unpin" : "📌 Pin to top"}</button>`;
@@ -1042,11 +1088,19 @@
         ? `<p style="font-size:12.5px;color:var(--muted);margin:6px 0 0"><a href="${encodeURI(ev.url)}" target="_blank" rel="noopener">🎒 Venue info — bag policy, tickets, parking ↗</a></p>`
         : "");
       if (ev.schedule && ev.schedule.length) {
-        return h`${pinBtn}<h3 class="evcls">Schedule <span class="kicker">${ev.lineup.length} corps · venue time</span></h3>
+        // show the viewer their own clock; note the venue's zone when it differs
+        const tz = venueZone(ev.location);
+        const sameZone = !tz || tz === Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const abbr = tz ? tzAbbr(tz, ev.date ? new Date(ev.date + "T12:00:00") : new Date()) : "";
+        const kick = sameZone
+          ? `${ev.lineup.length} corps · ${abbr ? "local time (" + abbr + ")" : "venue time"}`
+          : `${ev.lineup.length} corps · shown in your time — venue is on ${abbr}`;
+        return h`${pinBtn}<h3 class="evcls">Schedule <span class="kicker">${kick}</span></h3>
           <table class="t"><tbody>
           ${ev.schedule.map(([t, entry]) => {
             const isCorps = (ev.lineup || []).includes(entry);
-            return `<tr><td class="num" style="color:var(--muted);white-space:nowrap">${esc(t || "")}</td><td>${isCorps ? corpsLink(entry) : `<span style="color:var(--muted)">${esc(entry)}</span>`}</td></tr>`;
+            const shown = sameZone ? t : (localizeVenueTime(t, ev.date, tz) || t);
+            return `<tr><td class="num" style="color:var(--muted);white-space:nowrap"${shown !== t ? ` title="${esc(t)} ${esc(abbr)} at the venue"` : ""}>${esc(shown || "")}</td><td>${isCorps ? corpsLink(entry) : `<span style="color:var(--muted)">${esc(entry)}</span>`}</td></tr>`;
           }).join("")}
           </tbody></table>
           ${mapLink}`;
