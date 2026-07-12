@@ -12,7 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import webpush from "web-push";
 
-const VERSION = 4; // bump on every behavior change — /status shows what's really deployed
+const VERSION = 5; // bump on every behavior change — /status shows what's really deployed
 const SITE = process.env.SITE_URL || "https://lukebesel.github.io/DCI-Tracker/";
 const PORT = process.env.PORT || 8787;
 const POLL_MS = +(process.env.POLL_SECONDS || 120) * 1000;
@@ -40,7 +40,10 @@ let subs = new Map(); // endpoint -> {sub, favs}
 try {
   for (const s of JSON.parse(fs.readFileSync(subsFile, "utf8"))) subs.set(s.sub.endpoint, s);
 } catch {}
-const saveSubs = () => fs.writeFileSync(subsFile, JSON.stringify([...subs.values()]));
+const saveSubs = () => {
+  try { fs.writeFileSync(subsFile, JSON.stringify([...subs.values()])); }
+  catch (e) { console.error("saveSubs failed:", e.message); }
+};
 
 // ---- score watching ----
 let lastState = null;   // corps -> "date|event|score" per class
@@ -136,7 +139,12 @@ const CORS = {
 const send = (res, code, obj) =>
   res.writeHead(code, { "content-type": "application/json", ...CORS }).end(JSON.stringify(obj));
 
+// a bad request or disk hiccup must answer 500, never kill the process
+process.on("uncaughtException", e => console.error("uncaught:", e));
+process.on("unhandledRejection", e => console.error("unhandled:", e));
+
 http.createServer(async (req, res) => {
+  try {
   if (req.method === "OPTIONS") return res.writeHead(204, CORS).end();
   const url = new URL(req.url, "http://x");
   let body = "";
@@ -188,4 +196,8 @@ http.createServer(async (req, res) => {
     return send(res, 200, { ok: true, queued: true, delay });
   }
   send(res, 404, { error: "not found" });
+  } catch (e) {
+    console.error("request failed:", e.message);
+    try { send(res, 500, { error: "internal" }); } catch (e2) {}
+  }
 }).listen(PORT, () => console.log(`cadence-push on :${PORT} — watching ${SITE}`));
