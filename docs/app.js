@@ -1247,6 +1247,11 @@
       list.querySelectorAll(".evrow").forEach(row => {
         row.querySelector(".evhead").onclick = () => toggle(row);
       });
+      // pinned shows open ready-to-read
+      list.querySelectorAll(".evrow").forEach(row => {
+        const ev = events[+row.dataset.i];
+        if (ev && PINS.has(pinKeyOf(ev))) toggle(row, true);
+      });
     }
     // pin/unpin from inside an event card; the card stays open where it lands
     list.addEventListener("click", e => {
