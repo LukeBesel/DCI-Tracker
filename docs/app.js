@@ -1188,36 +1188,9 @@
     events.forEach(ev => (ev.classes || []).forEach(c => clsSet.add(c.class)));
     const clsList = sortClasses([...clsSet]);
 
-    // the season's outcome: championship finals podium, when scraped
-    const finalsIdx = events.reduce((best, e, i) => {
-      if (e.future) return best; // a scheduled finals is not a result
-      const n = (e.name || "").toLowerCase();
-      if (n.includes("championship") && n.includes("final")
-          && !/semi|prelim|quarter/.test(n) && !(e.source === "dcx" && !n.includes("dci"))) {
-        if (best < 0 || (e.date || "") > (events[best].date || "")) return i;
-      }
-      return best;
-    }, -1);
-    let finalsHtml = "";
-    if (finalsIdx >= 0) {
-      const fe = events[finalsIdx];
-      finalsHtml = h`<div class="card" style="margin-bottom:14px">
-        <h2>Final Standings <span class="sub">${esc(fe.name)} · ${esc(fmtDateY(fe.date) || fe.date_display || "")}</span></h2>
-        <div class="grid cols-tiles">
-        ${(fe.classes || []).map(c => h`<div>
-          <h3 class="evcls" style="margin-top:4px">${esc(c.label || c.class)}</h3>
-          <table class="t"><tbody>
-          ${(c.results || []).slice(0, 5).map(r => `<tr><td class="rank">${r.place ?? "—"}</td><td>${corpsLink(r.corps)}</td><td class="num score">${score3(r.score)}</td></tr>`).join("")}
-          </tbody></table></div>`).join("")}
-        </div>
-        <div style="margin-top:8px;font-size:13px"><a href="#/event/${year}/${finalsIdx}">Full finals results →</a></div>
-      </div>`;
-    }
-
     const cnt = document.getElementById("evCount");
     if (cnt) cnt.textContent = `· ${year} — ${events.filter(e => !e.future).length} events${events.some(e => e.future) ? `, ${events.filter(e => e.future).length} upcoming` : ""}`;
     mount().innerHTML = h`
-      ${finalsHtml}
       <div class="filters">
         <div id="fCls"></div>
         <div id="fCorps"></div>
