@@ -2541,26 +2541,26 @@
    "Arsenal",
    "Zephyrus",
    "Gold",
-   "Blue Devils",
-   "Blue Knights",
-   "Blue Stars",
-   "Bluecoats",
-   "Boston Crusaders",
-   "Carolina Crown",
-   "Colts",
-   "Crossmen",
-   "Genesis",
-   "Madison Scouts",
-   "Music City",
-   "Pacific Crest",
-   "Phantom Regiment",
-   "Santa Clara Vanguard",
    "Seattle Cascades",
+   "Genesis",
+   "Music City",
+   "Crossmen",
    "Spartans",
    "Spirit of Atlanta",
+   "Pacific Crest",
    "The Academy",
+   "Troopers",
+   "Blue Knights",
+   "Madison Scouts",
+   "Blue Stars",
+   "Colts",
    "The Cavaliers",
-   "Troopers"
+   "Carolina Crown",
+   "Phantom Regiment",
+   "Boston Crusaders",
+   "Santa Clara Vanguard",
+   "Bluecoats",
+   "Blue Devils"
   ],
   "schedule": [
    [
@@ -2592,96 +2592,96 @@
     "Gold"
    ],
    [
+    "2:53 PM",
+    "Seattle Cascades"
+   ],
+   [
+    "3:10 PM",
+    "Genesis"
+   ],
+   [
+    "3:27 PM",
+    "Music City"
+   ],
+   [
+    "3:44 PM",
+    "Crossmen"
+   ],
+   [
+    "4:01 PM",
+    "Spartans"
+   ],
+   [
     "4:18 PM",
     "Steve Weiss Intermission"
+   ],
+   [
+    "4:48 PM",
+    "Spirit of Atlanta"
+   ],
+   [
+    "5:05 PM",
+    "Pacific Crest"
+   ],
+   [
+    "5:22 PM",
+    "The Academy"
+   ],
+   [
+    "5:39 PM",
+    "Troopers"
+   ],
+   [
+    "5:56 PM",
+    "Blue Knights"
+   ],
+   [
+    "6:13 PM",
+    "Madison Scouts"
    ],
    [
     "6:30 PM",
     "Intermission"
    ],
    [
-    "10:11 PM",
-    "Scores Announced"
-   ],
-   [
-    "TBD",
-    "Blue Devils"
-   ],
-   [
-    "TBD",
-    "Blue Knights"
-   ],
-   [
-    "TBD",
+    "7:30 PM",
     "Blue Stars"
    ],
    [
-    "TBD",
-    "Bluecoats"
-   ],
-   [
-    "TBD",
-    "Boston Crusaders"
-   ],
-   [
-    "TBD",
-    "Carolina Crown"
-   ],
-   [
-    "TBD",
+    "7:47 PM",
     "Colts"
    ],
    [
-    "TBD",
-    "Crossmen"
-   ],
-   [
-    "TBD",
-    "Genesis"
-   ],
-   [
-    "TBD",
-    "Madison Scouts"
-   ],
-   [
-    "TBD",
-    "Music City"
-   ],
-   [
-    "TBD",
-    "Pacific Crest"
-   ],
-   [
-    "TBD",
-    "Phantom Regiment"
-   ],
-   [
-    "TBD",
-    "Santa Clara Vanguard"
-   ],
-   [
-    "TBD",
-    "Seattle Cascades"
-   ],
-   [
-    "TBD",
-    "Spartans"
-   ],
-   [
-    "TBD",
-    "Spirit of Atlanta"
-   ],
-   [
-    "TBD",
-    "The Academy"
-   ],
-   [
-    "TBD",
+    "8:04 PM",
     "The Cavaliers"
    ],
    [
-    "TBD",
-    "Troopers"
+    "8:21 PM",
+    "Carolina Crown"
+   ],
+   [
+    "8:38 PM",
+    "Phantom Regiment"
+   ],
+   [
+    "8:55 PM",
+    "Boston Crusaders"
+   ],
+   [
+    "9:12 PM",
+    "Santa Clara Vanguard"
+   ],
+   [
+    "9:29 PM",
+    "Bluecoats"
+   ],
+   [
+    "9:46 PM",
+    "Blue Devils"
+   ],
+   [
+    "10:11 PM",
+    "Scores Announced"
    ]
   ],
   "bag_policy": "The Alamodome enforces a clear bag policy. More detailed information on the Alamodome bag policy can be found here . All bags are subject to search by event staff and security. For security and efficiency, all attendees are encouraged to keep all items to a minimum."
