@@ -273,62 +273,6 @@
   ]
  },
  {
-  "url": "https://www.dci.org/events/2026-corps-encore/",
-  "name": "Corps Encore",
-  "location": "Ogden, UT",
-  "date_display": "June 28, 2026",
-  "date": "2026-06-28",
-  "lineup": [
-   "Crosstown Big Band",
-   "Genesis",
-   "Troopers",
-   "Blue Devils",
-   "Blue Knights"
-  ],
-  "schedule": [
-   [
-    "6:30 PM",
-    "Gates Open"
-   ],
-   [
-    "7:30 PM",
-    "Welcome & National Anthem"
-   ],
-   [
-    "7:35 PM",
-    "Crosstown Big Band"
-   ],
-   [
-    "8:00 PM",
-    "Genesis"
-   ],
-   [
-    "8:23 PM",
-    "Troopers"
-   ],
-   [
-    "8:46 PM",
-    "Intermission"
-   ],
-   [
-    "9:00 PM",
-    "Blue Devils"
-   ],
-   [
-    "9:23 PM",
-    "Blue Knights"
-   ],
-   [
-    "9:41 PM",
-    "Encore - Blue Knights - Denver, CO"
-   ],
-   [
-    "9:48 PM",
-    "Scores Announced"
-   ]
-  ]
- },
- {
   "url": "https://www.dci.org/events/2026-drums-along-the-columbia/",
   "name": "Drums Along the Columbia",
   "location": "Kennewick, WA",
@@ -2129,6 +2073,55 @@
   ]
  },
  {
+  "url": "https://www.dci.org/events/2026-drums-across-the-desert/",
+  "name": "Drums Across the Desert",
+  "location": "Mesa, AZ",
+  "date_display": "July 13, 2026",
+  "date": "2026-07-13",
+  "lineup": [
+   "Seattle Cascades",
+   "Pacific Crest",
+   "The Academy",
+   "Bluecoats",
+   "Event Concludes"
+  ],
+  "schedule": [
+   [
+    "7:00 PM",
+    "Gates Open"
+   ],
+   [
+    "8:00 PM",
+    "National Anthem The Phoenix Symphony Brass Quintet"
+   ],
+   [
+    "8:10 PM",
+    "Seattle Cascades"
+   ],
+   [
+    "8:27 PM",
+    "Pacific Crest"
+   ],
+   [
+    "8:44 PM",
+    "The Academy"
+   ],
+   [
+    "8:56 PM",
+    "Bluecoats"
+   ],
+   [
+    "9:13 PM",
+    "Encore - The Bluecoats and The Academy - Tempe, AZ"
+   ],
+   [
+    "9:21 PM",
+    "Event Concludes"
+   ]
+  ],
+  "bag_policy": "There is no bag policy for this event. However, all bags are subject to search by event staff and/or security. To ensure safety and efficiency, all attendees are encouraged to keep personal items to a minimum."
+ },
+ {
   "url": "https://www.dci.org/events/2026-dci-broken-arrow/",
   "name": "DCI Broken Arrow",
   "location": "Broken Arrow, OK",
@@ -2262,6 +2255,59 @@
    ]
   ],
   "bag_policy": "There is no bag policy for this event."
+ },
+ {
+  "url": "https://www.dci.org/events/2026-dci-new-mexico/",
+  "name": "DCI New Mexico",
+  "location": "Albuquerque, NM",
+  "date_display": "July 14, 2026",
+  "date": "2026-07-14",
+  "lineup": [
+   "Arsenal",
+   "Seattle Cascades",
+   "The Academy",
+   "Pacific Crest",
+   "Bluecoats"
+  ],
+  "schedule": [
+   [
+    "7:15 PM",
+    "Gates Open"
+   ],
+   [
+    "8:20 PM",
+    "Welcome & National Anthem"
+   ],
+   [
+    "8:30 PM",
+    "Arsenal"
+   ],
+   [
+    "8:47 PM",
+    "Seattle Cascades"
+   ],
+   [
+    "9:04 PM",
+    "The Academy"
+   ],
+   [
+    "9:21 PM",
+    "Pacific Crest"
+   ],
+   [
+    "9:38 PM",
+    "Bluecoats"
+   ],
+   [
+    "9:55 PM",
+    "Encore - Pacific Crest - City of Industry, CA"
+   ],
+   [
+    "10:03 PM",
+    "Scores Announced"
+   ]
+  ],
+  "bag_policy": "There is no bag policy in effect for this event."
  },
  {
   "url": "https://www.dci.org/events/2026-dci-central-texas/",
@@ -2687,79 +2733,6 @@
   "bag_policy": "The Alamodome enforces a clear bag policy. More detailed information on the Alamodome bag policy can be found here . All bags are subject to search by event staff and security. For security and efficiency, all attendees are encouraged to keep all items to a minimum."
  },
  {
-  "url": "https://www.dci.org/events/2026-the-buccaneer-classic/",
-  "name": "The Buccaneer Classic",
-  "location": "Landisville, PA",
-  "date_display": "July 18, 2026",
-  "date": "2026-07-18",
-  "lineup": [
-   "Buccaneer Banner Brass",
-   "Buccaneers Alumni",
-   "Les Stentors",
-   "Raiders",
-   "Sunrisers",
-   "White Sabers",
-   "Bushwackers",
-   "Reading Buccaneers",
-   "Hawthorne Caballeros Alumni"
-  ],
-  "schedule": [
-   [
-    "5:00 PM",
-    "Gates Open"
-   ],
-   [
-    "6:30 PM",
-    "Welcome & National Anthem"
-   ],
-   [
-    "6:40 PM",
-    "Buccaneer Banner Brass"
-   ],
-   [
-    "6:52 PM",
-    "Buccaneers Alumni"
-   ],
-   [
-    "7:09 PM",
-    "Les Stentors"
-   ],
-   [
-    "7:26 PM",
-    "Raiders"
-   ],
-   [
-    "7:43 PM",
-    "Intermission"
-   ],
-   [
-    "8:00 PM",
-    "Sunrisers"
-   ],
-   [
-    "8:17 PM",
-    "White Sabers"
-   ],
-   [
-    "8:34 PM",
-    "Bushwackers"
-   ],
-   [
-    "8:51 PM",
-    "Reading Buccaneers"
-   ],
-   [
-    "9:08 PM",
-    "Hawthorne Caballeros Alumni"
-   ],
-   [
-    "9:33 PM",
-    "Scores Announced"
-   ]
-  ],
-  "bag_policy": "There is no bag policy for this event."
- },
- {
   "url": "https://www.dci.org/events/2026-dci-dallas/",
   "name": "DCI Dallas",
   "location": "Bedford, TX",
@@ -3125,63 +3098,6 @@
    ]
   ],
   "bag_policy": "There is no bag policy for this event. However, to ensure security and efficiency, all attendees are encouraged to keep personal items to a minimum."
- },
- {
-  "url": "https://www.dci.org/events/2026-march-on/",
-  "name": "March On!",
-  "location": "Champlin, MN",
-  "date_display": "July 22, 2026",
-  "date": "2026-07-22",
-  "lineup": [
-   "RCR Street Club",
-   "MBI",
-   "Govenaires",
-   "Colt Cadets",
-   "Columbians",
-   "River City Rhythm"
-  ],
-  "schedule": [
-   [
-    "6:00 PM",
-    "Gates Open"
-   ],
-   [
-    "7:00 PM",
-    "Welcome & National Anthem"
-   ],
-   [
-    "7:10 PM",
-    "RCR Street Club"
-   ],
-   [
-    "7:22 PM",
-    "MBI"
-   ],
-   [
-    "7:39 PM",
-    "Govenaires"
-   ],
-   [
-    "7:56 PM",
-    "Colt Cadets"
-   ],
-   [
-    "8:13 PM",
-    "Columbians"
-   ],
-   [
-    "8:30 PM",
-    "River City Rhythm"
-   ],
-   [
-    "8:47 PM",
-    "Encore - River City Rhythm - Anoka, MN"
-   ],
-   [
-    "8:55 PM",
-    "Scores Announced"
-   ]
-  ]
  },
  {
   "url": "https://www.dci.org/events/2026-dci-birmingham/",
