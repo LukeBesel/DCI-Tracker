@@ -1,8 +1,8 @@
-mode=update started=2026-07-14 09:05:57 UTC
-dci.org current season: OK (70s)
+mode=update started=2026-07-14 09:18:06 UTC
+dci.org current season: OK (69s)
 upcoming events: OK (77s)
-corps profiles: OK (0s)
-dci.org history chunk: OK (163s)
-dcx history chunk: OK (4s)
+corps profiles: OK (1s)
+dci.org history chunk: OK (136s)
+dcx history chunk: OK (3s)
 build site data: OK (4s)
-finished=2026-07-14 09:11:15 UTC
+finished=2026-07-14 09:22:56 UTC
