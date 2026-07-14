@@ -4275,74 +4275,6 @@
   "bag_policy": "Navy-Marine Corps Memorial Stadium does have a Clear Bag Policy. More detailed information regarding bags and stadium policies can be found here . All bags are subject to search by event staff and security. For security and efficiency, all attendees are encouraged to keep all items to a minimum."
  },
  {
-  "url": "https://www.dci.org/events/2026-dci-huntington/",
-  "name": "DCI Huntington",
-  "location": "Huntington, WV",
-  "date_display": "July 29, 2026",
-  "date": "2026-07-29",
-  "lineup": [
-   "Memphis Blues",
-   "7th Regiment",
-   "Columbians",
-   "Gold",
-   "The Battalion",
-   "Madison Scouts",
-   "Santa Clara Vanguard",
-   "Seattle Cascades",
-   "The Cavaliers"
-  ],
-  "schedule": [
-   [
-    "6:30 PM",
-    "Gates Open"
-   ],
-   [
-    "7:30 PM",
-    "Welcome & National Anthem"
-   ],
-   [
-    "7:40 PM",
-    "Memphis Blues"
-   ],
-   [
-    "7:57 PM",
-    "7th Regiment"
-   ],
-   [
-    "8:14 PM",
-    "Columbians"
-   ],
-   [
-    "8:31 PM",
-    "Gold"
-   ],
-   [
-    "8:48 PM",
-    "The Battalion"
-   ],
-   [
-    "10:21 PM",
-    "Scores Announced"
-   ],
-   [
-    "TBD",
-    "Madison Scouts"
-   ],
-   [
-    "TBD",
-    "Santa Clara Vanguard"
-   ],
-   [
-    "TBD",
-    "Seattle Cascades"
-   ],
-   [
-    "TBD",
-    "The Cavaliers"
-   ]
-  ]
- },
- {
   "url": "https://www.dci.org/events/2026-summer-music-games-of-southwest-virginia/",
   "name": "Summer Music Games of Southwest Virginia",
   "location": "Salem, VA",
@@ -5627,6 +5559,21 @@
     "10:11 PM",
     "Phantom Regiment Alumni Corps"
    ]
+  ]
+ },
+ {
+  "url": "https://www.dci.org/events/2026-shining-a-light-on-music-education/",
+  "name": "Shining a Light on Music Education",
+  "location": "Indianapolis, IN",
+  "date_display": "August 7, 2026",
+  "date": "2026-08-07",
+  "lineup": [
+   "Apogee",
+   "Freelancers",
+   "Green Beret Marching Band",
+   "Mercedes Marching Band",
+   "Rhythm IN BLUE",
+   "Spark"
   ]
  },
  {
