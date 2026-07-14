@@ -1299,64 +1299,6 @@
   ]
  },
  {
-  "url": "https://www.dci.org/events/2026-dci-northern-alabama/",
-  "name": "DCI Northern Alabama",
-  "location": "Muscle Shoals, AL",
-  "date_display": "July 9, 2026",
-  "date": "2026-07-09",
-  "lineup": [
-   "Apollo Marching Theatre",
-   "Atlanta CV",
-   "Memphis Blues",
-   "Music City",
-   "Spirit of Atlanta",
-   "Boston Crusaders"
-  ],
-  "schedule": [
-   [
-    "7:00 PM",
-    "Gates Open"
-   ],
-   [
-    "8:00 PM",
-    "Welcome & National Anthem"
-   ],
-   [
-    "8:10 PM",
-    "Apollo Marching Theatre"
-   ],
-   [
-    "8:22 PM",
-    "Atlanta CV"
-   ],
-   [
-    "8:39 PM",
-    "Memphis Blues"
-   ],
-   [
-    "8:56 PM",
-    "Music City"
-   ],
-   [
-    "9:13 PM",
-    "Spirit of Atlanta"
-   ],
-   [
-    "9:30 PM",
-    "Boston Crusaders"
-   ],
-   [
-    "9:47 PM",
-    "Encore - Spirit of Atlanta - Atlanta, GA"
-   ],
-   [
-    "9:55 PM",
-    "Scores Announced"
-   ]
-  ],
-  "bag_policy": "There is no bag policy for this event. However, for security and efficiency, all spectators are encouraged to keep all personal items to a minimum."
- },
- {
   "url": "https://www.dci.org/events/2026-gold-showcase/",
   "name": "Gold Showcase",
   "location": "Santa Clarita, CA",
@@ -3284,6 +3226,89 @@
     "Scores Announced"
    ]
   ]
+ },
+ {
+  "url": "https://www.dci.org/events/2026-dci-birmingham/",
+  "name": "DCI Birmingham",
+  "location": "Birmingham, AL",
+  "date_display": "July 24, 2026",
+  "date": "2026-07-24",
+  "lineup": [
+   "Apollo Marching Theatre",
+   "Fusion Core",
+   "Atlanta CV",
+   "Memphis Blues",
+   "Heat Wave",
+   "Blue Knights",
+   "Blue Stars",
+   "Crossmen",
+   "Spartans",
+   "The Academy",
+   "Troopers"
+  ],
+  "schedule": [
+   [
+    "6:30 PM",
+    "Gates Open"
+   ],
+   [
+    "7:30 PM",
+    "Welcome & National Anthem"
+   ],
+   [
+    "7:40 PM",
+    "Apollo Marching Theatre"
+   ],
+   [
+    "7:52 PM",
+    "Fusion Core"
+   ],
+   [
+    "8:09 PM",
+    "Atlanta CV"
+   ],
+   [
+    "8:26 PM",
+    "Memphis Blues"
+   ],
+   [
+    "8:43 PM",
+    "Heat Wave"
+   ],
+   [
+    "9:00 PM",
+    "Intermission"
+   ],
+   [
+    "11:07 PM",
+    "Scores Announced"
+   ],
+   [
+    "TBD",
+    "Blue Knights"
+   ],
+   [
+    "TBD",
+    "Blue Stars"
+   ],
+   [
+    "TBD",
+    "Crossmen"
+   ],
+   [
+    "TBD",
+    "Spartans"
+   ],
+   [
+    "TBD",
+    "The Academy"
+   ],
+   [
+    "TBD",
+    "Troopers"
+   ]
+  ],
+  "bag_policy": "Jaguar Stadium does not have a Clear Bag Policy. However, all bags are subject to search by event staff and security. For security and efficiency, all attendees are encouraged to keep all items to a minimum."
  },
  {
   "url": "https://www.dci.org/events/2026-dci-middle-tennessee/",
