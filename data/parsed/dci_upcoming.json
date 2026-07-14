@@ -2575,7 +2575,7 @@
     "Scores Announced"
    ]
   ],
-  "bag_policy": "All guests will be required to abide by Katy ISD Clear Bag Policy and pass through security screening including the use of walk-through and hand wand metal detectors. Outside food and beverage, are prohibited and will not be allowed in the stadium. For a list of other prohibited items, visit katyisd.or g . One empty reusable water bottle or one full sealed bottle of water will be permitted into the stadium."
+  "bag_policy": "All guests will be required to abide by the Katy ISD Clear Bag Policy and pass through security screening including the use of walk-through and hand wand metal detectors. Outside food and beverage are prohibited and will not be allowed in the stadium. For a list of other prohibited items, visit katyisd.org . One empty reusable water bottle or one full sealed bottle of water will be permitted into the stadium."
  },
  {
   "url": "https://www.dci.org/events/2026-sounds-by-the-seaport/",
@@ -4721,7 +4721,8 @@
     "10:38 PM",
     "Scores Announced"
    ]
-  ]
+  ],
+  "bag_policy": "There is no bag policy for this event. However, to ensure safety and efficiency, all attendees are encouraged to keep personal items to a minimum."
  },
  {
   "url": "https://www.dci.org/events/2026-dci-eastern-classic/",
@@ -5626,21 +5627,6 @@
     "10:11 PM",
     "Phantom Regiment Alumni Corps"
    ]
-  ]
- },
- {
-  "url": "https://www.dci.org/events/2026-shining-a-light-on-music-education/",
-  "name": "Shining a Light on Music Education",
-  "location": "Indianapolis, IN",
-  "date_display": "August 7, 2026",
-  "date": "2026-08-07",
-  "lineup": [
-   "Apogee",
-   "Freelancers",
-   "Green Beret Marching Band",
-   "Mercedes Marching Band",
-   "Rhythm IN BLUE",
-   "Spark"
   ]
  },
  {
