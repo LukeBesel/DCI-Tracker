@@ -4420,6 +4420,68 @@
   "bag_policy": "Salem Stadium does have a Clear Bag Policy. More detailed information regarding bags and stadium policies can be found here . All bags are subject to search by event staff and security. For security and efficiency, all attendees are encouraged to keep all items to a minimum."
  },
  {
+  "url": "https://www.dci.org/events/2026-dci-east-coast-showcase/",
+  "name": "DCI East Coast Showcase",
+  "location": "Lawrence, MA",
+  "date_display": "July 30, 2026",
+  "date": "2026-07-30",
+  "lineup": [
+   "Crusaders Senior",
+   "North Star",
+   "Bluecoats",
+   "Boston Crusaders",
+   "Pacific Crest",
+   "Phantom Regiment",
+   "Spartans"
+  ],
+  "schedule": [
+   [
+    "5:30 PM",
+    "Gates Open"
+   ],
+   [
+    "7:30 PM",
+    "Welcome & National Anthem"
+   ],
+   [
+    "7:40 PM",
+    "Crusaders Senior"
+   ],
+   [
+    "7:57 PM",
+    "North Star"
+   ],
+   [
+    "9:39 PM",
+    "Encore - Boston Crusaders - Boston, MA"
+   ],
+   [
+    "9:47 PM",
+    "Scores Announced"
+   ],
+   [
+    "TBD",
+    "Bluecoats"
+   ],
+   [
+    "TBD",
+    "Boston Crusaders"
+   ],
+   [
+    "TBD",
+    "Pacific Crest"
+   ],
+   [
+    "TBD",
+    "Phantom Regiment"
+   ],
+   [
+    "TBD",
+    "Spartans"
+   ]
+  ]
+ },
+ {
   "url": "https://www.dci.org/events/2026-the-marion-open/",
   "name": "The Marion Open",
   "location": "Marion, OH",
@@ -5613,6 +5675,57 @@
    ],
    [
     "1:45 PM",
+    "Awards Ceremony"
+   ]
+  ]
+ },
+ {
+  "url": "https://www.dci.org/events/2026-dci-world-championship-finals/",
+  "name": "DCI World Championship Finals",
+  "location": "Indianapolis, IN",
+  "date_display": "August 8, 2026",
+  "date": "2026-08-08",
+  "lineup": [
+   "INpact & BANDtastic Band",
+   "U.S. Marine Drum & Bugle Corps",
+   "World Championship Finals Begins",
+   "Competition Resumes"
+  ],
+  "schedule": [
+   [
+    "4:00 PM",
+    "Gates Open"
+   ],
+   [
+    "5:30 PM",
+    "Welcome"
+   ],
+   [
+    "5:40 PM",
+    "INpact & BANDtastic Band"
+   ],
+   [
+    "6:00 PM",
+    "U.S. Marine Drum & Bugle Corps"
+   ],
+   [
+    "6:20 PM",
+    "National Anthem - U.S. Marine Drum & Bugle Corps"
+   ],
+   [
+    "6:30 PM",
+    "World Championship Finals Begins"
+   ],
+   [
+    "8:12 PM",
+    "Intermission"
+   ],
+   [
+    "8:27 PM",
+    "Competition Resumes"
+   ],
+   [
+    "10:00 PM",
     "Awards Ceremony"
    ]
   ]
