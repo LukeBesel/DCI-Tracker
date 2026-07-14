@@ -3098,6 +3098,65 @@
   "bag_policy": "Bob Goalby Field does not have a Bag Policy. All bags are subject to search by event staff and security. For security and efficiency, all attendees are encouraged to keep all items to a minimum."
  },
  {
+  "url": "https://www.dci.org/events/2026-dci-southern-mississippi/",
+  "name": "DCI Southern Mississippi",
+  "location": "Hattiesburg, MS",
+  "date_display": "July 22, 2026",
+  "date": "2026-07-22",
+  "lineup": [
+   "Blue Devils",
+   "Blue Knights",
+   "Blue Stars",
+   "Boston Crusaders",
+   "Crossmen",
+   "Spirit of Atlanta",
+   "Troopers"
+  ],
+  "schedule": [
+   [
+    "6:30 PM",
+    "Gates Open"
+   ],
+   [
+    "7:30 PM",
+    "Welcome & National Anthem"
+   ],
+   [
+    "9:47 PM",
+    "Scores Announced"
+   ],
+   [
+    "TBD",
+    "Blue Devils"
+   ],
+   [
+    "TBD",
+    "Blue Knights"
+   ],
+   [
+    "TBD",
+    "Blue Stars"
+   ],
+   [
+    "TBD",
+    "Boston Crusaders"
+   ],
+   [
+    "TBD",
+    "Crossmen"
+   ],
+   [
+    "TBD",
+    "Spirit of Atlanta"
+   ],
+   [
+    "TBD",
+    "Troopers"
+   ]
+  ],
+  "bag_policy": "M.M. Roberts Stadium does have a Clear Bag Policy. More detailed information regarding bags and stadium policies can be found here . All bags are subject to search by event staff and security. For security and efficiency, all attendees are encouraged to keep all items to a minimum."
+ },
+ {
   "url": "https://www.dci.org/events/2026-drums-on-the-ohio/",
   "name": "Drums on the Ohio",
   "location": "Evansville, IN",
@@ -4282,6 +4341,83 @@
     "The Cavaliers"
    ]
   ]
+ },
+ {
+  "url": "https://www.dci.org/events/2026-summer-music-games-of-southwest-virginia/",
+  "name": "Summer Music Games of Southwest Virginia",
+  "location": "Salem, VA",
+  "date_display": "July 29, 2026",
+  "date": "2026-07-29",
+  "lineup": [
+   "Carolina Gold",
+   "Heat Wave",
+   "Raiders",
+   "Blue Stars",
+   "Carolina Crown",
+   "Crossmen",
+   "Music City",
+   "Spirit of Atlanta",
+   "The Academy"
+  ],
+  "schedule": [
+   [
+    "5:00 PM",
+    "Gates Open"
+   ],
+   [
+    "7:00 PM",
+    "Welcome & National Anthem"
+   ],
+   [
+    "7:10 PM",
+    "Carolina Gold"
+   ],
+   [
+    "7:22 PM",
+    "Heat Wave"
+   ],
+   [
+    "7:39 PM",
+    "Raiders"
+   ],
+   [
+    "8:30 PM",
+    "Intermission"
+   ],
+   [
+    "9:55 PM",
+    "Encore - Carolina Crown - Fort Mill, SC"
+   ],
+   [
+    "10:03 PM",
+    "Scores Announced"
+   ],
+   [
+    "TBD",
+    "Blue Stars"
+   ],
+   [
+    "TBD",
+    "Carolina Crown"
+   ],
+   [
+    "TBD",
+    "Crossmen"
+   ],
+   [
+    "TBD",
+    "Music City"
+   ],
+   [
+    "TBD",
+    "Spirit of Atlanta"
+   ],
+   [
+    "TBD",
+    "The Academy"
+   ]
+  ],
+  "bag_policy": "Salem Stadium does have a Clear Bag Policy. More detailed information regarding bags and stadium policies can be found here . All bags are subject to search by event staff and security. For security and efficiency, all attendees are encouraged to keep all items to a minimum."
  },
  {
   "url": "https://www.dci.org/events/2026-dci-east-coast-showcase/",
