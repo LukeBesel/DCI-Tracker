@@ -43,18 +43,6 @@
   ]
  },
  {
-  "url": "https://www.dci.org/events/2026-santa-clara-vanguard-showcase/",
-  "name": "Santa Clara Vanguard Showcase",
-  "location": "Moscow, ID",
-  "date_display": "June 26, 2026",
-  "date": "2026-06-26",
-  "lineup": [
-   "Columbians",
-   "Gems",
-   "Santa Clara Vanguard"
-  ]
- },
- {
   "url": "https://www.dci.org/events/2026-barnum-festival-champions-on-parade/",
   "name": "Barnum Festival: Champions on Parade",
   "location": "Shelton, CT",
@@ -2578,60 +2566,6 @@
   "bag_policy": "All guests will be required to abide by the Katy ISD Clear Bag Policy and pass through security screening including the use of walk-through and hand wand metal detectors. Outside food and beverage are prohibited and will not be allowed in the stadium. For a list of other prohibited items, visit katyisd.org . One empty reusable water bottle or one full sealed bottle of water will be permitted into the stadium."
  },
  {
-  "url": "https://www.dci.org/events/2026-sounds-by-the-seaport/",
-  "name": "Sounds by the Seaport",
-  "location": "New London, CT",
-  "date_display": "July 17, 2026",
-  "date": "2026-07-17",
-  "lineup": [
-   "Eastern Connecticut Symphony Orchestra",
-   "CT Alumni",
-   "Les Stentors",
-   "Hurricanes",
-   "7th Regiment",
-   "Event Concludes"
-  ],
-  "schedule": [
-   [
-    "6:00 PM",
-    "Gates Open"
-   ],
-   [
-    "7:00 PM",
-    "Welcome"
-   ],
-   [
-    "7:05 PM",
-    "Eastern Connecticut Symphony Orchestra"
-   ],
-   [
-    "7:20 PM",
-    "CT Alumni"
-   ],
-   [
-    "7:45 PM",
-    "Les Stentors"
-   ],
-   [
-    "8:15 PM",
-    "Hall of Fame Recipients & Age-Out Recognition"
-   ],
-   [
-    "8:40 PM",
-    "Hurricanes"
-   ],
-   [
-    "9:00 PM",
-    "7th Regiment"
-   ],
-   [
-    "9:30 PM",
-    "Event Concludes"
-   ]
-  ],
-  "bag_policy": "Large bags will be subject to inspection upon entry. To ensure a smooth and speedy entry, please bring only essential items."
- },
- {
   "url": "https://www.dci.org/events/2026-dci-southwestern-championship/",
   "name": "DCI Southwestern Championship",
   "location": "San Antonio, TX",
@@ -4558,93 +4492,6 @@
    ]
   ],
   "bag_policy": "Marion Harding Football Stadium does not have a clear bag policy. However, all bags are subject to search by event staff and security. For security and efficiency, please keep all bags and items to a minimum. This event is in partnership with The Marion Arts Legacy Alliance, Inc. Instagram: @malaohio Facebook: The Marion Arts Legacy Alliance, Inc."
- },
- {
-  "url": "https://www.dci.org/events/2026-dci-eastern-classic-2/",
-  "name": "DCI Eastern Classic",
-  "location": "Allentown, PA",
-  "date_display": "July 31, 2026",
-  "date": "2026-07-31",
-  "lineup": [
-   "Bushwackers",
-   "Reading Buccaneers",
-   "Hawthorne Caballeros",
-   "Blue Devils",
-   "Blue Knights",
-   "Blue Stars",
-   "Bluecoats",
-   "Colts",
-   "Genesis",
-   "Music City",
-   "Spirit of Atlanta",
-   "Troopers"
-  ],
-  "schedule": [
-   [
-    "5:30 PM",
-    "Gates Open"
-   ],
-   [
-    "7:00 PM",
-    "Welcome & National Anthem"
-   ],
-   [
-    "7:10 PM",
-    "Bushwackers"
-   ],
-   [
-    "7:27 PM",
-    "Reading Buccaneers"
-   ],
-   [
-    "7:44 PM",
-    "Hawthorne Caballeros"
-   ],
-   [
-    "8:52 PM",
-    "Intermission"
-   ],
-   [
-    "10:42 PM",
-    "Scores Announced"
-   ],
-   [
-    "TBD",
-    "Blue Devils"
-   ],
-   [
-    "TBD",
-    "Blue Knights"
-   ],
-   [
-    "TBD",
-    "Blue Stars"
-   ],
-   [
-    "TBD",
-    "Bluecoats"
-   ],
-   [
-    "TBD",
-    "Colts"
-   ],
-   [
-    "TBD",
-    "Genesis"
-   ],
-   [
-    "TBD",
-    "Music City"
-   ],
-   [
-    "TBD",
-    "Spirit of Atlanta"
-   ],
-   [
-    "TBD",
-    "Troopers"
-   ]
-  ]
  },
  {
   "url": "https://www.dci.org/events/2026-dci-michigan/",
