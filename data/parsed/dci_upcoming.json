@@ -2578,60 +2578,6 @@
   "bag_policy": "All guests will be required to abide by the Katy ISD Clear Bag Policy and pass through security screening including the use of walk-through and hand wand metal detectors. Outside food and beverage are prohibited and will not be allowed in the stadium. For a list of other prohibited items, visit katyisd.org . One empty reusable water bottle or one full sealed bottle of water will be permitted into the stadium."
  },
  {
-  "url": "https://www.dci.org/events/2026-sounds-by-the-seaport/",
-  "name": "Sounds by the Seaport",
-  "location": "New London, CT",
-  "date_display": "July 17, 2026",
-  "date": "2026-07-17",
-  "lineup": [
-   "Eastern Connecticut Symphony Orchestra",
-   "CT Alumni",
-   "Les Stentors",
-   "Hurricanes",
-   "7th Regiment",
-   "Event Concludes"
-  ],
-  "schedule": [
-   [
-    "6:00 PM",
-    "Gates Open"
-   ],
-   [
-    "7:00 PM",
-    "Welcome"
-   ],
-   [
-    "7:05 PM",
-    "Eastern Connecticut Symphony Orchestra"
-   ],
-   [
-    "7:20 PM",
-    "CT Alumni"
-   ],
-   [
-    "7:45 PM",
-    "Les Stentors"
-   ],
-   [
-    "8:15 PM",
-    "Hall of Fame Recipients & Age-Out Recognition"
-   ],
-   [
-    "8:40 PM",
-    "Hurricanes"
-   ],
-   [
-    "9:00 PM",
-    "7th Regiment"
-   ],
-   [
-    "9:30 PM",
-    "Event Concludes"
-   ]
-  ],
-  "bag_policy": "Large bags will be subject to inspection upon entry. To ensure a smooth and speedy entry, please bring only essential items."
- },
- {
   "url": "https://www.dci.org/events/2026-dci-southwestern-championship/",
   "name": "DCI Southwestern Championship",
   "location": "San Antonio, TX",
@@ -2939,40 +2885,6 @@
    ]
   ],
   "bag_policy": "Pennington Field does have a Clear Bag Policy. More detailed information can be found here . All bags are subject to search by event staff and security. For security and efficiency, all attendees are encouraged to keep all items to a minimum."
- },
- {
-  "url": "https://www.dci.org/events/2026-raiders-tour-send-off/",
-  "name": "Raiders Tour Send-Off",
-  "location": "Aston Township, PA",
-  "date_display": "July 19, 2026",
-  "date": "2026-07-19",
-  "lineup": [
-   "Les Stentors",
-   "Raiders",
-   "Joint Performance"
-  ],
-  "schedule": [
-   [
-    "3:30 PM",
-    "Gates Open"
-   ],
-   [
-    "7:00 PM",
-    "Welcome & National Anthem"
-   ],
-   [
-    "7:15 PM",
-    "Les Stentors"
-   ],
-   [
-    "8:00 PM",
-    "Raiders"
-   ],
-   [
-    "8:45 PM",
-    "Joint Performance"
-   ]
-  ]
  },
  {
   "url": "https://www.dci.org/events/2026-dci-mckinney/",
