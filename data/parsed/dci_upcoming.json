@@ -3157,6 +3157,78 @@
   "bag_policy": "M.M. Roberts Stadium does have a Clear Bag Policy. More detailed information regarding bags and stadium policies can be found here . All bags are subject to search by event staff and security. For security and efficiency, all attendees are encouraged to keep all items to a minimum."
  },
  {
+  "url": "https://www.dci.org/events/2026-drums-on-the-ohio/",
+  "name": "Drums on the Ohio",
+  "location": "Evansville, IN",
+  "date_display": "July 22, 2026",
+  "date": "2026-07-22",
+  "lineup": [
+   "Gold",
+   "The Battalion",
+   "Colts",
+   "Genesis",
+   "Pacific Crest",
+   "Phantom Regiment",
+   "Santa Clara Vanguard",
+   "Seattle Cascades"
+  ],
+  "schedule": [
+   [
+    "6:00 PM",
+    "Gates Open"
+   ],
+   [
+    "7:00 PM",
+    "Welcome & National Anthem"
+   ],
+   [
+    "7:10 PM",
+    "Gold"
+   ],
+   [
+    "7:27 PM",
+    "The Battalion"
+   ],
+   [
+    "8:35 PM",
+    "Intermission"
+   ],
+   [
+    "9:56 PM",
+    "Encore - TBD"
+   ],
+   [
+    "10:04 PM",
+    "Scores Announced"
+   ],
+   [
+    "TBD",
+    "Colts"
+   ],
+   [
+    "TBD",
+    "Genesis"
+   ],
+   [
+    "TBD",
+    "Pacific Crest"
+   ],
+   [
+    "TBD",
+    "Phantom Regiment"
+   ],
+   [
+    "TBD",
+    "Santa Clara Vanguard"
+   ],
+   [
+    "TBD",
+    "Seattle Cascades"
+   ]
+  ],
+  "bag_policy": "There is no bag policy for this event. However, to ensure security and efficiency, all attendees are encouraged to keep personal items to a minimum."
+ },
+ {
   "url": "https://www.dci.org/events/2026-march-on/",
   "name": "March On!",
   "location": "Champlin, MN",
@@ -3837,55 +3909,6 @@
   ]
  },
  {
-  "url": "https://www.dci.org/events/2026-dci-in-motion/",
-  "name": "DCI in Motion",
-  "location": "Norton, OH",
-  "date_display": "July 26, 2026",
-  "date": "2026-07-26",
-  "lineup": [
-   "Les Stentors",
-   "7th Regiment",
-   "Gold",
-   "Cincinnati Tradition",
-   "Rogues Hollow Regiment"
-  ],
-  "schedule": [
-   [
-    "6:00 PM",
-    "Gates Open"
-   ],
-   [
-    "7:00 PM",
-    "Welcome & National Anthem"
-   ],
-   [
-    "7:10 PM",
-    "Les Stentors"
-   ],
-   [
-    "7:27 PM",
-    "7th Regiment"
-   ],
-   [
-    "7:44 PM",
-    "Gold"
-   ],
-   [
-    "8:01 PM",
-    "Cincinnati Tradition"
-   ],
-   [
-    "8:18 PM",
-    "Rogues Hollow Regiment"
-   ],
-   [
-    "8:43 PM",
-    "Scores Announced"
-   ]
-  ],
-  "bag_policy": "There is no bag policy for this event."
- },
- {
   "url": "https://www.dci.org/events/2026-nightbeat/",
   "name": "NightBEAT",
   "location": "Winston-Salem, NC",
@@ -4269,6 +4292,83 @@
     "The Cavaliers"
    ]
   ]
+ },
+ {
+  "url": "https://www.dci.org/events/2026-summer-music-games-of-southwest-virginia/",
+  "name": "Summer Music Games of Southwest Virginia",
+  "location": "Salem, VA",
+  "date_display": "July 29, 2026",
+  "date": "2026-07-29",
+  "lineup": [
+   "Carolina Gold",
+   "Heat Wave",
+   "Raiders",
+   "Blue Stars",
+   "Carolina Crown",
+   "Crossmen",
+   "Music City",
+   "Spirit of Atlanta",
+   "The Academy"
+  ],
+  "schedule": [
+   [
+    "5:00 PM",
+    "Gates Open"
+   ],
+   [
+    "7:00 PM",
+    "Welcome & National Anthem"
+   ],
+   [
+    "7:10 PM",
+    "Carolina Gold"
+   ],
+   [
+    "7:22 PM",
+    "Heat Wave"
+   ],
+   [
+    "7:39 PM",
+    "Raiders"
+   ],
+   [
+    "8:30 PM",
+    "Intermission"
+   ],
+   [
+    "9:55 PM",
+    "Encore - Carolina Crown - Fort Mill, SC"
+   ],
+   [
+    "10:03 PM",
+    "Scores Announced"
+   ],
+   [
+    "TBD",
+    "Blue Stars"
+   ],
+   [
+    "TBD",
+    "Carolina Crown"
+   ],
+   [
+    "TBD",
+    "Crossmen"
+   ],
+   [
+    "TBD",
+    "Music City"
+   ],
+   [
+    "TBD",
+    "Spirit of Atlanta"
+   ],
+   [
+    "TBD",
+    "The Academy"
+   ]
+  ],
+  "bag_policy": "Salem Stadium does have a Clear Bag Policy. More detailed information regarding bags and stadium policies can be found here . All bags are subject to search by event staff and security. For security and efficiency, all attendees are encouraged to keep all items to a minimum."
  },
  {
   "url": "https://www.dci.org/events/2026-dci-east-coast-showcase/",
