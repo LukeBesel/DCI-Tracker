@@ -599235,6 +599235,52 @@
   ]
  },
  {
+  "url": "https://www.dci.org/scores/final-scores/2026-dci-new-mexico/",
+  "slug": "2026-dci-new-mexico",
+  "year": 2026,
+  "name": "DCI New Mexico",
+  "date_display": "July 14, 2026",
+  "location": "Albuquerque, NM",
+  "recap_url": "https://www.dci.org/scores/recap/2026-dci-new-mexico/",
+  "classes": [
+   {
+    "class": "World Class",
+    "results": [
+     {
+      "place": 1,
+      "corps": "Bluecoats",
+      "score": 89.3
+     },
+     {
+      "place": 2,
+      "corps": "Pacific Crest",
+      "score": 77.7
+     },
+     {
+      "place": 3,
+      "corps": "The Academy",
+      "score": 74.95
+     },
+     {
+      "place": 4,
+      "corps": "Seattle Cascades",
+      "score": 70.6
+     }
+    ]
+   },
+   {
+    "class": "Open Class",
+    "results": [
+     {
+      "place": 1,
+      "corps": "Arsenal",
+      "score": 62.1
+     }
+    ]
+   }
+  ]
+ },
+ {
   "url": "https://www.dci.org/scores/final-scores/2026-dci-capital-classic/",
   "slug": "2026-dci-capital-classic",
   "year": 2026,
