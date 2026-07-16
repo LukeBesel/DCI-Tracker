@@ -2178,6 +2178,74 @@
   "bag_policy": "There is no bag policy for this event. However, all bags are subject to search by event staff and/or security. To ensure safety and efficiency, all attendees are encouraged to keep personal items to a minimum."
  },
  {
+  "url": "https://www.dci.org/events/2026-dci-broken-arrow/",
+  "name": "DCI Broken Arrow",
+  "location": "Broken Arrow, OK",
+  "date_display": "July 14, 2026",
+  "date": "2026-07-14",
+  "lineup": [
+   "Zephyrus",
+   "Crossmen",
+   "Spirit of Atlanta",
+   "Colts",
+   "The Cavaliers",
+   "Phantom Regiment",
+   "Carolina Crown",
+   "Boston Crusaders"
+  ],
+  "schedule": [
+   [
+    "6:30 PM",
+    "Gates Open"
+   ],
+   [
+    "8:00 PM",
+    "Welcome & National Anthem"
+   ],
+   [
+    "8:10 PM",
+    "Zephyrus"
+   ],
+   [
+    "8:27 PM",
+    "Crossmen"
+   ],
+   [
+    "8:44 PM",
+    "Spirit of Atlanta"
+   ],
+   [
+    "9:01 PM",
+    "Colts"
+   ],
+   [
+    "9:18 PM",
+    "The Cavaliers"
+   ],
+   [
+    "9:35 PM",
+    "Intermission"
+   ],
+   [
+    "9:52 PM",
+    "Phantom Regiment"
+   ],
+   [
+    "10:09 PM",
+    "Carolina Crown"
+   ],
+   [
+    "10:26 PM",
+    "Boston Crusaders"
+   ],
+   [
+    "10:51 PM",
+    "Scores Announced"
+   ]
+  ],
+  "bag_policy": "Broken Arrow Memorial Stadium has a clear bag policy, more information can be found here . All bags are subject to search by event staff and security. For security and efficiency, all attendees are encouraged to keep all items to a minimum."
+ },
+ {
   "url": "https://www.dci.org/events/2026-dci-hutchinson/",
   "name": "DCI Hutchinson",
   "location": "Hutchinson, KS",
@@ -3161,63 +3229,6 @@
   "bag_policy": "There is no bag policy for this event. However, to ensure security and efficiency, all attendees are encouraged to keep personal items to a minimum."
  },
  {
-  "url": "https://www.dci.org/events/2026-march-on/",
-  "name": "March On!",
-  "location": "Champlin, MN",
-  "date_display": "July 22, 2026",
-  "date": "2026-07-22",
-  "lineup": [
-   "RCR Street Club",
-   "MBI",
-   "Govenaires",
-   "Colt Cadets",
-   "Columbians",
-   "River City Rhythm"
-  ],
-  "schedule": [
-   [
-    "6:00 PM",
-    "Gates Open"
-   ],
-   [
-    "7:00 PM",
-    "Welcome & National Anthem"
-   ],
-   [
-    "7:10 PM",
-    "RCR Street Club"
-   ],
-   [
-    "7:22 PM",
-    "MBI"
-   ],
-   [
-    "7:39 PM",
-    "Govenaires"
-   ],
-   [
-    "7:56 PM",
-    "Colt Cadets"
-   ],
-   [
-    "8:13 PM",
-    "Columbians"
-   ],
-   [
-    "8:30 PM",
-    "River City Rhythm"
-   ],
-   [
-    "8:47 PM",
-    "Encore - River City Rhythm - Anoka, MN"
-   ],
-   [
-    "8:55 PM",
-    "Scores Announced"
-   ]
-  ]
- },
- {
   "url": "https://www.dci.org/events/2026-dci-birmingham/",
   "name": "DCI Birmingham",
   "location": "Birmingham, AL",
@@ -3417,87 +3428,6 @@
    [
     "9:05 PM",
     "Scores Announced"
-   ]
-  ]
- },
- {
-  "url": "https://www.dci.org/events/2026-drums-on-parade/",
-  "name": "Drums on Parade",
-  "location": "Madison, WI",
-  "date_display": "July 24, 2026",
-  "date": "2026-07-24",
-  "lineup": [
-   "Green Beret Marching Band",
-   "Govenaires",
-   "Colt Cadets",
-   "Genesis",
-   "Madison Scouts",
-   "Pacific Crest",
-   "Phantom Regiment",
-   "Santa Clara Vanguard",
-   "Seattle Cascades",
-   "The Cavaliers"
-  ],
-  "schedule": [
-   [
-    "5:45 PM",
-    "Gates Open"
-   ],
-   [
-    "7:00 PM",
-    "Welcome & National Anthem"
-   ],
-   [
-    "7:10 PM",
-    "Green Beret Marching Band"
-   ],
-   [
-    "7:22 PM",
-    "Govenaires"
-   ],
-   [
-    "7:39 PM",
-    "Colt Cadets"
-   ],
-   [
-    "8:18 PM",
-    "Intermission"
-   ],
-   [
-    "10:12 PM",
-    "Encore - Madison Scouts - Madison, WI"
-   ],
-   [
-    "10:20 PM",
-    "Scores Announced"
-   ],
-   [
-    "TBD",
-    "Genesis"
-   ],
-   [
-    "TBD",
-    "Madison Scouts"
-   ],
-   [
-    "TBD",
-    "Pacific Crest"
-   ],
-   [
-    "TBD",
-    "Phantom Regiment"
-   ],
-   [
-    "TBD",
-    "Santa Clara Vanguard"
-   ],
-   [
-    "TBD",
-    "Seattle Cascades"
-   ],
-   [
-    "TBD",
-    "The Cavaliers"
    ]
   ]
  },
@@ -3763,82 +3693,6 @@
    ]
   ],
   "bag_policy": "About About Contact Us Ethics & Compliance DCI DEI: In Step Bylaws, Policies, Procedures Scholarship Opportunities Board of Directors DCI Hall of Fame Employment Our Partners Schedule &"
- },
- {
-  "url": "https://www.dci.org/events/2026-music-on-the-mountain/",
-  "name": "Music on the Mountain",
-  "location": "Sheffield, PA",
-  "date_display": "July 25, 2026",
-  "date": "2026-07-25",
-  "lineup": [
-   "Allegheny Eclipse",
-   "Apogee",
-   "Rogues Hollow Regiment",
-   "Cincinnati Tradition",
-   "Les Stentors",
-   "Raiders",
-   "7th Regiment",
-   "The Battalion",
-   "Gold"
-  ],
-  "schedule": [
-   [
-    "4:30 PM",
-    "Gates Open"
-   ],
-   [
-    "7:00 PM",
-    "Welcome & National Anthem"
-   ],
-   [
-    "7:10 PM",
-    "Allegheny Eclipse"
-   ],
-   [
-    "7:20 PM",
-    "Apogee"
-   ],
-   [
-    "7:32 PM",
-    "Rogues Hollow Regiment"
-   ],
-   [
-    "7:49 PM",
-    "Cincinnati Tradition"
-   ],
-   [
-    "8:06 PM",
-    "Intermission"
-   ],
-   [
-    "8:23 PM",
-    "Les Stentors"
-   ],
-   [
-    "8:40 PM",
-    "Raiders"
-   ],
-   [
-    "8:57 PM",
-    "7th Regiment"
-   ],
-   [
-    "9:14 PM",
-    "The Battalion"
-   ],
-   [
-    "9:31 PM",
-    "Gold"
-   ],
-   [
-    "9:48 PM",
-    "Encore - The Battalion - Salt Lake City, UT"
-   ],
-   [
-    "9:56 PM",
-    "Scores Announced"
-   ]
-  ]
  },
  {
   "url": "https://www.dci.org/events/2026-dci-in-motion/",
