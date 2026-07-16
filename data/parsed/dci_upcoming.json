@@ -329,60 +329,6 @@
   ]
  },
  {
-  "url": "https://www.dci.org/events/2026-drums-along-the-columbia/",
-  "name": "Drums Along the Columbia",
-  "location": "Kennewick, WA",
-  "date_display": "June 29, 2026",
-  "date": "2026-06-29",
-  "lineup": [
-   "Gems",
-   "Impulse",
-   "The Battalion",
-   "Columbians",
-   "Seattle Cascades",
-   "Santa Clara Vanguard",
-   "Event Concludes"
-  ],
-  "schedule": [
-   [
-    "7:30 PM",
-    "Welcome & National Anthem"
-   ],
-   [
-    "7:40 PM",
-    "Gems"
-   ],
-   [
-    "7:58 PM",
-    "Impulse"
-   ],
-   [
-    "8:16 PM",
-    "The Battalion"
-   ],
-   [
-    "8:34 PM",
-    "Columbians"
-   ],
-   [
-    "8:52 PM",
-    "Seattle Cascades"
-   ],
-   [
-    "9:10 PM",
-    "Santa Clara Vanguard"
-   ],
-   [
-    "9:17 PM",
-    "Event Concludes"
-   ],
-   [
-    "",
-    "Gates Open"
-   ]
-  ]
- },
- {
   "url": "https://www.dci.org/events/2026-northwest-youth-music-games-seattle/",
   "name": "Northwest Youth Music Games Seattle",
   "location": "Seattle, WA",
@@ -4560,93 +4506,6 @@
   "bag_policy": "Marion Harding Football Stadium does not have a clear bag policy. However, all bags are subject to search by event staff and security. For security and efficiency, please keep all bags and items to a minimum. This event is in partnership with The Marion Arts Legacy Alliance, Inc. Instagram: @malaohio Facebook: The Marion Arts Legacy Alliance, Inc."
  },
  {
-  "url": "https://www.dci.org/events/2026-dci-eastern-classic-2/",
-  "name": "DCI Eastern Classic",
-  "location": "Allentown, PA",
-  "date_display": "July 31, 2026",
-  "date": "2026-07-31",
-  "lineup": [
-   "Bushwackers",
-   "Reading Buccaneers",
-   "Hawthorne Caballeros",
-   "Blue Devils",
-   "Blue Knights",
-   "Blue Stars",
-   "Bluecoats",
-   "Colts",
-   "Genesis",
-   "Music City",
-   "Spirit of Atlanta",
-   "Troopers"
-  ],
-  "schedule": [
-   [
-    "5:30 PM",
-    "Gates Open"
-   ],
-   [
-    "7:00 PM",
-    "Welcome & National Anthem"
-   ],
-   [
-    "7:10 PM",
-    "Bushwackers"
-   ],
-   [
-    "7:27 PM",
-    "Reading Buccaneers"
-   ],
-   [
-    "7:44 PM",
-    "Hawthorne Caballeros"
-   ],
-   [
-    "8:52 PM",
-    "Intermission"
-   ],
-   [
-    "10:42 PM",
-    "Scores Announced"
-   ],
-   [
-    "TBD",
-    "Blue Devils"
-   ],
-   [
-    "TBD",
-    "Blue Knights"
-   ],
-   [
-    "TBD",
-    "Blue Stars"
-   ],
-   [
-    "TBD",
-    "Bluecoats"
-   ],
-   [
-    "TBD",
-    "Colts"
-   ],
-   [
-    "TBD",
-    "Genesis"
-   ],
-   [
-    "TBD",
-    "Music City"
-   ],
-   [
-    "TBD",
-    "Spirit of Atlanta"
-   ],
-   [
-    "TBD",
-    "Troopers"
-   ]
-  ]
- },
- {
   "url": "https://www.dci.org/events/2026-dci-michigan/",
   "name": "DCI Michigan",
   "location": "Allendale, MI",
@@ -4946,6 +4805,79 @@
    ]
   ],
   "bag_policy": "All bags may be subject to search upon entering the stadium."
+ },
+ {
+  "url": "https://www.dci.org/events/2026-dci-kentucky/",
+  "name": "DCI Kentucky",
+  "location": "Lexington, KY",
+  "date_display": "August 3, 2026",
+  "date": "2026-08-03",
+  "lineup": [
+   "Hurricanes",
+   "Atlanta CV",
+   "Bushwackers",
+   "Blue Knights",
+   "Blue Stars",
+   "Phantom Regiment",
+   "Spartans",
+   "Spirit of Atlanta",
+   "The Cavaliers",
+   "Troopers"
+  ],
+  "schedule": [
+   [
+    "6:30 PM",
+    "Gates Open"
+   ],
+   [
+    "7:30 PM",
+    "Welcome"
+   ],
+   [
+    "7:40 PM",
+    "Hurricanes"
+   ],
+   [
+    "7:57 PM",
+    "Atlanta CV"
+   ],
+   [
+    "8:14 PM",
+    "Bushwackers"
+   ],
+   [
+    "10:38 PM",
+    "Scores Announced"
+   ],
+   [
+    "TBD",
+    "Blue Knights"
+   ],
+   [
+    "TBD",
+    "Blue Stars"
+   ],
+   [
+    "TBD",
+    "Phantom Regiment"
+   ],
+   [
+    "TBD",
+    "Spartans"
+   ],
+   [
+    "TBD",
+    "Spirit of Atlanta"
+   ],
+   [
+    "TBD",
+    "The Cavaliers"
+   ],
+   [
+    "TBD",
+    "Troopers"
+   ]
+  ]
  },
  {
   "url": "https://www.dci.org/events/2026-dci-open-class-world-championship-prelims/",
