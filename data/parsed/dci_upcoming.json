@@ -2313,6 +2313,59 @@
   "bag_policy": "There is no bag policy for this event."
  },
  {
+  "url": "https://www.dci.org/events/2026-dci-new-mexico/",
+  "name": "DCI New Mexico",
+  "location": "Albuquerque, NM",
+  "date_display": "July 14, 2026",
+  "date": "2026-07-14",
+  "lineup": [
+   "Arsenal",
+   "Seattle Cascades",
+   "The Academy",
+   "Pacific Crest",
+   "Bluecoats"
+  ],
+  "schedule": [
+   [
+    "7:15 PM",
+    "Gates Open"
+   ],
+   [
+    "8:20 PM",
+    "Welcome & National Anthem"
+   ],
+   [
+    "8:30 PM",
+    "Arsenal"
+   ],
+   [
+    "8:47 PM",
+    "Seattle Cascades"
+   ],
+   [
+    "9:04 PM",
+    "The Academy"
+   ],
+   [
+    "9:21 PM",
+    "Pacific Crest"
+   ],
+   [
+    "9:38 PM",
+    "Bluecoats"
+   ],
+   [
+    "9:55 PM",
+    "Encore - Pacific Crest - City of Industry, CA"
+   ],
+   [
+    "10:03 PM",
+    "Scores Announced"
+   ]
+  ],
+  "bag_policy": "There is no bag policy in effect for this event."
+ },
+ {
   "url": "https://www.dci.org/events/2026-dci-central-texas/",
   "name": "DCI Central Texas",
   "location": "Killeen, TX",
@@ -3045,6 +3098,65 @@
   "bag_policy": "Bob Goalby Field does not have a Bag Policy. All bags are subject to search by event staff and security. For security and efficiency, all attendees are encouraged to keep all items to a minimum."
  },
  {
+  "url": "https://www.dci.org/events/2026-dci-southern-mississippi/",
+  "name": "DCI Southern Mississippi",
+  "location": "Hattiesburg, MS",
+  "date_display": "July 22, 2026",
+  "date": "2026-07-22",
+  "lineup": [
+   "Blue Devils",
+   "Blue Knights",
+   "Blue Stars",
+   "Boston Crusaders",
+   "Crossmen",
+   "Spirit of Atlanta",
+   "Troopers"
+  ],
+  "schedule": [
+   [
+    "6:30 PM",
+    "Gates Open"
+   ],
+   [
+    "7:30 PM",
+    "Welcome & National Anthem"
+   ],
+   [
+    "9:47 PM",
+    "Scores Announced"
+   ],
+   [
+    "TBD",
+    "Blue Devils"
+   ],
+   [
+    "TBD",
+    "Blue Knights"
+   ],
+   [
+    "TBD",
+    "Blue Stars"
+   ],
+   [
+    "TBD",
+    "Boston Crusaders"
+   ],
+   [
+    "TBD",
+    "Crossmen"
+   ],
+   [
+    "TBD",
+    "Spirit of Atlanta"
+   ],
+   [
+    "TBD",
+    "Troopers"
+   ]
+  ],
+  "bag_policy": "M.M. Roberts Stadium does have a Clear Bag Policy. More detailed information regarding bags and stadium policies can be found here . All bags are subject to search by event staff and security. For security and efficiency, all attendees are encouraged to keep all items to a minimum."
+ },
+ {
   "url": "https://www.dci.org/events/2026-drums-on-the-ohio/",
   "name": "Drums on the Ohio",
   "location": "Evansville, IN",
@@ -3115,6 +3227,63 @@
    ]
   ],
   "bag_policy": "There is no bag policy for this event. However, to ensure security and efficiency, all attendees are encouraged to keep personal items to a minimum."
+ },
+ {
+  "url": "https://www.dci.org/events/2026-march-on/",
+  "name": "March On!",
+  "location": "Champlin, MN",
+  "date_display": "July 22, 2026",
+  "date": "2026-07-22",
+  "lineup": [
+   "RCR Street Club",
+   "MBI",
+   "Govenaires",
+   "Colt Cadets",
+   "Columbians",
+   "River City Rhythm"
+  ],
+  "schedule": [
+   [
+    "6:00 PM",
+    "Gates Open"
+   ],
+   [
+    "7:00 PM",
+    "Welcome & National Anthem"
+   ],
+   [
+    "7:10 PM",
+    "RCR Street Club"
+   ],
+   [
+    "7:22 PM",
+    "MBI"
+   ],
+   [
+    "7:39 PM",
+    "Govenaires"
+   ],
+   [
+    "7:56 PM",
+    "Colt Cadets"
+   ],
+   [
+    "8:13 PM",
+    "Columbians"
+   ],
+   [
+    "8:30 PM",
+    "River City Rhythm"
+   ],
+   [
+    "8:47 PM",
+    "Encore - River City Rhythm - Anoka, MN"
+   ],
+   [
+    "8:55 PM",
+    "Scores Announced"
+   ]
+  ]
  },
  {
   "url": "https://www.dci.org/events/2026-dci-birmingham/",
@@ -4777,79 +4946,6 @@
    ]
   ],
   "bag_policy": "All bags may be subject to search upon entering the stadium."
- },
- {
-  "url": "https://www.dci.org/events/2026-dci-kentucky/",
-  "name": "DCI Kentucky",
-  "location": "Lexington, KY",
-  "date_display": "August 3, 2026",
-  "date": "2026-08-03",
-  "lineup": [
-   "Hurricanes",
-   "Atlanta CV",
-   "Bushwackers",
-   "Blue Knights",
-   "Blue Stars",
-   "Phantom Regiment",
-   "Spartans",
-   "Spirit of Atlanta",
-   "The Cavaliers",
-   "Troopers"
-  ],
-  "schedule": [
-   [
-    "6:30 PM",
-    "Gates Open"
-   ],
-   [
-    "7:30 PM",
-    "Welcome"
-   ],
-   [
-    "7:40 PM",
-    "Hurricanes"
-   ],
-   [
-    "7:57 PM",
-    "Atlanta CV"
-   ],
-   [
-    "8:14 PM",
-    "Bushwackers"
-   ],
-   [
-    "10:38 PM",
-    "Scores Announced"
-   ],
-   [
-    "TBD",
-    "Blue Knights"
-   ],
-   [
-    "TBD",
-    "Blue Stars"
-   ],
-   [
-    "TBD",
-    "Phantom Regiment"
-   ],
-   [
-    "TBD",
-    "Spartans"
-   ],
-   [
-    "TBD",
-    "Spirit of Atlanta"
-   ],
-   [
-    "TBD",
-    "The Cavaliers"
-   ],
-   [
-    "TBD",
-    "Troopers"
-   ]
-  ]
  },
  {
   "url": "https://www.dci.org/events/2026-dci-open-class-world-championship-prelims/",
