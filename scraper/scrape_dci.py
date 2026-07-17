@@ -365,9 +365,13 @@ def main():
             if prev is None:
                 return True  # never seen — but it'll fetch anyway (not cached)
             age = _event_age_days(prev)
-            # recent past OR near-future (still finalizing scores/lineups);
-            # unknown date errs toward refreshing (rare, cheap)
-            return age is None or -3 <= age <= args.force_recent
+            if age is None or -3 <= age <= args.force_recent:
+                return True  # recent past / near-future — scores may still move
+            # a past show still WITHOUT scores is waiting on late results —
+            # keep checking it regardless of age so late posts aren't missed
+            if not any(c.get("results") for c in prev.get("classes") or []):
+                return True
+            return False
         return False
 
     events, skipped = [], 0
