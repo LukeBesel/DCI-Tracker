@@ -183,11 +183,26 @@ def main():
     if not out:
         log("parsed zero events — keeping existing upcoming.json")
         return
-    out.sort(key=lambda e: (e.get("date") or "", e.get("name") or ""))
+
+    # merge with the last good list: a future event we've seen before but
+    # that's missing from THIS scrape (a momentary sitemap hiccup) is kept
+    # until it actually happens, so upcoming shows never vanish between
+    # refreshes — they only drop off once their date has passed
     p = PARSED / "dci_upcoming.json"
-    p.write_text(json.dumps(out, ensure_ascii=False, indent=1))
-    future = sum(1 for e in out if e["date"] >= str(today))
-    log(f"wrote {p}: {len(out)} events, {future} upcoming")
+    merged = {e["url"]: e for e in out}
+    grace = str(today - timedelta(days=1))
+    if p.exists():
+        try:
+            for e in json.loads(p.read_text()):
+                u, d = e.get("url"), e.get("date") or ""
+                if u and u not in merged and d >= grace:
+                    merged[u] = e   # still-future event this scrape didn't see
+        except Exception:  # noqa: BLE001
+            pass
+    final = sorted(merged.values(), key=lambda e: (e.get("date") or "", e.get("name") or ""))
+    p.write_text(json.dumps(final, ensure_ascii=False, indent=1))
+    future = sum(1 for e in final if e["date"] >= str(today))
+    log(f"wrote {p}: {len(final)} events, {future} upcoming ({len(out)} fresh this run)")
 
 
 if __name__ == "__main__":
