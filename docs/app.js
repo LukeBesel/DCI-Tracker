@@ -413,7 +413,7 @@
         ${sorted.map(r => h`<tr${FAVS.has(r.corps) ? ' class="favrow"' : ""}>
           <td><button class="favbtn${FAVS.has(r.corps) ? " on" : ""}" data-fav="${esc(r.corps)}" title="${FAVS.has(r.corps) ? "Unpin" : "Pin to top"}">${FAVS.has(r.corps) ? "★" : "☆"}</button></td>
           <td class="rank">${r.rank}</td>
-          <td>${corpsLink(r.corps)}<div class="lastev">${esc(r.event)} · ${esc(fmtDateY(r.date))}</div></td>
+          <td>${corpsLink(r.corps)}<div class="lastev">${esc(fmtDateY(r.date))} · ${esc(r.event)}</div></td>
           <td class="num score">${score3(r.score)}</td>
           <td class="num col-high" data-tip="Average of the last ${Math.min(3, r.trend.length)} shows — smooths out one judging panel">${score3(r.trend.slice(-3).reduce((a, t) => a + t[1], 0) / Math.min(3, r.trend.length))}</td>
           <td class="num col-high" data-tip="${esc(`${score3(r.high)} — ${r.high_event || ""} · ${fmtDateY(r.high_date) || ""}`)}">${score3(r.high)}</td>
