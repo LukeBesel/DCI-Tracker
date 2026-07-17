@@ -1,0 +1,7 @@
+{
+ "https://www.dci.org/scores/final-scores/2026-dci-denton/": "fetch returned None (403/404/timeout or deadline)",
+ "https://www.dci.org/scores/final-scores/2026-dci-houston/": "fetch returned None (403/404/timeout or deadline)",
+ "https://www.dci.org/scores/final-scores/2026-dci-little-rock/": "fetch returned None (403/404/timeout or deadline)",
+ "https://www.dci.org/scores/final-scores/2026-drums-across-the-desert/": "fetch returned None (403/404/timeout or deadline)",
+ "https://www.dci.org/scores/final-scores/2026-sounds-by-the-seaport/": "fetch returned None (403/404/timeout or deadline)"
+}
