@@ -446,7 +446,15 @@ def main():
         html = budget_fetch(url, force=force)
         if html is None:
             if url in added_set:
-                diag[url] = "fetch returned None (403/404/timeout or deadline)"
+                # raw probe to record the EXACT status (403 throttle vs 404
+                # wrong-slug vs connection error) — one request, diagnostic only
+                try:
+                    from common import _session
+                    rr = _session.get(url, timeout=15, allow_redirects=False)
+                    loc = rr.headers.get("Location", "")
+                    diag[url] = f"HTTP {rr.status_code}{(' -> ' + loc) if loc else ''}, body {len(rr.text)}B"
+                except Exception as pe:  # noqa: BLE001
+                    diag[url] = f"request error: {type(pe).__name__}: {pe}"
             if url in existing:
                 events.append(existing[url])
             else:
