@@ -1,5 +1,5 @@
-mode=update started=2026-07-17 03:47:38 UTC
-dci.org current season: OK (79s)
-upcoming events: OK (115s)
+mode=update started=2026-07-17 03:59:42 UTC
+dci.org current season: OK (81s)
+upcoming events: OK (73s)
 build site data: OK (4s)
-finished=2026-07-17 03:50:56 UTC
+finished=2026-07-17 04:02:20 UTC
