@@ -11,7 +11,10 @@ import gzip
 import hashlib
 import json
 import re
+import shutil
+import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 from urllib.parse import urlparse
@@ -22,18 +25,49 @@ ROOT = Path(__file__).resolve().parent.parent
 RAW = ROOT / "data" / "raw"
 OUT = ROOT / "docs" / "data"
 
-UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
 RATE_LIMIT_SECONDS = 1.5
 
+# Transport: plain curl with its default identity. dci.org's bot protection
+# started rejecting the python-requests client (HTTP 403 + challenge page)
+# while stock curl from the same runners passes — likely because a browser
+# User-Agent on a non-browser TLS stack looks spoofed, whereas curl is
+# honest about what it is. So the fetcher IS curl now; requests remains
+# only as a fallback where curl isn't installed.
+_CURL = shutil.which("curl")
 _session = requests.Session()
-_session.headers.update({
-    "User-Agent": UA,
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9",
-    # transparency about the automated fetcher without tripping bot walls
-    "From": "dci-tracker bot https://github.com/LukeBesel/DCI-Tracker",
-})
 _last_fetch = [0.0]
+
+
+def http_get(url: str, timeout: int = 30, headers: dict | None = None):
+    """Single GET. Returns (status_code, text, response_headers-lowercased)."""
+    headers = headers or {}
+    if _CURL:
+        hdr_args = []
+        for k, v in headers.items():
+            hdr_args += ["-H", f"{k}: {v}"]
+        with tempfile.NamedTemporaryFile(suffix=".body", delete=False) as bf:
+            body_path = Path(bf.name)
+        try:
+            r = subprocess.run(
+                [_CURL, "-sS", "-L", "--compressed", "--max-time", str(timeout),
+                 "-o", str(body_path), "-D", "-", "-w", "\n%{http_code}",
+                 *hdr_args, url],
+                capture_output=True, text=True, timeout=timeout + 20)
+            lines = (r.stdout or "").strip().splitlines()
+            code = int(lines[-1]) if lines and lines[-1].strip().isdigit() else 0
+            if code == 0:
+                raise RuntimeError(f"curl: {(r.stderr or 'no response').strip()[:200]}")
+            resp_headers = {}
+            for ln in lines[:-1]:  # last redirect's block wins, which is what we want
+                if ":" in ln:
+                    k, _, v = ln.partition(":")
+                    resp_headers[k.strip().lower()] = v.strip()
+            text = body_path.read_text(encoding="utf-8", errors="replace")
+            return code, text, resp_headers
+        finally:
+            body_path.unlink(missing_ok=True)
+    r = _session.get(url, timeout=timeout, headers=headers)
+    return r.status_code, r.text, {k.lower(): v for k, v in r.headers.items()}
 
 
 def log(*args):
@@ -66,20 +100,19 @@ def fetch(url: str, *, force: bool = False, timeout: int = 30, retries: int = 4,
             time.sleep(wait)
         try:
             _last_fetch[0] = time.time()
-            r = _session.get(url, timeout=timeout, headers=headers)
-            if r.status_code == 404:
+            status, text, resp_headers = http_get(url, timeout=timeout, headers=headers)
+            if status == 404:
                 log(f"404 {url}")
                 return None
-            if r.status_code in (403, 429):
+            if status in (403, 429):
                 # bot-wall / throttle: back off hard before retrying
-                retry_after = int(r.headers.get("Retry-After") or 0)
+                retry_after = int(resp_headers.get("retry-after") or 0)
                 pause = max(retry_after, 45 * (attempt + 1))
-                log(f"{r.status_code} throttle on {url}; sleeping {pause}s")
+                log(f"{status} throttle on {url}; sleeping {pause}s")
                 time.sleep(pause)
                 continue
-            if r.status_code >= 400:
-                raise requests.HTTPError(f"{r.status_code} for {url}")
-            text = r.text
+            if status >= 400:
+                raise requests.HTTPError(f"{status} for {url}")
             cp.parent.mkdir(parents=True, exist_ok=True)
             with gzip.open(cp, "wt", encoding="utf-8") as f:
                 f.write(text)
