@@ -68,10 +68,20 @@ jobs:
             echo "::warning::live publish failed after retries"
             return 1
           }
+          # poll through the Cadence relay: dci.org's Cloudflare challenges
+          # runner IPs directly, and hashing a challenge page (whose nonce
+          # rotates every request) made every poll look like "new scores"
+          RELAY="https://cadenceapp.up.railway.app/fetch?url=https%3A%2F%2Fwww.dci.org%2Fscores"
           last=""
           end=$(( $(date +%s) + 300 * 60 ))   # five hours of watching
           while [ "$(date +%s)" -lt "$end" ]; do
-            cur=$(curl -sS --max-time 30 "https://www.dci.org/scores" | md5sum | cut -d" " -f1 || echo "")
+            body=$(curl -sS --max-time 45 "$RELAY" || echo "")
+            # only trust content that actually looks like the scores index
+            if ! echo "$body" | grep -q "final-scores"; then
+              echo "poll returned no scores index (relay/dci hiccup) — skipping"
+              sleep 180; continue
+            fi
+            cur=$(echo "$body" | md5sum | cut -d" " -f1)
             if [ -n "$cur" ] && [ -n "$last" ] && [ "$cur" != "$last" ]; then
               echo "scores index changed — scraping"
               bash scraper/run_all.sh update || echo "::warning::scrape failed this cycle"

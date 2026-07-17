@@ -10,6 +10,7 @@ from __future__ import annotations
 import gzip
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -17,7 +18,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 import requests
 
@@ -37,9 +38,41 @@ _CURL = shutil.which("curl")
 _session = requests.Session()
 _last_fetch = [0.0]
 
+# dci.org sits behind Cloudflare, which sometimes serves a blanket managed
+# challenge ("Just a moment...") to cloud-runner IPs — no client on the
+# runner can pass it. When that happens, route dci.org reads through the
+# Cadence push relay (different network), which exposes a dci.org-only
+# /fetch endpoint. Direct is always tried first, so the moment the
+# challenge lifts we go back to fetching straight from the source.
+DCI_RELAY = os.environ.get("DCI_RELAY", "https://cadenceapp.up.railway.app/fetch?url=")
+_relay_mode = [False]
+
+
+def _is_challenge(status: int, text: str, resp_headers: dict) -> bool:
+    return status == 403 and (
+        resp_headers.get("cf-mitigated") == "challenge"
+        or "Just a moment" in text[:2000]
+        or "challenges.cloudflare.com" in text[:4000]
+    )
+
 
 def http_get(url: str, timeout: int = 30, headers: dict | None = None):
-    """Single GET. Returns (status_code, text, response_headers-lowercased)."""
+    """Single GET with automatic Cloudflare-challenge failover for dci.org.
+    Returns (status_code, text, response_headers-lowercased)."""
+    relayable = bool(DCI_RELAY) and urlparse(url).netloc == "www.dci.org"
+    if relayable and not _relay_mode[0]:
+        status, text, rh = _raw_get(url, timeout=timeout, headers=headers)
+        if not _is_challenge(status, text, rh):
+            return status, text, rh
+        log(f"cloudflare challenge on {url} — switching to relay for this run")
+        _relay_mode[0] = True
+    if relayable:
+        return _raw_get(DCI_RELAY + quote(url, safe=""), timeout=timeout + 10, headers=headers)
+    return _raw_get(url, timeout=timeout, headers=headers)
+
+
+def _raw_get(url: str, timeout: int = 30, headers: dict | None = None):
+    """One curl GET, no policy. Returns (status_code, text, headers-lowercased)."""
     headers = headers or {}
     if _CURL:
         hdr_args = []

@@ -12,7 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import webpush from "web-push";
 
-const VERSION = 6; // bump on every behavior change — /status shows what's really deployed
+const VERSION = 7; // bump on every behavior change — /status shows what's really deployed
 const SITE = process.env.SITE_URL || "https://lukebesel.github.io/DCI-Tracker/";
 const PORT = process.env.PORT || 8787;
 const POLL_MS = +(process.env.POLL_SECONDS || 120) * 1000;
@@ -56,6 +56,7 @@ const saveState = () => {
   catch (e) { console.error("saveState failed:", e.message); }
 };
 let status = { lastCheck: null, lastChange: null, lastError: null, sent: 0 };
+let relayBucket = 10, relayStamp = Date.now(); // token bucket for /fetch
 
 async function fetchJson(p) {
   // unique query per poll: GitHub Pages' CDN caches for ~10 minutes and
@@ -172,6 +173,42 @@ http.createServer(async (req, res) => {
   }
   if (req.method === "GET" && url.pathname === "/vapid") {
     return send(res, 200, { key: keys.publicKey });
+  }
+  if (req.method === "GET" && url.pathname === "/fetch") {
+    // dci.org-only fetch relay: GitHub's runner IPs started getting a
+    // blanket Cloudflare challenge from dci.org, so the scraper routes its
+    // reads through this box instead. Hard-restricted to public dci.org
+    // pages and rate-limited — this is not a general proxy.
+    let target;
+    try { target = new URL(url.searchParams.get("url") || ""); } catch {}
+    if (!target || target.protocol !== "https:" || target.hostname !== "www.dci.org") {
+      return send(res, 400, { error: "only https://www.dci.org/ urls" });
+    }
+    relayBucket = Math.min(relayBucket + (Date.now() - relayStamp) / 1500, 10);
+    relayStamp = Date.now();
+    if (relayBucket < 1) {
+      return res.writeHead(429, { "retry-after": "5", ...CORS }).end("relay rate limit");
+    }
+    relayBucket -= 1;
+    try {
+      const up = await fetch(target, {
+        redirect: "follow",
+        signal: AbortSignal.timeout(25000),
+        headers: { "user-agent": "cadence-relay/1 (+https://github.com/LukeBesel/DCI-Tracker)" },
+      });
+      const text = await up.text();
+      status.lastRelay = `${new Date().toISOString()} ${up.status} ${target.pathname}`;
+      const h = { "content-type": up.headers.get("content-type") || "text/html",
+        "cache-control": "no-store", ...CORS };
+      const ra = up.headers.get("retry-after");
+      if (ra) h["retry-after"] = ra;
+      const cfm = up.headers.get("cf-mitigated");
+      if (cfm) h["cf-mitigated"] = cfm;
+      return res.writeHead(up.status, h).end(text);
+    } catch (e) {
+      status.lastRelay = `${new Date().toISOString()} ERR ${e.message}`;
+      return res.writeHead(502, CORS).end("relay fetch failed: " + e.message);
+    }
   }
   if (req.method === "POST" && url.pathname === "/subscribe") {
     const sub = json.subscription;
