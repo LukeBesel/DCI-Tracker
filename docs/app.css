@@ -300,6 +300,16 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14.5px; }
   font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.3px;
 }
 
+/* favorite toggle on the corps page */
+.favtoggle {
+  font-size: 13px; font-weight: 600; vertical-align: middle; margin-left: 10px;
+  border: 1px solid var(--baseline); background: var(--surface-1); color: var(--text-secondary);
+  border-radius: 999px; padding: 5px 13px; cursor: pointer; font-family: inherit;
+}
+.favtoggle:hover { border-color: var(--gold); color: var(--text-primary); }
+.favtoggle.on { background: var(--accent-wash); border-color: var(--gold); color: var(--accent-ink); }
+@media (max-width: 640px) { .favtoggle { display: inline-block; margin: 6px 0 0; font-size: 12.5px; } }
+
 /* corps profile card (Wikipedia) */
 .profcard { display: flex; gap: 14px; align-items: flex-start; font-size: 13.5px; line-height: 1.55; }
 .profcard img {

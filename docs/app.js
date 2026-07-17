@@ -407,11 +407,10 @@
       const sorted = block.rows.slice().sort((a, b) =>
         (FAVS.has(b.corps) ? 1 : 0) - (FAVS.has(a.corps) ? 1 : 0) || a.rank - b.rank);
       document.getElementById("standTitle").innerHTML =
-        `${esc(cls)} Standings <span class="sub">each corps' most recent score · ★ pins favorites</span>`;
+        `${esc(cls)} Standings <span class="sub">each corps' most recent score · favorites rise to the top</span>`;
       document.getElementById("standings").innerHTML = `
-        <table class="t standings"><thead><tr><th></th><th>#</th><th>Corps · last event</th><th class="num">Score</th><th class="num col-high">3-show avg</th><th class="num col-high">Season high</th><th class="num">vs prev</th><th class="col-trend">Trend</th></tr></thead><tbody>
+        <table class="t standings"><thead><tr><th>#</th><th>Corps · last event</th><th class="num">Score</th><th class="num col-high">3-show avg</th><th class="num col-high">Season high</th><th class="num">vs prev</th><th class="col-trend">Trend</th></tr></thead><tbody>
         ${sorted.map(r => h`<tr${FAVS.has(r.corps) ? ' class="favrow"' : ""}>
-          <td><button class="favbtn${FAVS.has(r.corps) ? " on" : ""}" data-fav="${esc(r.corps)}" title="${FAVS.has(r.corps) ? "Unpin" : "Pin to top"}">${FAVS.has(r.corps) ? "★" : "☆"}</button></td>
           <td class="rank">${r.rank}</td>
           <td>${corpsLink(r.corps)}<div class="lastev">${esc(fmtDateY(r.date))} · ${esc(r.event)}</div></td>
           <td class="num score">${score3(r.score)}</td>
@@ -422,10 +421,6 @@
         </tr>`).join("")}</tbody></table>`;
       document.querySelectorAll(".sparkcell").forEach(elm => {
         sparkline(elm, elm.dataset.trend.split(",").map(Number).filter(n => !isNaN(n)), "#97a2b3");
-      });
-      document.querySelectorAll(".favbtn").forEach(bt => bt.onclick = () => {
-        FAVS.toggle(bt.dataset.fav);
-        renderStandings();
       });
       collapseRows(document.querySelector("#standings tbody"), 5, "corps");
     }
@@ -783,7 +778,21 @@
 
     const bestPerf = scored.length ? scored.reduce((m, p) => p.s > m.s ? p : m, scored[0]) : null;
     const pt = document.getElementById("corpsPageTitle");
-    if (pt) pt.textContent = detail.name;
+    if (pt) {
+      // favorite toggle lives here now (removed from the standings table so
+      // the date + event have room). Favorited corps still rise to the top
+      // of the scoreboard standings and are highlighted there.
+      const favLabel = () => FAVS.has(detail.name)
+        ? "★ Favorited — rises to the top of standings"
+        : "☆ Add to favorites";
+      pt.innerHTML = `${esc(detail.name)} <button id="corpFav" class="favtoggle${FAVS.has(detail.name) ? " on" : ""}">${favLabel()}</button>`;
+      const fb = document.getElementById("corpFav");
+      fb.onclick = () => {
+        FAVS.toggle(detail.name);
+        fb.classList.toggle("on", FAVS.has(detail.name));
+        fb.textContent = favLabel();
+      };
+    }
     // profile card: who this corps is, straight from Wikipedia
     const factRow = (label, v) => v ? `<span><b>${label}</b> ${esc(v)}</span>` : "";
     const site = prof && prof.website ? (/^https?:/i.test(prof.website) ? prof.website : "https://" + prof.website) : null;
