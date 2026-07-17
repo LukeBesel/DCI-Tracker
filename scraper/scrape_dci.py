@@ -49,6 +49,36 @@ NON_CORPS_EVENT = re.compile(r"individual|\bi ?& ?e\b|soundsport|drumline battle
 PLACEHOLDER_ROW = re.compile(r"^(not scored|tba|tbd|--?|—)$", re.I)
 
 
+def _scores_urls_from_calendar(days_back: int = 6) -> list[str]:
+    """Final-scores URLs derived from recently-passed events on the upcoming
+    calendar (data/parsed/dci_upcoming.json). DCI uses the same slug for an
+    event page (/events/<slug>/) and its results (/scores/final-scores/
+    <slug>/), so once a show's date passes we can check its scores page
+    directly instead of waiting for the lagging competition sitemap."""
+    p = PARSED / "dci_upcoming.json"
+    if not p.exists():
+        return []
+    try:
+        cal = json.loads(p.read_text())
+    except Exception:  # noqa: BLE001
+        return []
+    today = datetime.now(timezone.utc).date()
+    out = []
+    for e in cal:
+        d = e.get("date")
+        u = e.get("url") or ""
+        if not d or "/events/" not in u:
+            continue
+        try:
+            evd = datetime.strptime(d, "%Y-%m-%d").date()
+        except ValueError:
+            continue
+        # a show that has happened (through today) within the look-back window
+        if 0 <= (today - evd).days <= days_back:
+            out.append(u.replace("/events/", "/scores/final-scores/"))
+    return sorted(set(out))
+
+
 def get_competition_urls() -> list[str]:
     urls: list[str] = []
     # try live (retries=2, fail fast) but fall back to the CACHED sitemap
@@ -334,6 +364,20 @@ def main():
     urls = [u for u in get_competition_urls()
             if (year_of(u) or 0) >= args.since
             and (args.season is None or year_of(u) == args.season)]
+
+    # DCI's competition sitemap lags — a show's final-scores page can go live
+    # hours before the sitemap lists it. So don't wait on the sitemap: for
+    # every recently-passed event on the upcoming calendar, derive its
+    # scores URL (same slug) and check it directly. This is how last night's
+    # shows get discovered the moment DCI posts them.
+    derived = _scores_urls_from_calendar(days_back=8)
+    known = set(urls)
+    added = [u for u in derived
+             if u not in known
+             and (args.season is None or year_of(u) == args.season)]
+    if added:
+        urls += added
+        log(f"+{len(added)} candidate score pages derived from the event calendar")
 
     fetches = [0]
 
