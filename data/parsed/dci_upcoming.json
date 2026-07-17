@@ -329,6 +329,60 @@
   ]
  },
  {
+  "url": "https://www.dci.org/events/2026-drums-along-the-columbia/",
+  "name": "Drums Along the Columbia",
+  "location": "Kennewick, WA",
+  "date_display": "June 29, 2026",
+  "date": "2026-06-29",
+  "lineup": [
+   "Gems",
+   "Impulse",
+   "The Battalion",
+   "Columbians",
+   "Seattle Cascades",
+   "Santa Clara Vanguard",
+   "Event Concludes"
+  ],
+  "schedule": [
+   [
+    "7:30 PM",
+    "Welcome & National Anthem"
+   ],
+   [
+    "7:40 PM",
+    "Gems"
+   ],
+   [
+    "7:58 PM",
+    "Impulse"
+   ],
+   [
+    "8:16 PM",
+    "The Battalion"
+   ],
+   [
+    "8:34 PM",
+    "Columbians"
+   ],
+   [
+    "8:52 PM",
+    "Seattle Cascades"
+   ],
+   [
+    "9:10 PM",
+    "Santa Clara Vanguard"
+   ],
+   [
+    "9:17 PM",
+    "Event Concludes"
+   ],
+   [
+    "",
+    "Gates Open"
+   ]
+  ]
+ },
+ {
   "url": "https://www.dci.org/events/2026-northwest-youth-music-games-seattle/",
   "name": "Northwest Youth Music Games Seattle",
   "location": "Seattle, WA",
@@ -1522,89 +1576,6 @@
     "Scores Announced"
    ]
   ]
- },
- {
-  "url": "https://www.dci.org/events/2026-western-corps-connection/",
-  "name": "Western Corps Connection",
-  "location": "Walnut, CA",
-  "date_display": "July 10, 2026",
-  "date": "2026-07-10",
-  "lineup": [
-   "Blue Devils B",
-   "Blue Devils C",
-   "Golden Empire",
-   "Gold",
-   "Impulse",
-   "Seattle Cascades",
-   "The Academy",
-   "Pacific Crest",
-   "Bluecoats",
-   "Santa Clara Vanguard",
-   "Blue Devils"
-  ],
-  "schedule": [
-   [
-    "4:45 PM",
-    "Gates Open"
-   ],
-   [
-    "5:45 PM",
-    "Welcome & National Anthem"
-   ],
-   [
-    "6:00 PM",
-    "Blue Devils B"
-   ],
-   [
-    "6:15 PM",
-    "Blue Devils C"
-   ],
-   [
-    "6:30 PM",
-    "Golden Empire"
-   ],
-   [
-    "6:45 PM",
-    "Gold"
-   ],
-   [
-    "7:00 PM",
-    "Impulse"
-   ],
-   [
-    "7:15 PM",
-    "Intermission"
-   ],
-   [
-    "8:00 PM",
-    "Seattle Cascades"
-   ],
-   [
-    "8:17 PM",
-    "The Academy"
-   ],
-   [
-    "8:34 PM",
-    "Pacific Crest"
-   ],
-   [
-    "8:51 PM",
-    "Bluecoats"
-   ],
-   [
-    "9:08 PM",
-    "Santa Clara Vanguard"
-   ],
-   [
-    "9:25 PM",
-    "Blue Devils"
-   ],
-   [
-    "9:50 PM",
-    "Scores Announced"
-   ]
-  ],
-  "bag_policy": "To ensure security and efficiency, all attendees are encouraged to keep all items to a minimum. More information on Hilmer Lodge Stadium’s bag policy can be found here ."
  },
  {
   "url": "https://www.dci.org/events/2026-dci-little-rock/",
@@ -4504,6 +4475,93 @@
    ]
   ],
   "bag_policy": "Marion Harding Football Stadium does not have a clear bag policy. However, all bags are subject to search by event staff and security. For security and efficiency, please keep all bags and items to a minimum. This event is in partnership with The Marion Arts Legacy Alliance, Inc. Instagram: @malaohio Facebook: The Marion Arts Legacy Alliance, Inc."
+ },
+ {
+  "url": "https://www.dci.org/events/2026-dci-eastern-classic-2/",
+  "name": "DCI Eastern Classic",
+  "location": "Allentown, PA",
+  "date_display": "July 31, 2026",
+  "date": "2026-07-31",
+  "lineup": [
+   "Bushwackers",
+   "Reading Buccaneers",
+   "Hawthorne Caballeros",
+   "Blue Devils",
+   "Blue Knights",
+   "Blue Stars",
+   "Bluecoats",
+   "Colts",
+   "Genesis",
+   "Music City",
+   "Spirit of Atlanta",
+   "Troopers"
+  ],
+  "schedule": [
+   [
+    "5:30 PM",
+    "Gates Open"
+   ],
+   [
+    "7:00 PM",
+    "Welcome & National Anthem"
+   ],
+   [
+    "7:10 PM",
+    "Bushwackers"
+   ],
+   [
+    "7:27 PM",
+    "Reading Buccaneers"
+   ],
+   [
+    "7:44 PM",
+    "Hawthorne Caballeros"
+   ],
+   [
+    "8:52 PM",
+    "Intermission"
+   ],
+   [
+    "10:42 PM",
+    "Scores Announced"
+   ],
+   [
+    "TBD",
+    "Blue Devils"
+   ],
+   [
+    "TBD",
+    "Blue Knights"
+   ],
+   [
+    "TBD",
+    "Blue Stars"
+   ],
+   [
+    "TBD",
+    "Bluecoats"
+   ],
+   [
+    "TBD",
+    "Colts"
+   ],
+   [
+    "TBD",
+    "Genesis"
+   ],
+   [
+    "TBD",
+    "Music City"
+   ],
+   [
+    "TBD",
+    "Spirit of Atlanta"
+   ],
+   [
+    "TBD",
+    "Troopers"
+   ]
+  ]
  },
  {
   "url": "https://www.dci.org/events/2026-dci-michigan/",
