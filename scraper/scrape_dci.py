@@ -421,6 +421,8 @@ def main():
             return False
         return False
 
+    added_set = set(added) if added else set()
+    diag = {}  # derived-URL outcomes, written to a committed file for debugging
     events, skipped = [], 0
     for i, url in enumerate(urls):
         force = want_force(url)
@@ -443,6 +445,8 @@ def main():
             continue
         html = budget_fetch(url, force=force)
         if html is None:
+            if url in added_set:
+                diag[url] = "fetch returned None (403/404/timeout or deadline)"
             if url in existing:
                 events.append(existing[url])
             else:
@@ -454,7 +458,12 @@ def main():
             log(f"PARSE FAIL event {url}: {e}")
             ev = None
         if not ev:
+            if url in added_set:
+                diag[url] = f"fetched {len(html)}B but parse produced no event (no date/results)"
             continue
+        if url in added_set:
+            ns = sum(len(c.get("results") or []) for c in ev.get("classes") or [])
+            diag[url] = f"fetched {len(html)}B → parsed, {ns} scores"
         if ev.get("recap_url") and not ev.get("non_corps"):
             rhtml = budget_fetch(ev["recap_url"], force=force)
             if rhtml:
@@ -476,6 +485,15 @@ def main():
     all_events.sort(key=lambda e: (e.get("year") or 0, e.get("date_display") or "", e.get("name") or ""))
     existing_path.write_text(json.dumps(all_events, ensure_ascii=False, indent=1))
     log(f"wrote {existing_path}: {len(all_events)} events ({fetches[0]} live fetches, {skipped} unreachable)")
+
+    # derived-URL debug trail (committed) — tells us exactly what happened to
+    # each newly-discovered show's fetch, so a stuck show is diagnosable
+    if added:
+        for u in added:
+            diag.setdefault(u, "not reached (deadline hit before it / not processed)")
+        (PARSED / "derived_diag.json").write_text(json.dumps(diag, ensure_ascii=False, indent=1))
+        for u, r in diag.items():
+            log(f"  derived {u.split('/')[-2]}: {r}")
 
 
 if __name__ == "__main__":
