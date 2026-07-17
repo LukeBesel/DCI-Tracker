@@ -85,11 +85,12 @@ jobs:
           # dispatches the next update (GitHub's cron is only the backstop)
           curl -sf -X POST -H "$hdr1" -H "$hdr2" \
             "$api/workflows/pulse.yml/dispatches" -d '{"ref":"main"}' || true
-          # show window (23:00–09:59 UTC covers evening + West Coast): make
-          # sure a live watcher shift is running — its own no-shows check
-          # exits immediately on quiet days
+          # show window (16:00 UTC → 10:59 UTC = noon ET through ~7 AM ET)
+          # covers afternoon/matinee shows, evening shows, and the overnight
+          # West Coast finishes. Make sure a live 3-minute watcher shift is
+          # running; its own no-shows check exits immediately on quiet days.
           H=$(date -u +%H)
-          if [ "$H" -ge 23 ] || [ "$H" -lt 10 ]; then
+          if [ "$H" -ge 16 ] || [ "$H" -lt 11 ]; then
             active=0
             for st in in_progress queued; do
               n=$(curl -sf -H "$hdr1" -H "$hdr2" \
