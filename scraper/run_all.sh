@@ -35,7 +35,7 @@ else
   # recaps); older completed shows stay cached. --deadline bounds the run so
   # a DCI outage/throttle can't stall the pipeline — worst case we keep the
   # data we have and try again next cycle.
-  run "dci.org current season" python scraper/scrape_dci.py --season "$YEAR" --force-recent 4 --deadline 420
+  run "dci.org current season" python scraper/scrape_dci.py --season "$YEAR" --force-recent 4 --deadline 540
   run "upcoming events"        python scraper/scrape_upcoming.py --refresh-days 10 --deadline 180
   # the deep passes (profiles + history chunks) add ~15 min — the frequent
   # score runs skip them; the daily RUN_HISTORY=1 run picks them up

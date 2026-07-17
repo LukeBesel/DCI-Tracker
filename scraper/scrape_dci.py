@@ -376,8 +376,11 @@ def main():
              if u not in known
              and (args.season is None or year_of(u) == args.season)]
     if added:
-        urls += added
-        log(f"+{len(added)} candidate score pages derived from the event calendar")
+        # newly-finished shows are the whole point of this run — fetch them
+        # FIRST, before DCI throttling can burn the time budget on routine
+        # re-checks and skip them (they were being appended last and starved)
+        urls = added + [u for u in urls if u not in set(added)]
+        log(f"+{len(added)} candidate score pages derived from the event calendar (fetched first)")
 
     fetches = [0]
 
