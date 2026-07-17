@@ -51,15 +51,15 @@ PLACEHOLDER_ROW = re.compile(r"^(not scored|tba|tbd|--?|—)$", re.I)
 
 def get_competition_urls() -> list[str]:
     urls: list[str] = []
-    # fail fast on the sitemap (retries=2): if DCI is down, detect it in
-    # seconds and let the caller fall back to existing data, rather than
-    # grinding through long backoffs before the per-event deadline applies
-    idx = fetch(SITEMAP_INDEX, force=True, retries=2)
+    # try live (retries=2, fail fast) but fall back to the CACHED sitemap
+    # when DCI throttles — cached sitemap + cached event pages rebuild the
+    # dataset offline instead of leaving it stuck
+    idx = fetch(SITEMAP_INDEX, force=True, retries=1) or fetch(SITEMAP_INDEX)
     maps = re.findall(r"<loc>\s*([^<]+competition-sitemap\d*\.xml)\s*</loc>", idx or "")
     if not maps:
         maps = [f"https://www.dci.org/competition-sitemap{n}.xml" for n in ("", "2", "3", "4")]
     for m in maps:
-        xml = fetch(m, force=True, retries=2)
+        xml = fetch(m, force=True, retries=1) or fetch(m)
         if not xml:
             log(f"WARNING: sitemap fetch failed: {m}")
             continue

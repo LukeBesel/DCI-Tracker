@@ -143,14 +143,20 @@ def main():
     PARSED.mkdir(parents=True, exist_ok=True)
     today = datetime.now(timezone.utc).date()
 
-    xml = fetch(SITEMAP, force=True, retries=2) or ""
+    # try live, but fall back to the CACHED sitemap when DCI throttles it —
+    # the cached sitemap + cached event pages can rebuild the whole list
+    # offline, so a transient sitemap 403 can't blank the schedule
+    xml = fetch(SITEMAP, force=True, retries=1) or ""
+    if not xml:
+        xml = fetch(SITEMAP) or ""   # force=False → cached copy
+        if xml:
+            log("live sitemap failed — rebuilding from cached sitemap")
     urls = sorted(set(re.findall(r"<loc>\s*([^<]+/events/[^<]+)\s*</loc>", xml)))
     season = [u for u in urls if re.search(rf"/events/{today.year}-", u)]
     log(f"event sitemap lists {len(urls)} pages, {len(season)} for {today.year}")
     if not season:
-        # DCI unreachable or sitemap empty — keep the last good schedule
-        # instead of publishing an empty upcoming list
-        log("no event URLs from sitemap — keeping existing upcoming.json")
+        # no cached sitemap either — keep the last good schedule
+        log("no event URLs available — keeping existing upcoming.json")
         return
 
     out = []
