@@ -31,8 +31,12 @@ elif [ "$MODE" = "history" ]; then
   run "dcx history chunk" python scraper/scrape_history.py --max-fetches "${MAX_FETCHES:-2000}"
   run "wiki champions"    python scraper/scrape_wiki_champions.py
 else
-  run "dci.org current season" python scraper/scrape_dci.py --season "$YEAR" --force
-  run "upcoming events"        python scraper/scrape_upcoming.py
+  # only re-fetch the last few days of shows (score corrections + late
+  # recaps); older completed shows stay cached. --deadline bounds the run so
+  # a DCI outage/throttle can't stall the pipeline — worst case we keep the
+  # data we have and try again next cycle.
+  run "dci.org current season" python scraper/scrape_dci.py --season "$YEAR" --force-recent 4 --deadline 420
+  run "upcoming events"        python scraper/scrape_upcoming.py --refresh-days 10 --deadline 180
   # the deep passes (profiles + history chunks) add ~15 min — the frequent
   # score runs skip them; the daily RUN_HISTORY=1 run picks them up
   if [ "${RUN_HISTORY:-0}" = "1" ]; then

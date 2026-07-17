@@ -130,13 +130,28 @@ def parse_event_page(url: str, html: str) -> dict | None:
 
 
 def main():
+    import argparse, time
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--refresh-days", type=int, default=10,
+                    help="re-fetch only events within this many days (near-term "
+                         "lineups/schedules change; distant ones rarely do)")
+    ap.add_argument("--deadline", type=int, default=0, metavar="SECONDS",
+                    help="stop re-fetching after SECONDS so a DCI outage can't stall")
+    args = ap.parse_args()
+    start = time.monotonic()
+
     PARSED.mkdir(parents=True, exist_ok=True)
     today = datetime.now(timezone.utc).date()
 
-    xml = fetch(SITEMAP, force=True) or ""
+    xml = fetch(SITEMAP, force=True, retries=2) or ""
     urls = sorted(set(re.findall(r"<loc>\s*([^<]+/events/[^<]+)\s*</loc>", xml)))
     season = [u for u in urls if re.search(rf"/events/{today.year}-", u)]
     log(f"event sitemap lists {len(urls)} pages, {len(season)} for {today.year}")
+    if not season:
+        # DCI unreachable or sitemap empty — keep the last good schedule
+        # instead of publishing an empty upcoming list
+        log("no event URLs from sitemap — keeping existing upcoming.json")
+        return
 
     out = []
     for url in season:
@@ -150,9 +165,13 @@ def main():
             continue
         if not ev:
             continue
-        # future events: refresh from a cached copy so lineups stay current
+        # refresh only NEAR-term events (lineups/schedules firm up as the show
+        # nears); distant ones stay cached. A deadline caps the run so a DCI
+        # outage keeps existing data instead of grinding through backoffs.
         evd = datetime.strptime(ev["date"], "%Y-%m-%d").date()
-        if evd >= today - timedelta(days=1) and cache_path(url).exists():
+        near = today - timedelta(days=1) <= evd <= today + timedelta(days=args.refresh_days)
+        within_deadline = not args.deadline or time.monotonic() - start < args.deadline
+        if near and within_deadline and cache_path(url).exists():
             fresh = fetch(url, force=True)
             if fresh:
                 try:
@@ -161,6 +180,9 @@ def main():
                     pass
         out.append(ev)
 
+    if not out:
+        log("parsed zero events — keeping existing upcoming.json")
+        return
     out.sort(key=lambda e: (e.get("date") or "", e.get("name") or ""))
     p = PARSED / "dci_upcoming.json"
     p.write_text(json.dumps(out, ensure_ascii=False, indent=1))

@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 
 from bs4 import BeautifulSoup
@@ -24,6 +25,25 @@ from common import ROOT, fetch, log, norm_space, canon_corps
 PARSED = ROOT / "data" / "parsed"
 SITEMAP_INDEX = "https://www.dci.org/wp-sitemap.xml"
 
+_MONTHS = {m: i + 1 for i, m in enumerate(
+    ["January", "February", "March", "April", "May", "June", "July",
+     "August", "September", "October", "November", "December"])}
+
+
+def _event_age_days(ev) -> int | None:
+    """Whole days between an event's date and today (UTC). None if unknown.
+    Negative for future dates. Used to decide which events are worth
+    re-fetching: a show from last week never changes, so re-scraping it
+    every cycle just hammers DCI and drags the run out when they throttle."""
+    m = re.match(r"(\w+)\s+(\d{1,2}),?\s+(\d{4})", ev.get("date_display") or "")
+    if not m or m.group(1) not in _MONTHS:
+        return None
+    try:
+        d = datetime(int(m.group(3)), _MONTHS[m.group(1)], int(m.group(2)), tzinfo=timezone.utc)
+    except ValueError:
+        return None
+    return (datetime.now(timezone.utc) - d).days
+
 # Events that are individual/ensemble showcases, not corps competitions
 NON_CORPS_EVENT = re.compile(r"individual|\bi ?& ?e\b|soundsport|drumline battle", re.I)
 PLACEHOLDER_ROW = re.compile(r"^(not scored|tba|tbd|--?|—)$", re.I)
@@ -31,12 +51,15 @@ PLACEHOLDER_ROW = re.compile(r"^(not scored|tba|tbd|--?|—)$", re.I)
 
 def get_competition_urls() -> list[str]:
     urls: list[str] = []
-    idx = fetch(SITEMAP_INDEX, force=True)
+    # fail fast on the sitemap (retries=2): if DCI is down, detect it in
+    # seconds and let the caller fall back to existing data, rather than
+    # grinding through long backoffs before the per-event deadline applies
+    idx = fetch(SITEMAP_INDEX, force=True, retries=2)
     maps = re.findall(r"<loc>\s*([^<]+competition-sitemap\d*\.xml)\s*</loc>", idx or "")
     if not maps:
         maps = [f"https://www.dci.org/competition-sitemap{n}.xml" for n in ("", "2", "3", "4")]
     for m in maps:
-        xml = fetch(m, force=True)
+        xml = fetch(m, force=True, retries=2)
         if not xml:
             log(f"WARNING: sitemap fetch failed: {m}")
             continue
@@ -281,13 +304,24 @@ def parse_recap_page(url: str, html: str) -> list[dict]:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--season", type=int, default=None)
-    ap.add_argument("--force", action="store_true")
+    ap.add_argument("--force", action="store_true",
+                    help="re-fetch every event in --season (heavy; for backfills)")
+    ap.add_argument("--force-recent", type=int, default=0, metavar="DAYS",
+                    help="re-fetch only events dated within DAYS (catches score "
+                         "corrections + newly posted recaps without re-scraping "
+                         "the whole season every run)")
     ap.add_argument("--since", type=int, default=2013)
     ap.add_argument("--reparse", action="store_true",
                     help="re-parse cached pages without refetching")
     ap.add_argument("--max-fetches", type=int, default=0,
                     help="stop after N live fetches (0 = unlimited); cached pages don't count")
+    ap.add_argument("--deadline", type=int, default=0, metavar="SECONDS",
+                    help="stop starting new network fetches after SECONDS so a "
+                         "DCI outage/throttle can't stall the run (0 = no limit); "
+                         "already-cached pages still load, so data stays intact")
     args = ap.parse_args()
+    import time as _time
+    _start = _time.monotonic()
 
     PARSED.mkdir(parents=True, exist_ok=True)
     existing_path = PARSED / "dci_events.json"
@@ -303,17 +337,42 @@ def main():
 
     fetches = [0]
 
+    deadline_hit = [False]
+
     def budget_fetch(u, force=False):
         cached = cache_path(u).exists() and not force
         if not cached and args.max_fetches and fetches[0] >= args.max_fetches:
+            return None
+        # a network fetch after the deadline is skipped (existing data kept);
+        # cached reads always proceed so the dataset stays complete
+        if not cached and args.deadline and _time.monotonic() - _start > args.deadline:
+            if not deadline_hit[0]:
+                log(f"deadline {args.deadline}s reached — keeping cached/existing data for the rest")
+                deadline_hit[0] = True
             return None
         if not cached:
             fetches[0] += 1
         return fetch(u, force=force)
 
+    def want_force(url):
+        # in-season only
+        if not (args.season is None or year_of(url) == args.season):
+            return False
+        if args.force:
+            return True
+        if args.force_recent:
+            prev = existing.get(url)
+            if prev is None:
+                return True  # never seen — but it'll fetch anyway (not cached)
+            age = _event_age_days(prev)
+            # recent past OR near-future (still finalizing scores/lineups);
+            # unknown date errs toward refreshing (rare, cheap)
+            return age is None or -3 <= age <= args.force_recent
+        return False
+
     events, skipped = [], 0
     for i, url in enumerate(urls):
-        force = args.force and (args.season is None or year_of(url) == args.season)
+        force = want_force(url)
         if url in existing and not force and cache_path(url).exists() is False:
             # previously parsed but page not cached (old run) — keep unless
             # reparsing. Still heal a recap the old run never cached: fetch it
