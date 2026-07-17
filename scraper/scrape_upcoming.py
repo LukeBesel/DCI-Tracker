@@ -184,24 +184,37 @@ def main():
         log("parsed zero events — keeping existing upcoming.json")
         return
 
-    # merge with the last good list: a future event we've seen before but
-    # that's missing from THIS scrape (a momentary sitemap hiccup) is kept
-    # until it actually happens, so upcoming shows never vanish between
-    # refreshes — they only drop off once their date has passed
+    # merge with the last good list so upcoming shows survive a momentary
+    # sitemap hiccup — but distinguish a hiccup (show returns next scrape)
+    # from a real removal (DCI cancelled it, gone for good). Each event
+    # carries `_seen` = the last day it appeared in a real scrape; a show
+    # missing from THIS scrape is kept only while it was seen recently.
+    # So: transient miss → kept; genuinely pulled → drops after MISS_DAYS.
+    MISS_DAYS = 2
+    today_s = str(today)
+    for e in out:
+        e["_seen"] = today_s
     p = PARSED / "dci_upcoming.json"
     merged = {e["url"]: e for e in out}
-    grace = str(today - timedelta(days=1))
+    grace = str(today - timedelta(days=1))            # keep through show day
+    seen_cutoff = str(today - timedelta(days=MISS_DAYS))
     if p.exists():
         try:
             for e in json.loads(p.read_text()):
                 u, d = e.get("url"), e.get("date") or ""
-                if u and u not in merged and d >= grace:
-                    merged[u] = e   # still-future event this scrape didn't see
+                if not u or u in merged or d < grace:
+                    continue
+                seen = e.get("_seen") or today_s      # grandfather old entries
+                if seen >= seen_cutoff:               # recently seen → a hiccup
+                    e.setdefault("_seen", today_s)
+                    merged[u] = e
+                else:
+                    log(f"dropping {e.get('name','?')} — gone from DCI since {seen}")
         except Exception:  # noqa: BLE001
             pass
     final = sorted(merged.values(), key=lambda e: (e.get("date") or "", e.get("name") or ""))
     p.write_text(json.dumps(final, ensure_ascii=False, indent=1))
-    future = sum(1 for e in final if e["date"] >= str(today))
+    future = sum(1 for e in final if e["date"] >= today_s)
     log(f"wrote {p}: {len(final)} events, {future} upcoming ({len(out)} fresh this run)")
 
 
