@@ -599958,6 +599958,73 @@
   "source": "downbeatdesigns"
  },
  {
+  "url": "https://www.dci.org/scores/final-scores/2026-dci-houston/",
+  "slug": "2026-dci-houston",
+  "year": 2026,
+  "name": "DCI Houston",
+  "date_display": "July 17, 2026",
+  "location": "Houston, TX",
+  "recap_url": "https://www.dci.org/scores/recap/2026-dci-houston/",
+  "classes": [
+   {
+    "class": "World Class",
+    "results": [
+     {
+      "place": 1,
+      "corps": "Bluecoats",
+      "score": 91.15
+     },
+     {
+      "place": 2,
+      "corps": "Boston Crusaders",
+      "score": 89.5
+     },
+     {
+      "place": 3,
+      "corps": "Blue Devils",
+      "score": 88.7
+     },
+     {
+      "place": 4,
+      "corps": "Carolina Crown",
+      "score": 88.5
+     },
+     {
+      "place": 5,
+      "corps": "Blue Stars",
+      "score": 85.0
+     },
+     {
+      "place": 6,
+      "corps": "The Cavaliers",
+      "score": 83.9
+     },
+     {
+      "place": 7,
+      "corps": "Crossmen",
+      "score": 77.65
+     },
+     {
+      "place": 8,
+      "corps": "The Academy",
+      "score": 76.8
+     },
+     {
+      "place": 9,
+      "corps": "Genesis",
+      "score": 73.05
+     },
+     {
+      "place": 10,
+      "corps": "Spartans",
+      "score": 73.0
+     }
+    ]
+   }
+  ],
+  "source": "downbeatdesigns"
+ },
+ {
   "url": "https://www.dci.org/scores/final-scores/2026-dci-capital-classic/",
   "slug": "2026-dci-capital-classic",
   "year": 2026,
