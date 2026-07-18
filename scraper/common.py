@@ -137,8 +137,17 @@ def fetch(url: str, *, force: bool = False, timeout: int = 30, retries: int = 4,
             if status == 404:
                 log(f"404 {url}")
                 return None
+            if _is_challenge(status, text, resp_headers):
+                # A Cloudflare managed challenge is IP-based, not rate-based —
+                # http_get already tried the relay and it was challenged too,
+                # so retrying with backoff is futile. Fail fast and let the
+                # fallback source (downbeatdesigns) cover this show, keeping
+                # the whole cycle short instead of burning the deadline on
+                # 45s sleeps. Clears itself the moment the challenge lifts.
+                log(f"cloudflare challenge on {url}; skipping (fallback source will cover it)")
+                return None
             if status in (403, 429):
-                # bot-wall / throttle: back off hard before retrying
+                # ordinary bot-wall / throttle: back off hard before retrying
                 retry_after = int(resp_headers.get("retry-after") or 0)
                 pause = max(retry_after, 45 * (attempt + 1))
                 log(f"{status} throttle on {url}; sleeping {pause}s")

@@ -1,32 +1,21 @@
 name: Fetch diagnostics
-# One-shot, manual-only: probe candidate score sources from the runner and
-# print status + snippets. Read the results from job logs.
+# One-shot, manual-only: confirm the fallback source is reachable from the
+# GitHub runner network (different from dci.org, which Cloudflare-challenges
+# these IPs). Read results from job logs.
 on:
   workflow_dispatch:
 permissions: {}
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 5
     steps:
-      - name: Probe URLs
+      - name: Probe fallback source
         run: |
-          probe() {
-            echo "=================== $1"
-            curl -sS -L --compressed --max-time 40 -D /tmp/h -o /tmp/b -w "final_status=%{http_code}\n" "$1" || echo "curl exit=$?"
-            grep -iE "^(HTTP/|cf-mitigated|cf-cache-status|server|location):?" /tmp/h | head -8 || true
-            echo "--- body first 400 chars:"
-            head -c 400 /tmp/b | tr -d '\0'; echo
-            echo "--- size: $(wc -c < /tmp/b)"
-            sleep 2
-          }
-          # is CompetitionSuite (the recap platform) reachable & public?
-          probe "https://competitionsuite.com/"
-          probe "https://recaps.competitionsuite.com/"
-          probe "https://api.competitionsuite.com/"
-          # does dci.org exempt its REST API or apex domain from the challenge?
-          probe "https://www.dci.org/wp-json/wp/v2/competition?slug=2026-dci-denton"
-          probe "https://dci.org/scores"
-          # does the Wayback Machine have (or can it get) the blocked pages?
-          probe "https://web.archive.org/web/2026/https://www.dci.org/scores/final-scores/2026-dci-denton/"
-          probe "https://web.archive.org/save/https://www.dci.org/scores/final-scores/2026-dci-denton/"
+          echo "=== downbeatdesigns.com from the runner ==="
+          curl -sS -L --compressed --max-time 40 -D /tmp/h -o /tmp/b -w "status=%{http_code} size=%{size_download}\n" "https://downbeatdesigns.com/dci_2026" || echo "curl exit=$?"
+          grep -iE "^(HTTP/|cf-mitigated|server):" /tmp/h | head -4 || true
+          echo "shows on page: $(grep -c 'class=\"se-title\"' /tmp/b)"
+          echo "Denton present: $(grep -c 'DCI Denton' /tmp/b)"
+          echo "--- first score-event title:"
+          grep -oE 'se-title">[^<]*' /tmp/b | head -1
