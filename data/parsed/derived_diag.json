@@ -2,8 +2,8 @@
  "https://www.dci.org/scores/final-scores/2026-dci-little-rock/": "HTTP 403, body 5738B",
  "https://www.dci.org/scores/final-scores/2026-dci-southwestern-championship/": "HTTP 403, body 5801B",
  "https://www.dci.org/scores/final-scores/2026-drums-across-the-desert/": "HTTP 403, body 5783B",
- "https://www.dci.org/scores/final-scores/2026-sounds-by-the-seaport/": "HTTP 429, body 16B",
- "https://www.dci.org/scores/final-scores/2026-the-buccaneer-classic/": "HTTP 429, body 16B",
+ "https://www.dci.org/scores/final-scores/2026-sounds-by-the-seaport/": "HTTP 403, body 5777B",
+ "https://www.dci.org/scores/final-scores/2026-the-buccaneer-classic/": "HTTP 403, body 5777B",
  "https://www.dci.org/scores/final-scores/2026-dci-denton/": "not reached (deadline hit before it / not processed)",
  "https://www.dci.org/scores/final-scores/2026-dci-houston/": "not reached (deadline hit before it / not processed)"
 }
