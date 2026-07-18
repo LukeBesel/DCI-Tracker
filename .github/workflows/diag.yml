@@ -1,36 +1,32 @@
 name: Fetch diagnostics
-# One-shot, manual-only: probe dci.org from the runner and print status,
-# Cloudflare cache/ray headers, and a snippet of each response so we can
-# see WHAT is blocking (challenge page vs hard block) and WHY the scores
-# index works while new score pages 403. Read the results from job logs.
+# One-shot, manual-only: probe candidate score sources from the runner and
+# print status + snippets. Read the results from job logs.
 on:
   workflow_dispatch:
 permissions: {}
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - name: Probe URLs
         run: |
           probe() {
             echo "=================== $1"
-            curl -sS -L --compressed --max-time 30 -D /tmp/h -o /tmp/b -w "final_status=%{http_code}\n" "$1" || echo "curl exit=$?"
-            grep -iE "^(HTTP/|cf-cache-status|cf-ray|cf-mitigated|server|location):?" /tmp/h || true
-            echo "--- body first 500 chars:"
-            head -c 500 /tmp/b | tr -d '\0'; echo
-            sleep 3
+            curl -sS -L --compressed --max-time 40 -D /tmp/h -o /tmp/b -w "final_status=%{http_code}\n" "$1" || echo "curl exit=$?"
+            grep -iE "^(HTTP/|cf-mitigated|cf-cache-status|server|location):?" /tmp/h | head -8 || true
+            echo "--- body first 400 chars:"
+            head -c 400 /tmp/b | tr -d '\0'; echo
+            echo "--- size: $(wc -c < /tmp/b)"
+            sleep 2
           }
-          probe "https://www.dci.org/scores"
-          probe "https://www.dci.org/scores/final-scores/2026-dci-central-texas/"
-          probe "https://www.dci.org/scores/final-scores/2026-dci-denton/"
-          echo "=================== chrome headless test"
-          if command -v google-chrome >/dev/null; then
-            timeout 90 google-chrome --headless=new --disable-gpu --no-sandbox --virtual-time-budget=20000 \
-              --dump-dom "https://www.dci.org/scores/final-scores/2026-dci-denton/" > /tmp/dom 2>/tmp/cerr || echo "chrome exit=$?"
-            echo "dom bytes: $(wc -c < /tmp/dom)"
-            grep -oE "(DCI Denton|Just a moment|Attention Required|challenge-platform|you have been blocked)" /tmp/dom | sort -u || true
-            echo "--- dom snippet:"; grep -oE "<title>[^<]*</title>" /tmp/dom || head -c 300 /tmp/dom
-          else
-            echo "google-chrome not installed"
-          fi
+          # is CompetitionSuite (the recap platform) reachable & public?
+          probe "https://competitionsuite.com/"
+          probe "https://recaps.competitionsuite.com/"
+          probe "https://api.competitionsuite.com/"
+          # does dci.org exempt its REST API or apex domain from the challenge?
+          probe "https://www.dci.org/wp-json/wp/v2/competition?slug=2026-dci-denton"
+          probe "https://dci.org/scores"
+          # does the Wayback Machine have (or can it get) the blocked pages?
+          probe "https://web.archive.org/web/2026/https://www.dci.org/scores/final-scores/2026-dci-denton/"
+          probe "https://web.archive.org/save/https://www.dci.org/scores/final-scores/2026-dci-denton/"
