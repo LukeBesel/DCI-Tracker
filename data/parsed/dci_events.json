@@ -599896,6 +599896,68 @@
   ]
  },
  {
+  "url": "https://www.dci.org/scores/final-scores/2026-dci-denton/",
+  "slug": "2026-dci-denton",
+  "year": 2026,
+  "name": "DCI Denton",
+  "date_display": "July 16, 2026",
+  "location": "Denton, TX",
+  "recap_url": "https://www.dci.org/scores/recap/2026-dci-denton/",
+  "classes": [
+   {
+    "class": "World Class",
+    "results": [
+     {
+      "place": 1,
+      "corps": "Bluecoats",
+      "score": 90.4
+     },
+     {
+      "place": 2,
+      "corps": "Boston Crusaders",
+      "score": 88.6
+     },
+     {
+      "place": 3,
+      "corps": "Carolina Crown",
+      "score": 88.05
+     },
+     {
+      "place": 4,
+      "corps": "Santa Clara Vanguard",
+      "score": 86.8
+     },
+     {
+      "place": 5,
+      "corps": "Phantom Regiment",
+      "score": 85.65
+     },
+     {
+      "place": 6,
+      "corps": "Spirit of Atlanta",
+      "score": 79.45
+     },
+     {
+      "place": 7,
+      "corps": "Seattle Cascades",
+      "score": 70.9
+     }
+    ]
+   },
+   {
+    "class": "Open Class",
+    "results": [
+     {
+      "place": 1,
+      "corps": "Zephyrus",
+      "score": 64.8
+     }
+    ]
+   }
+  ],
+  "source": "downbeatdesigns"
+ },
+ {
   "url": "https://www.dci.org/scores/final-scores/2026-dci-capital-classic/",
   "slug": "2026-dci-capital-classic",
   "year": 2026,

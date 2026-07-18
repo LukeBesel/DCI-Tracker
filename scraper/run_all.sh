@@ -36,6 +36,11 @@ else
   # a DCI outage/throttle can't stall the pipeline — worst case we keep the
   # data we have and try again next cycle.
   run "dci.org current season" python scraper/scrape_dci.py --season "$YEAR" --force-recent 4 --deadline 540
+  # Fallback fill: when dci.org is Cloudflare-blocking the runner, pull the
+  # same results from downbeatdesigns.com (a verified exact mirror) for any
+  # show dci.org couldn't deliver. Never overwrites dci.org's richer,
+  # recap-carrying data; upgrades in place once the block lifts.
+  run "downbeat fallback fill"  python scraper/scrape_downbeat.py "$YEAR"
   run "upcoming events"        python scraper/scrape_upcoming.py --refresh-days 10 --deadline 180
   # the deep passes (profiles + history chunks) add ~15 min — the frequent
   # score runs skip them; the daily RUN_HISTORY=1 run picks them up
