@@ -68,26 +68,36 @@ jobs:
             echo "::warning::live publish failed after retries"
             return 1
           }
-          # poll through the Cadence relay: dci.org's Cloudflare challenges
-          # runner IPs directly, and hashing a challenge page (whose nonce
-          # rotates every request) made every poll look like "new scores"
-          RELAY="https://cadenceapp.up.railway.app/fetch?url=https%3A%2F%2Fwww.dci.org%2Fscores"
+          # Poll two sources and rescrape when EITHER changes:
+          #  - dci.org/scores (the authoritative index) for when the runner
+          #    can reach it, and
+          #  - downbeatdesigns.com (the fallback) for when dci.org is
+          #    Cloudflare-challenging the runner — that mirror is reachable
+          #    from here and posts the same results within minutes.
+          # Each source is validated to look real before hashing so a
+          # challenge page (whose nonce rotates every request) can't make
+          # every poll look like a fresh score drop.
+          DCI="https://www.dci.org/scores"
+          FALLBACK="https://downbeatdesigns.com/dci_2026"
           last=""
           end=$(( $(date +%s) + 300 * 60 ))   # five hours of watching
           while [ "$(date +%s)" -lt "$end" ]; do
-            body=$(curl -sS --max-time 45 "$RELAY" || echo "")
-            # only trust content that actually looks like the scores index
-            if ! echo "$body" | grep -q "final-scores"; then
-              echo "poll returned no scores index (relay/dci hiccup) — skipping"
+            sig=""
+            d=$(curl -sS --max-time 30 "$DCI" || echo "")
+            echo "$d" | grep -q "final-scores" && sig="$sig$(echo "$d" | md5sum | cut -d' ' -f1)"
+            f=$(curl -sS --max-time 30 "$FALLBACK" || echo "")
+            echo "$f" | grep -q "se-title" && sig="$sig$(echo "$f" | md5sum | cut -d' ' -f1)"
+            if [ -z "$sig" ]; then
+              echo "no reachable score source this poll — retrying"
               sleep 180; continue
             fi
-            cur=$(echo "$body" | md5sum | cut -d" " -f1)
-            if [ -n "$cur" ] && [ -n "$last" ] && [ "$cur" != "$last" ]; then
-              echo "scores index changed — scraping"
+            cur=$(printf '%s' "$sig" | md5sum | cut -d' ' -f1)
+            if [ -n "$last" ] && [ "$cur" != "$last" ]; then
+              echo "a score source changed — scraping"
               bash scraper/run_all.sh update || echo "::warning::scrape failed this cycle"
               publish || true
             fi
-            [ -n "$cur" ] && last="$cur"
+            last="$cur"
             sleep 180
           done
           echo "watch window closed"
