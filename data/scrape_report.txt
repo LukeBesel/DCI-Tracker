@@ -1,6 +1,6 @@
-mode=update started=2026-07-18 11:39:19 UTC
-dci.org current season: OK (23s)
-downbeat fallback fill: OK (0s)
-upcoming events: OK (37s)
-build site data: OK (4s)
-finished=2026-07-18 11:40:23 UTC
+mode=update started=2026-07-18 11:51:29 UTC
+dci.org current season: OK (22s)
+downbeat fallback fill: OK (1s)
+upcoming events: OK (36s)
+build site data: OK (3s)
+finished=2026-07-18 11:52:31 UTC
