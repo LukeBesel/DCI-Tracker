@@ -1,11 +1,11 @@
 {
- "https://www.dci.org/scores/final-scores/2026-dci-dallas/": "request error: RuntimeError: curl: curl: (28) Operation timed out after 15002 milliseconds with 0 bytes received",
- "https://www.dci.org/scores/final-scores/2026-dci-denton/": "HTTP 521, body 149503B",
- "https://www.dci.org/scores/final-scores/2026-dci-houston/": "HTTP 521, body 149503B",
- "https://www.dci.org/scores/final-scores/2026-dci-little-rock/": "HTTP 521, body 149503B",
- "https://www.dci.org/scores/final-scores/2026-dci-southwestern-championship/": "HTTP 521, body 149503B",
- "https://www.dci.org/scores/final-scores/2026-drums-across-the-desert/": "HTTP 521, body 149503B",
- "https://www.dci.org/scores/final-scores/2026-raiders-tour-send-off/": "HTTP 521, body 149503B",
- "https://www.dci.org/scores/final-scores/2026-sounds-by-the-seaport/": "HTTP 521, body 149503B",
- "https://www.dci.org/scores/final-scores/2026-the-buccaneer-classic/": "HTTP 521, body 149503B"
+ "https://www.dci.org/scores/final-scores/2026-dci-dallas/": "HTTP 403, body 5723B",
+ "https://www.dci.org/scores/final-scores/2026-dci-denton/": "HTTP 403, body 5723B",
+ "https://www.dci.org/scores/final-scores/2026-dci-houston/": "HTTP 403, body 5726B",
+ "https://www.dci.org/scores/final-scores/2026-dci-little-rock/": "HTTP 403, body 5738B",
+ "https://www.dci.org/scores/final-scores/2026-dci-southwestern-championship/": "HTTP 403, body 5801B",
+ "https://www.dci.org/scores/final-scores/2026-drums-across-the-desert/": "HTTP 403, body 5783B",
+ "https://www.dci.org/scores/final-scores/2026-raiders-tour-send-off/": "HTTP 403, body 5777B",
+ "https://www.dci.org/scores/final-scores/2026-sounds-by-the-seaport/": "HTTP 403, body 5777B",
+ "https://www.dci.org/scores/final-scores/2026-the-buccaneer-classic/": "HTTP 403, body 5777B"
 }
