@@ -44,6 +44,12 @@ else
   # downbeatdesigns is a full-season backstop.
   run "drum-corps.net fill"     python scraper/scrape_drumcorpsnet.py
   run "downbeat fallback fill"  python scraper/scrape_downbeat.py "$YEAR"
+  # Judge-level captions from CompetitionSuite (the platform DCI's own
+  # recaps are built from) — reachable from the cloud even when dci.org is
+  # walled off. Attaches the official caption breakdown to mirror-filled
+  # shows; every row is re-verified arithmetically by build_data, and
+  # dci.org's own recap replaces it in place once the wall lifts.
+  run "compsuite captions"      python scraper/scrape_compsuite.py "$YEAR"
   run "upcoming events"        python scraper/scrape_upcoming.py --refresh-days 10 --deadline 180
   # the deep passes (profiles + history chunks) add ~15 min — the frequent
   # score runs skip them; the daily RUN_HISTORY=1 run picks them up
