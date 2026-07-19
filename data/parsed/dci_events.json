@@ -600387,6 +600387,195 @@
   "source": "downbeatdesigns"
  },
  {
+  "url": "https://www.dci.org/scores/final-scores/2026-dci-southwestern-championship/",
+  "slug": "2026-dci-southwestern-championship",
+  "year": 2026,
+  "name": "DCI Southwestern Championship",
+  "date_display": "July 18, 2026",
+  "location": "San Antonio, TX",
+  "recap_url": "https://www.dci.org/scores/recap/2026-dci-southwestern-championship/",
+  "classes": [
+   {
+    "class": "World Class",
+    "results": [
+     {
+      "place": 1,
+      "corps": "Bluecoats",
+      "score": 93.05
+     },
+     {
+      "place": 2,
+      "corps": "Boston Crusaders",
+      "score": 90.888
+     },
+     {
+      "place": 3,
+      "corps": "Blue Devils",
+      "score": 90.825
+     },
+     {
+      "place": 4,
+      "corps": "Carolina Crown",
+      "score": 90.425
+     },
+     {
+      "place": 5,
+      "corps": "Santa Clara Vanguard",
+      "score": 88.838
+     },
+     {
+      "place": 6,
+      "corps": "Phantom Regiment",
+      "score": 87.363
+     },
+     {
+      "place": 7,
+      "corps": "Blue Stars",
+      "score": 86.113
+     },
+     {
+      "place": 8,
+      "corps": "The Cavaliers",
+      "score": 85.225
+     },
+     {
+      "place": 9,
+      "corps": "Colts",
+      "score": 82.413
+     },
+     {
+      "place": 10,
+      "corps": "Blue Knights",
+      "score": 82.4
+     },
+     {
+      "place": 11,
+      "corps": "Troopers",
+      "score": 81.15
+     },
+     {
+      "place": 12,
+      "corps": "Madison Scouts",
+      "score": 80.425
+     },
+     {
+      "place": 13,
+      "corps": "Pacific Crest",
+      "score": 80.0
+     },
+     {
+      "place": 14,
+      "corps": "Spirit of Atlanta",
+      "score": 79.9
+     },
+     {
+      "place": 15,
+      "corps": "Crossmen",
+      "score": 77.125
+     },
+     {
+      "place": 16,
+      "corps": "The Academy",
+      "score": 76.0
+     },
+     {
+      "place": 17,
+      "corps": "Music City",
+      "score": 75.725
+     },
+     {
+      "place": 18,
+      "corps": "Spartans",
+      "score": 72.85
+     },
+     {
+      "place": 19,
+      "corps": "Genesis",
+      "score": 71.875
+     },
+     {
+      "place": 20,
+      "corps": "Seattle Cascades",
+      "score": 71.55
+     }
+    ]
+   },
+   {
+    "class": "Open Class",
+    "results": [
+     {
+      "place": 1,
+      "corps": "Gold",
+      "score": 74.75
+     },
+     {
+      "place": 2,
+      "corps": "Zephyrus",
+      "score": 67.7
+     },
+     {
+      "place": 4,
+      "corps": "Arsenal",
+      "score": 64.375
+     }
+    ]
+   }
+  ],
+  "source": "drum-corps.net"
+ },
+ {
+  "url": "https://www.dci.org/scores/final-scores/2026-the-buccaneer-classic/",
+  "slug": "2026-the-buccaneer-classic",
+  "year": 2026,
+  "name": "The Buccaneer Classic",
+  "date_display": "July 18, 2026",
+  "location": "Landisville, PA",
+  "recap_url": "https://www.dci.org/scores/recap/2026-the-buccaneer-classic/",
+  "classes": [
+   {
+    "class": "All-Age - World Class",
+    "results": [
+     {
+      "place": 1,
+      "corps": "Reading Buccaneers",
+      "score": 86.95
+     },
+     {
+      "place": 2,
+      "corps": "Bushwackers",
+      "score": 84.2
+     },
+     {
+      "place": 3,
+      "corps": "White Sabers",
+      "score": 78.3
+     },
+     {
+      "place": 4,
+      "corps": "Sunrisers",
+      "score": 70.2
+     }
+    ]
+   },
+   {
+    "class": "Place",
+    "results": [
+     {
+      "place": 1,
+      "corps": "Raiders",
+      "score": 64.15
+     },
+     {
+      "place": 2,
+      "corps": "Les Stentors",
+      "score": 60.55
+     }
+    ]
+   }
+  ],
+  "source": "drum-corps.net"
+ },
+ {
   "url": "https://www.dci.org/scores/final-scores/2026-dci-capital-classic/",
   "slug": "2026-dci-capital-classic",
   "year": 2026,
