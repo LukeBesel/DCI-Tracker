@@ -114,9 +114,16 @@ def cache_path(url: str) -> Path:
     return RAW / p.netloc / f"{slug}_{h}.gz"
 
 
-def fetch(url: str, *, force: bool = False, timeout: int = 30, retries: int = 4,
+def fetch(url: str, *, force: bool = False, timeout: int = 30, retries: int | None = None,
           accept_json: bool = False) -> str | None:
-    """Fetch a URL with on-disk gzip cache. Returns text, or None on hard failure."""
+    """Fetch a URL with on-disk gzip cache. Returns text, or None on hard failure.
+    retries defaults to $FETCH_RETRIES (or 4); a caller/env can lower it so a
+    throttled source fails fast instead of retry-storming under a time cap."""
+    if retries is None:
+        try:
+            retries = int(os.environ.get("FETCH_RETRIES", "4"))
+        except ValueError:
+            retries = 4
     cp = cache_path(url)
     if cp.exists() and not force:
         with gzip.open(cp, "rt", encoding="utf-8", errors="replace") as f:
