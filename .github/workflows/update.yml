@@ -81,28 +81,35 @@ jobs:
           api="https://api.github.com/repos/${{ github.repository }}/actions"
           hdr1="Authorization: Bearer $GH_TOKEN"
           hdr2="Accept: application/vnd.github+json"
-          # self-perpetuating cadence: the pulse sleeps ~12 min, then
-          # dispatches the next update (GitHub's cron is only the backstop)
-          curl -sf -X POST -H "$hdr1" -H "$hdr2" \
-            "$api/workflows/pulse.yml/dispatches" -d '{"ref":"main"}' || true
+          # Ensure a long-lived shift of $1 is running; start one only if none
+          # is in-progress/queued. The pulse loop dispatches these updates
+          # every ~12 min, so this doesn't drive the cadence — it just RESTARTS
+          # the heartbeat (or the watcher) if it ever died, without stacking up
+          # duplicate multi-hour shifts. On an API hiccup it assumes "running"
+          # (n=1) and skips, rather than risk piling on.
+          ensure_running() {
+            local wf="$1" n=0 c st
+            for st in in_progress queued; do
+              c=$(curl -sf -H "$hdr1" -H "$hdr2" \
+                    "$api/workflows/$wf/runs?status=$st&per_page=1" \
+                  | python3 -c "import json,sys; print(json.load(sys.stdin).get('total_count',0))" 2>/dev/null || echo 1)
+              n=$((n + c))
+            done
+            if [ "$n" = "0" ]; then
+              echo "no $wf shift running — starting one"
+              curl -sf -X POST -H "$hdr1" -H "$hdr2" \
+                "$api/workflows/$wf/dispatches" -d '{"ref":"main"}' || true
+            fi
+          }
+          # keep the self-sustaining heartbeat alive
+          ensure_running pulse.yml
           # show window (16:00 UTC → 10:59 UTC = noon ET through ~7 AM ET)
           # covers afternoon/matinee shows, evening shows, and the overnight
           # West Coast finishes. Make sure a live 3-minute watcher shift is
           # running; its own no-shows check exits immediately on quiet days.
           H=$(date -u +%H)
           if [ "$H" -ge 16 ] || [ "$H" -lt 11 ]; then
-            active=0
-            for st in in_progress queued; do
-              n=$(curl -sf -H "$hdr1" -H "$hdr2" \
-                "$api/workflows/watch.yml/runs?status=$st&per_page=1" \
-                | python3 -c "import json,sys; print(json.load(sys.stdin).get('total_count',0))" || echo 1)
-              active=$((active + n))
-            done
-            if [ "$active" = "0" ]; then
-              echo "starting a watcher shift"
-              curl -sf -X POST -H "$hdr1" -H "$hdr2" \
-                "$api/workflows/watch.yml/dispatches" -d '{"ref":"main"}' || true
-            fi
+            ensure_running watch.yml
           fi
 
   deploy:

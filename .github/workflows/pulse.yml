@@ -1,12 +1,16 @@
 name: Pulse
-# GitHub's shared cron delivers */15 schedules roughly hourly at best, so
-# the pipeline keeps its own beat: each data update dispatches a pulse, the
-# pulse sleeps ~12 minutes and dispatches the next update. The cron here
-# only restarts the chain if it ever breaks; the concurrency group folds
-# duplicate pulses into one.
+# The pipeline's heartbeat. GitHub's shared cron delivers */15 schedules
+# roughly hourly at best, so a single job holds the beat: it loops for a
+# ~5-hour shift, dispatching a data update every ~12 minutes, then re-arms
+# the next shift. Because it's a resilient internal loop (not a one-shot
+# hand-off that dispatches the next pulse), a single rate-limited dispatch
+# can't break the chain — the next tick just retries 12 minutes later. The
+# cron here (staggered minutes for better delivery odds) and update.yml's
+# ensure_running check are the backstops that restart the loop if it ever
+# dies; the concurrency group folds any duplicate shifts into one.
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "5,20,35,50 * * * *"
   workflow_dispatch: {}
 
 permissions:
@@ -19,29 +23,34 @@ concurrency:
 jobs:
   pulse:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 320
     steps:
-      - name: Wait, then trigger the next data update
+      - name: Heartbeat — dispatch a data update every ~12 minutes
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          sleep 720
-          # Dispatch the next update, but never fail the job over a transient
-          # hiccup: GitHub occasionally rate-limits workflow_dispatch, and a
-          # single missed tick is harmless — the */15 cron restarter and
-          # update.yml's own re-arm keep the chain alive. Retry a few times,
-          # then warn-and-exit-0 so the beat continues without a failure email.
-          for i in 1 2 3 4 5; do
-            code=$(curl -s -o /tmp/resp -w "%{http_code}" -X POST \
-              -H "Authorization: Bearer $GH_TOKEN" \
-              -H "Accept: application/vnd.github+json" \
-              "https://api.github.com/repos/${{ github.repository }}/actions/workflows/update.yml/dispatches" \
-              -d '{"ref":"main"}')
-            if [ "$code" = "204" ]; then
-              echo "update dispatched (HTTP 204)"; exit 0
-            fi
-            echo "::warning::dispatch attempt $i got HTTP $code: $(head -c 300 /tmp/resp)"
-            sleep $((10 * i))
+          api="https://api.github.com/repos/${{ github.repository }}/actions"
+          hdr1="Authorization: Bearer $GH_TOKEN"
+          hdr2="Accept: application/vnd.github+json"
+          # dispatch a workflow, retrying transient GitHub rate limits;
+          # returns non-zero only after several failed attempts
+          dispatch() {
+            local wf="$1" code i
+            for i in 1 2 3 4; do
+              code=$(curl -s -o /tmp/resp -w "%{http_code}" -X POST -H "$hdr1" -H "$hdr2" \
+                "$api/workflows/$wf/dispatches" -d '{"ref":"main"}')
+              [ "$code" = "204" ] && return 0
+              echo "::warning::dispatch $wf got HTTP $code (attempt $i): $(head -c 200 /tmp/resp)"
+              sleep $((10 * i))
+            done
+            return 1
+          }
+          # ~4.8-hour shift, one update every 12 minutes
+          end=$(( $(date +%s) + 288 * 60 ))
+          while [ "$(date +%s)" -lt "$end" ]; do
+            sleep 720
+            dispatch update.yml || echo "::warning::update dispatch failed this tick — retrying in 12 min"
           done
-          echo "::warning::could not dispatch update after retries — cron/self-rearm backstop will recover"
-          exit 0
+          # hand off to the next shift; if this fails, cron / update.yml's
+          # ensure_running restarts the heartbeat within the hour
+          dispatch pulse.yml || echo "::warning::could not re-arm pulse — backstops will restart it"
