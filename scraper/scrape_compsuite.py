@@ -24,7 +24,7 @@ from __future__ import annotations
 import json
 import re
 
-from common import ROOT, fetch, log, norm_space, canon_corps
+from common import ROOT, fetch, log, norm_space, canon_corps, slugify
 
 PARSED = ROOT / "data" / "parsed"
 DCI_ORG = "96b77ec2-333e-41e9-8d7d-806a8cbe116b"
@@ -123,61 +123,131 @@ def _norm(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", norm_space(s or "").lower())
 
 
+_MONTHS = ["", "January", "February", "March", "April", "May", "June", "July",
+           "August", "September", "October", "November", "December"]
+
+
+def _date_display(iso: str) -> str:
+    m = re.match(r"(\d{4})-(\d{2})-(\d{2})", iso or "")
+    if not m:
+        return ""
+    y, mo, d = m.group(1), int(m.group(2)), int(m.group(3))
+    return f"{_MONTHS[mo]} {d}, {y}"
+
+
+def _canonical_urls() -> dict[str, str]:
+    """normalized event name -> dci.org final-scores URL, from the calendar,
+    so a show CompetitionSuite has lines up with dci.org's own key (and
+    upgrades in place with no duplicate once the wall lifts)."""
+    up = PARSED / "dci_upcoming.json"
+    out = {}
+    if up.exists():
+        for e in json.loads(up.read_text()):
+            m = re.search(r"/events/([^/]+)/?", e.get("url") or "")
+            if m and e.get("name"):
+                out[_norm(e["name"])] = f"https://www.dci.org/scores/final-scores/{m.group(1)}/"
+    return out
+
+
+_CLASS_ORDER = {"World Class": 0, "Open Class": 1, "All-Age": 2,
+                "SoundSport": 3, "International": 4, "Exhibition": 5}
+
+
+def _round_classes(detail: dict):
+    """GetCompetition rounds -> (classes[results], recap[caption rows]),
+    ordered World / Open / All-Age to match the rest of the app."""
+    classes, recap = [], []
+    for rnd in detail.get("rounds") or []:
+        cls = ROUND_CLASS.get(norm_space(rnd.get("name") or "").lower(), rnd.get("name") or "Results")
+        results = []
+        for p in rnd.get("performances") or []:
+            corps = canon_corps(p.get("name") or "")
+            if corps and p.get("score") is not None:
+                results.append({"place": p.get("rank"), "corps": corps, "score": float(p["score"])})
+        results.sort(key=lambda r: (r["place"] is None, r["place"] if r["place"] is not None else 0))
+        if results:
+            classes.append({"class": cls, "results": results})
+        url = (rnd.get("fullRecapUrl") or "").replace("http://", "https://")
+        if url:
+            html = fetch(url, force=True) or fetch(url)
+            rows = parse_recap(html) if html else []
+            if rows:
+                recap.append({"class": cls, "captions": [], "rows": rows})
+    ordr = lambda x: _CLASS_ORDER.get(x["class"], 9)
+    classes.sort(key=ordr)
+    recap.sort(key=ordr)
+    return classes, recap
+
+
+def _has_results(ev: dict) -> bool:
+    return any(c.get("results") for c in ev.get("classes") or [])
+
+
 def main(year: int = 2026) -> int:
     events_path = PARSED / "dci_events.json"
     if not events_path.exists():
         return 0
     events = json.loads(events_path.read_text())
-    # only shows for this year that HAVE results but LACK a caption recap
-    need = {}
-    for e in events:
-        if e.get("year") != year or e.get("recap"):
-            continue
-        if any(c.get("results") for c in e.get("classes") or []):
-            need[(_norm(e["name"]), e.get("date"))] = e
-            need.setdefault(_norm(e["name"]), e)  # date-agnostic fallback
-    if not need:
-        log("compsuite: every show already has a recap — nothing to do")
-        return 0
+    by_url = {e["url"]: e for e in events}
+    canon = _canonical_urls()
 
     season = _season_guid(year)
     if not season:
         log(f"compsuite: no season GUID for {year} — skipping")
         return 0
     comps = _competitions(season)
-    log(f"compsuite: {len(comps)} competitions listed for {year}; {len(set(id(v) for v in need.values()))} shows need recaps")
+    log(f"compsuite: {len(comps)} competitions listed for {year}")
 
-    filled = 0
+    created = filled = recapped = 0
     for comp in comps:
         date = (comp.get("competitionDate") or "")[:10]
-        ev = need.get((_norm(comp.get("name")), date)) or need.get(_norm(comp.get("name")))
-        if not ev or ev.get("recap"):
+        name = norm_space(comp.get("name"))
+        url = canon.get(_norm(name)) or \
+            f"https://www.dci.org/scores/final-scores/{year}-{slugify(name)}/"
+        cur = by_url.get(url)
+        # dci.org (or a prior fill) already has full results + recap — leave it
+        if cur is not None and _has_results(cur) and cur.get("recap"):
             continue
+
         detail = _bridge(f"GetCompetition/jsonp?competition={comp['competitionGuid']}")
         if not detail:
             continue
-        recap = []
-        for rnd in detail.get("rounds") or []:
-            url = (rnd.get("fullRecapUrl") or "").replace("http://", "https://")
-            if not url:
-                continue
-            html = fetch(url, force=True) or fetch(url)
-            if not html:
-                continue
-            rows = parse_recap(html)
-            if rows:
-                cls = ROUND_CLASS.get(norm_space(rnd.get("name") or "").lower(), rnd.get("name") or "Results")
-                recap.append({"class": cls, "captions": [], "rows": rows})
-        if recap:
-            ev["recap"] = recap
-            filled += 1
-            log(f"  + recap for {ev['name']} ({date}) — {sum(len(c['rows']) for c in recap)} corps across {len(recap)} class(es)")
+        classes, recap = _round_classes(detail)
+        if not classes and not recap:
+            continue
+        slug = url.rstrip("/").rsplit("/", 1)[-1]
 
-    if filled:
-        events_path.write_text(json.dumps(events, ensure_ascii=False, indent=1))
-        log(f"compsuite: attached {filled} recap(s) → {events_path}")
+        if cur is None:
+            # brand-new show no other source has yet — create it in full
+            by_url[url] = {
+                "url": url, "slug": slug, "year": year, "name": name,
+                "date_display": _date_display(comp.get("competitionDate")),
+                "location": comp.get("location") or "",
+                "recap_url": f"https://www.dci.org/scores/recap/{slug}/",
+                "classes": classes, "recap": recap, "source": "competitionsuite",
+            }
+            created += 1
+            top = classes[0]["results"][0] if classes and classes[0]["results"] else None
+            lead = f" — {top['corps']} {top['score']}" if top else ""
+            log(f"  + created {name} ({date}){lead} [{len(classes)} class(es)]")
+        elif not _has_results(cur):
+            cur["classes"] = classes or cur.get("classes")
+            if recap:
+                cur["recap"] = recap
+            filled += 1
+            log(f"  + filled {name} ({date}) results+recap from CompetitionSuite")
+        elif not cur.get("recap") and recap:
+            cur["recap"] = recap  # keep the mirror's matching results, add captions
+            recapped += 1
+            log(f"  + recap for {name} ({date})")
+
+    if created or filled or recapped:
+        merged = sorted(by_url.values(),
+                        key=lambda e: (e.get("year") or 0, e.get("date_display") or "", e.get("name") or ""))
+        events_path.write_text(json.dumps(merged, ensure_ascii=False, indent=1))
+        log(f"compsuite: +{created} created, {filled} filled, {recapped} recapped → {events_path}")
     else:
-        log("compsuite: no new recaps attached")
+        log("compsuite: nothing new")
     return 0
 
 
