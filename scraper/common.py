@@ -46,6 +46,13 @@ _last_fetch = [0.0]
 # challenge lifts we go back to fetching straight from the source.
 DCI_RELAY = os.environ.get("DCI_RELAY", "https://cadenceapp.up.railway.app/fetch?url=")
 _relay_mode = [False]
+# per-run circuit breaker: once dci.org is confirmed blocked (a challenge, a
+# 403/429, or repeated timeouts — the block has shown up as all three), stop
+# hammering it and let the fallback sources cover the run. Resets each run, so
+# the moment dci.org is reachable again the first fetch succeeds and normal
+# scraping resumes. This is what keeps a blocked cycle to seconds instead of
+# burning the whole ~9-minute deadline on retry backoff.
+_dci_down = [False]
 
 
 def _is_challenge(status: int, text: str, resp_headers: dict) -> bool:
@@ -129,6 +136,10 @@ def fetch(url: str, *, force: bool = False, timeout: int = 30, retries: int | No
         with gzip.open(cp, "rt", encoding="utf-8", errors="replace") as f:
             return f.read()
 
+    is_dci = urlparse(url).netloc == "www.dci.org"
+    if is_dci and _dci_down[0]:
+        return None  # already confirmed blocked this run — skip instantly
+
     headers = {}
     if accept_json:
         headers["Accept"] = "application/json"
@@ -144,17 +155,19 @@ def fetch(url: str, *, force: bool = False, timeout: int = 30, retries: int | No
             if status == 404:
                 log(f"404 {url}")
                 return None
-            if _is_challenge(status, text, resp_headers):
-                # A Cloudflare managed challenge is IP-based, not rate-based —
-                # http_get already tried the relay and it was challenged too,
-                # so retrying with backoff is futile. Fail fast and let the
-                # fallback source (downbeatdesigns) cover this show, keeping
-                # the whole cycle short instead of burning the deadline on
-                # 45s sleeps. Clears itself the moment the challenge lifts.
-                log(f"cloudflare challenge on {url}; skipping (fallback source will cover it)")
+            challenge = _is_challenge(status, text, resp_headers)
+            # dci.org is either reachable (200) or blocked — a 403/429/challenge
+            # is IP-based and won't clear on retry, so trip the run's breaker and
+            # let the fallback sources cover it instead of burning the deadline.
+            if challenge or (is_dci and status in (403, 429)):
+                if is_dci and not _dci_down[0]:
+                    _dci_down[0] = True
+                    log(f"dci.org blocked (HTTP {status}) — skipping it for the rest of this run; fallbacks will cover")
+                elif not is_dci:
+                    log(f"{status} on {url}; skipping")
                 return None
             if status in (403, 429):
-                # ordinary bot-wall / throttle: back off hard before retrying
+                # ordinary (non-dci) bot-wall / throttle: back off before retry
                 retry_after = int(resp_headers.get("retry-after") or 0)
                 pause = max(retry_after, 45 * (attempt + 1))
                 log(f"{status} throttle on {url}; sleeping {pause}s")
@@ -168,8 +181,16 @@ def fetch(url: str, *, force: bool = False, timeout: int = 30, retries: int | No
             return text
         except Exception as e:  # noqa: BLE001
             log(f"fetch attempt {attempt + 1}/{retries} failed: {url}: {e}")
+            # dci.org timing out is another face of the block: give it one
+            # retry, then trip the breaker so the run doesn't stall on it.
+            if is_dci and attempt >= 1:
+                _dci_down[0] = True
+                log("dci.org unreachable (timeouts) — skipping it for the rest of this run")
+                return None
             time.sleep(delay)
             delay *= 2
+    if is_dci:
+        _dci_down[0] = True
     return None
 
 
