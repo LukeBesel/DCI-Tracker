@@ -198,15 +198,17 @@ def main(year: int = 2026) -> int:
     comps = _competitions(season)
     log(f"compsuite: {len(comps)} competitions listed for {year}")
 
-    created = filled = recapped = 0
+    created = filled = updated = recapped = 0
     for comp in comps:
         date = (comp.get("competitionDate") or "")[:10]
         name = norm_space(comp.get("name"))
         url = canon.get(_norm(name)) or \
             f"https://www.dci.org/scores/final-scores/{year}-{slugify(name)}/"
         cur = by_url.get(url)
-        # dci.org (or a prior fill) already has full results + recap — leave it
-        if cur is not None and _has_results(cur) and cur.get("recap"):
+        # dci.org's OWN recap is the authoritative, final form — never touch it.
+        # (A fallback-created event carries a "source" tag; a dci.org one does
+        # not, so this only protects genuine dci.org scrapes.)
+        if cur is not None and cur.get("recap") and not cur.get("source"):
             continue
 
         detail = _bridge(f"GetCompetition/jsonp?competition={comp['competitionGuid']}")
@@ -230,6 +232,23 @@ def main(year: int = 2026) -> int:
             top = classes[0]["results"][0] if classes and classes[0]["results"] else None
             lead = f" — {top['corps']} {top['score']}" if top else ""
             log(f"  + created {name} ({date}){lead} [{len(classes)} class(es)]")
+        elif cur.get("source"):
+            # a fallback-filled show — RE-SYNC from CompetitionSuite every run so
+            # a partial show completes: shows post in stages (Open Class performs
+            # and posts before World Class), and the earlier run may have caught
+            # only the first round. CompetitionSuite is authoritative, so trust
+            # its current, fuller picture.
+            changed = False
+            if classes and classes != cur.get("classes"):
+                cur["classes"] = classes
+                changed = True
+            if recap and recap != cur.get("recap"):
+                cur["recap"] = recap
+                changed = True
+            if changed:
+                updated += 1
+                ncorps = sum(len(c.get("results") or []) for c in classes)
+                log(f"  ~ synced {name} ({date}) → {len(classes)} class(es), {ncorps} corps")
         elif not _has_results(cur):
             cur["classes"] = classes or cur.get("classes")
             if recap:
@@ -237,15 +256,15 @@ def main(year: int = 2026) -> int:
             filled += 1
             log(f"  + filled {name} ({date}) results+recap from CompetitionSuite")
         elif not cur.get("recap") and recap:
-            cur["recap"] = recap  # keep the mirror's matching results, add captions
+            cur["recap"] = recap  # dci.org results with no recap yet — add captions
             recapped += 1
             log(f"  + recap for {name} ({date})")
 
-    if created or filled or recapped:
+    if created or filled or updated or recapped:
         merged = sorted(by_url.values(),
                         key=lambda e: (e.get("year") or 0, e.get("date_display") or "", e.get("name") or ""))
         events_path.write_text(json.dumps(merged, ensure_ascii=False, indent=1))
-        log(f"compsuite: +{created} created, {filled} filled, {recapped} recapped → {events_path}")
+        log(f"compsuite: +{created} created, {filled} filled, {updated} synced, {recapped} recapped → {events_path}")
     else:
         log("compsuite: nothing new")
     return 0
