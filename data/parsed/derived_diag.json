@@ -1,5 +1,5 @@
 {
- "https://www.dci.org/scores/final-scores/2026-dci-dallas/": "HTTP 403, body 139B",
+ "https://www.dci.org/scores/final-scores/2026-dci-dallas/": "HTTP 200, body 183948B",
  "https://www.dci.org/scores/final-scores/2026-dci-houston/": "HTTP 200, body 181546B",
  "https://www.dci.org/scores/final-scores/2026-dci-mckinney/": "HTTP 200, body 181489B",
  "https://www.dci.org/scores/final-scores/2026-dci-southwestern-championship/": "HTTP 200, body 191979B",
@@ -7,6 +7,6 @@
  "https://www.dci.org/scores/final-scores/2026-drums-across-the-desert/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-raiders-tour-send-off/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-sounds-by-the-seaport/": "HTTP 403, body 139B",
- "https://www.dci.org/scores/final-scores/2026-the-buccaneer-classic/": "HTTP 200, body 181083B",
+ "https://www.dci.org/scores/final-scores/2026-the-buccaneer-classic/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-dci-denton/": "not reached (deadline hit before it / not processed)"
 }
