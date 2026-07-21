@@ -3346,12 +3346,12 @@
    "Atlanta CV",
    "Memphis Blues",
    "Heat Wave",
-   "Blue Knights",
-   "Blue Stars",
-   "Crossmen",
    "Spartans",
    "The Academy",
-   "Troopers"
+   "Crossmen",
+   "Blue Knights",
+   "Troopers",
+   "Blue Stars"
   ],
   "schedule": [
    [
@@ -3387,32 +3387,32 @@
     "Intermission"
    ],
    [
-    "11:07 PM",
-    "Scores Announced"
-   ],
-   [
-    "TBD",
-    "Blue Knights"
-   ],
-   [
-    "TBD",
-    "Blue Stars"
-   ],
-   [
-    "TBD",
-    "Crossmen"
-   ],
-   [
-    "TBD",
+    "9:17 PM",
     "Spartans"
    ],
    [
-    "TBD",
+    "9:34 PM",
     "The Academy"
    ],
    [
-    "TBD",
+    "9:51 PM",
+    "Crossmen"
+   ],
+   [
+    "10:08 PM",
+    "Blue Knights"
+   ],
+   [
+    "10:25 PM",
     "Troopers"
+   ],
+   [
+    "10:42 PM",
+    "Blue Stars"
+   ],
+   [
+    "11:07 PM",
+    "Scores Announced"
    ]
   ],
   "bag_policy": "Jaguar Stadium does not have a Clear Bag Policy. However, all bags are subject to search by event staff and security. For security and efficiency, all attendees are encouraged to keep all items to a minimum.",
@@ -4275,13 +4275,13 @@
   "date": "2026-07-28",
   "lineup": [
    "Raiders",
-   "Blue Devils",
-   "Blue Knights",
-   "Boston Crusaders",
-   "Colts",
-   "Pacific Crest",
    "Spartans",
-   "Troopers"
+   "Pacific Crest",
+   "Blue Knights",
+   "Troopers",
+   "Colts",
+   "Boston Crusaders",
+   "Blue Devils"
   ],
   "schedule": [
    [
@@ -4297,40 +4297,40 @@
     "Raiders"
    ],
    [
+    "6:57 PM",
+    "Spartans"
+   ],
+   [
+    "7:14 PM",
+    "Pacific Crest"
+   ],
+   [
     "7:31 PM",
+    "Blue Knights"
+   ],
+   [
+    "7:48 PM",
     "Intermission"
+   ],
+   [
+    "8:05 PM",
+    "Troopers"
+   ],
+   [
+    "8:22 PM",
+    "Colts"
+   ],
+   [
+    "8:39 PM",
+    "Boston Crusaders"
+   ],
+   [
+    "8:56 PM",
+    "Blue Devils"
    ],
    [
     "9:21 PM",
     "Scores Announced"
-   ],
-   [
-    "TBD",
-    "Blue Devils"
-   ],
-   [
-    "TBD",
-    "Blue Knights"
-   ],
-   [
-    "TBD",
-    "Boston Crusaders"
-   ],
-   [
-    "TBD",
-    "Colts"
-   ],
-   [
-    "TBD",
-    "Pacific Crest"
-   ],
-   [
-    "TBD",
-    "Spartans"
-   ],
-   [
-    "TBD",
-    "Troopers"
    ]
   ],
   "bag_policy": "Navy-Marine Corps Memorial Stadium does have a Clear Bag Policy. More detailed information regarding bags and stadium policies can be found here . All bags are subject to search by event staff and security. For security and efficiency, all attendees are encouraged to keep all items to a minimum.",
@@ -4348,10 +4348,10 @@
    "Columbians",
    "Gold",
    "The Battalion",
-   "Madison Scouts",
-   "Santa Clara Vanguard",
    "Seattle Cascades",
-   "The Cavaliers"
+   "Madison Scouts",
+   "The Cavaliers",
+   "Santa Clara Vanguard"
   ],
   "schedule": [
    [
@@ -4383,24 +4383,24 @@
     "The Battalion"
    ],
    [
-    "10:21 PM",
-    "Scores Announced"
-   ],
-   [
-    "TBD",
-    "Madison Scouts"
-   ],
-   [
-    "TBD",
-    "Santa Clara Vanguard"
-   ],
-   [
-    "TBD",
+    "9:05 PM",
     "Seattle Cascades"
    ],
    [
-    "TBD",
+    "9:22 PM",
+    "Madison Scouts"
+   ],
+   [
+    "9:39 PM",
     "The Cavaliers"
+   ],
+   [
+    "9:56 PM",
+    "Santa Clara Vanguard"
+   ],
+   [
+    "10:21 PM",
+    "Scores Announced"
    ]
   ],
   "_seen": "2026-07-21"
@@ -4492,11 +4492,11 @@
   "lineup": [
    "Crusaders Senior",
    "North Star",
-   "Bluecoats",
-   "Boston Crusaders",
+   "Spartans",
    "Pacific Crest",
    "Phantom Regiment",
-   "Spartans"
+   "Bluecoats",
+   "Boston Crusaders"
   ],
   "schedule": [
    [
@@ -4516,32 +4516,32 @@
     "North Star"
    ],
    [
+    "8:14 PM",
+    "Spartans"
+   ],
+   [
+    "8:31 PM",
+    "Pacific Crest"
+   ],
+   [
+    "8:48 PM",
+    "Phantom Regiment"
+   ],
+   [
+    "9:05 PM",
+    "Bluecoats"
+   ],
+   [
+    "9:22 PM",
+    "Boston Crusaders"
+   ],
+   [
     "9:39 PM",
     "Encore - Boston Crusaders - Boston, MA"
    ],
    [
     "9:47 PM",
     "Scores Announced"
-   ],
-   [
-    "TBD",
-    "Bluecoats"
-   ],
-   [
-    "TBD",
-    "Boston Crusaders"
-   ],
-   [
-    "TBD",
-    "Pacific Crest"
-   ],
-   [
-    "TBD",
-    "Phantom Regiment"
-   ],
-   [
-    "TBD",
-    "Spartans"
    ]
   ],
   "_seen": "2026-07-21"
