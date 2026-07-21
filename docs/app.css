@@ -516,3 +516,39 @@ a.tile:hover { text-decoration: none; }
   .evwin { font-size: 11.5px; }
   .cols-tiles { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ---- Predictions: "Call the finish" game (upcoming shows) ---- */
+.predict { margin: 12px 0 4px; padding: 12px 13px; border: 1px solid var(--border);
+  border-radius: 12px; background: var(--accent-wash); }
+.predict.done { background: var(--surface-2); }
+.pr-head { font-weight: 650; font-size: 14px; color: var(--heading); margin-bottom: 9px; }
+.pr-head .kicker { font-weight: 500; }
+.pr-head b { color: var(--accent-ink); font-size: 15px; }
+.pr-list { list-style: none; margin: 0 0 9px; padding: 0; counter-reset: pr;
+  display: flex; flex-direction: column; gap: 6px; }
+.pr-list li { counter-increment: pr; }
+.pr-list.locked li { display: flex; align-items: center; gap: 9px; font-size: 14px; }
+.pr-list.locked li::before, .pr-pick::before {
+  content: counter(pr); flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--navy); color: #fff; font-size: 12px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center; }
+.pr-pick { width: 100%; display: flex; align-items: center; gap: 9px; padding: 8px 10px;
+  border: 1px solid var(--border); border-radius: 9px; background: var(--surface-1);
+  color: var(--text-primary); font-size: 14px; font-weight: 600; cursor: pointer; text-align: left; }
+.pr-pick .pr-x { margin-left: auto; color: var(--muted); font-size: 12px; }
+.pr-hint { color: var(--muted); font-size: 13px; font-style: italic; }
+.pr-pool { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 10px; }
+.pr-chip { padding: 8px 12px; border: 1px solid var(--border); border-radius: 999px;
+  background: var(--surface-1); color: var(--link); font-size: 13.5px; font-weight: 600; cursor: pointer; }
+.pr-chip:active { transform: scale(0.96); }
+.pr-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.pr-actions .tab { font-size: 13px; }
+.pr-lock { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+.pr-empty { color: var(--muted); font-size: 13px; }
+.pr-table { margin-top: 4px; }
+.pr-table th { font-size: 11.5px; color: var(--muted); }
+.pr-table td { font-size: 13.5px; }
+.pr-table tr.pr-hit td { background: rgba(43,138,62,0.15); }
+.pr-table tr.pr-near td { background: rgba(240,180,41,0.14); }
+.pr-record { margin: 2px 0 12px; padding: 8px 12px; border-radius: 10px;
+  background: var(--accent-wash); color: var(--heading); font-size: 13px; font-weight: 600; }

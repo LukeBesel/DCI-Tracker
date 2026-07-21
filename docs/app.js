@@ -116,6 +116,118 @@
     };
   })();
   const pinKeyOf = ev => (ev.date || "") + "|" + (ev.name || "");
+
+  // ---- Predictions: call a show's World Class finish before scores post ----
+  // Guesses live in localStorage (survive refresh, close, restart — per device,
+  // like favorites/pins), keyed like pins by date|name. Scored automatically
+  // the moment the show's results land.
+  const PREDS = (() => {
+    let m;
+    try { m = JSON.parse(localStorage.getItem("cad-preds") || "{}"); }
+    catch (e) { m = {}; }
+    const save = () => { try { localStorage.setItem("cad-preds", JSON.stringify(m)); } catch (e) {} };
+    return {
+      get: k => m[k] || null,
+      set: (k, order) => { m[k] = { order, ts: Date.now() }; save(); },
+      del: k => { delete m[k]; save(); },
+      all: () => m,
+    };
+  })();
+  // World Class finish order (corps, best→worst) from a scored event, else []
+  function wcOrder(ev) {
+    const wc = (ev.classes || []).find(c => c.class === "World Class");
+    if (!wc || !(wc.results || []).length) return [];
+    return wc.results.slice().sort((a, b) => (a.place || 99) - (b.place || 99)).map(r => r.corps);
+  }
+  // exact spot = 3 pts, off by one = 1 pt. Graded only over the corps you
+  // actually called that competed, so a partial pick isn't crushed by the
+  // full-field size (and a scratched corps just doesn't count).
+  function scorePred(predOrder, actual) {
+    const pos = new Map(actual.map((c, i) => [c, i]));
+    let pts = 0, exact = 0, graded = 0;
+    predOrder.forEach((corps, i) => {
+      const ap = pos.get(corps);
+      if (ap == null) return;
+      graded++;
+      const d = Math.abs(ap - i);
+      if (d === 0) { pts += 3; exact++; } else if (d === 1) pts += 1;
+    });
+    const max = graded * 3;
+    return { pts, max, exact, n: graded, pct: max ? Math.round(pts / max * 100) : 0 };
+  }
+  // Render the prediction UI into a mount div: the scored result if the show
+  // is in, otherwise the tap-to-rank card (or the locked pick). Self-contained
+  // — manages its own re-renders and click handling.
+  function mountPredict(container, ev, wcCorps, wcRank) {
+    const key = pinKeyOf(ev);
+    const actual = wcOrder(ev);
+    const pred = PREDS.get(key);
+
+    if (actual.length) {                       // show is scored → grade the call
+      if (!pred) { container.innerHTML = ""; return; }
+      const s = scorePred(pred.order, actual);
+      const apos = new Map(actual.map((c, i) => [c, i]));
+      const rows = pred.order.map((corps, i) => {
+        const ap = apos.get(corps);
+        const d = ap == null ? null : Math.abs(ap - i);
+        const st = d === 0 ? "hit" : d === 1 ? "near" : "miss";
+        return `<tr class="pr-${st}"><td class="num">${i + 1}</td><td>${corpsLink(corps)}</td>`
+          + `<td class="num">${ap == null ? "—" : "#" + (ap + 1)}</td></tr>`;
+      }).join("");
+      container.innerHTML = h`<div class="predict done">
+        <div class="pr-head">🎯 Your call: <b>${s.pct}%</b> <span class="kicker">${s.exact}/${s.n} exact · ${s.pts}/${s.max} pts</span></div>
+        <table class="t pr-table"><thead><tr><th class="num">You</th><th>Corps</th><th class="num">Real</th></tr></thead><tbody>${rows}</tbody></table>
+      </div>`;
+      return;
+    }
+
+    if (!ev.future) { container.innerHTML = ""; return; }
+    let lineup = (ev.lineup || []).filter(c => wcCorps.has(c));
+    if (lineup.length < 2) lineup = (ev.lineup || []).slice();   // early-season fallback
+    if (lineup.length < 2) {
+      container.innerHTML = `<div class="predict"><div class="pr-head">🎯 Call the finish</div>`
+        + `<div class="pr-empty">Opens once the lineup is posted.</div></div>`;
+      return;
+    }
+
+    let draft = pred ? pred.order.filter(c => lineup.includes(c)) : [];
+    let locked = !!pred;
+    const draw = () => {
+      const rest = lineup.filter(c => !draft.includes(c));
+      if (locked) {
+        container.innerHTML = h`<div class="predict">
+          <div class="pr-head">🎯 Your call is in <span class="kicker">edit anytime until scores post</span></div>
+          <ol class="pr-list locked">${draft.map(c => `<li>${corpsLink(c)}</li>`).join("")}</ol>
+          <div class="pr-actions"><button class="tab" data-act="edit">Edit pick</button></div></div>`;
+      } else {
+        container.innerHTML = h`<div class="predict">
+          <div class="pr-head">🎯 Call the finish <span class="kicker">tap them in the order you think they'll place</span></div>
+          <ol class="pr-list">${draft.map((c, i) => `<li><button class="pr-pick" data-drop="${i}">${esc(c)}<span class="pr-x">✕</span></button></li>`).join("")
+            || '<li class="pr-hint">Tap a corps below to start ranking…</li>'}</ol>
+          ${rest.length ? `<div class="pr-pool">${rest.map(c => `<button class="pr-chip" data-add="${esc(c)}">${esc(c)}</button>`).join("")}</div>` : ""}
+          <div class="pr-actions">
+            ${rest.length ? `<button class="tab" data-act="auto">Auto-fill rest</button>` : ""}
+            ${draft.length ? `<button class="tab" data-act="reset">Reset</button>` : ""}
+            ${draft.length >= 2 ? `<button class="tab pr-lock" data-act="lock">Lock it in ✓</button>` : ""}
+          </div></div>`;
+      }
+    };
+    container.onclick = e => {
+      const add = e.target.closest("[data-add]"), drop = e.target.closest("[data-drop]"), act = e.target.closest("[data-act]");
+      if (add) { draft.push(add.dataset.add); draw(); return; }
+      if (drop) { draft.splice(+drop.dataset.drop, 1); draw(); return; }
+      if (!act) return;
+      const a = act.dataset.act;
+      if (a === "reset") draft = [];
+      else if (a === "auto") lineup.filter(c => !draft.includes(c))
+        .sort((x, y) => (wcRank[x] ?? 999) - (wcRank[y] ?? 999)).forEach(c => draft.push(c));
+      else if (a === "lock") { PREDS.set(key, draft); locked = true; }
+      else if (a === "edit") locked = false;
+      draw();
+    };
+    draw();
+  }
+
   function setNav(route) {
     document.querySelectorAll("#nav a").forEach(a =>
       a.classList.toggle("active", a.dataset.route === route));
@@ -1116,6 +1228,7 @@
             return `<tr><td class="num" style="color:var(--muted);white-space:nowrap"${shown !== t ? ` title="${esc(t)} ${esc(abbr)} at the venue"` : ""}>${esc(shown || "")}</td><td>${isCorps ? corpsLink(entry) : `<span style="color:var(--muted)">${esc(entry)}</span>`}</td></tr>`;
           }).join("")}
           </tbody></table>
+          <div class="predictmount"></div>
           ${mapLink}`;
       }
       return (ev.lineup || []).length
@@ -1123,6 +1236,7 @@
             <table class="t"><tbody>
             ${ev.lineup.map(c => `<tr><td>${corpsLink(c)}</td><td class="num" style="color:var(--muted)">upcoming</td></tr>`).join("")}
             </tbody></table>
+            <div class="predictmount"></div>
             ${mapLink}`
         : `${pinBtn}<div class='empty'>Lineup not announced yet.</div>${mapLink}`;
     }
@@ -1132,6 +1246,7 @@
         <table class="t"><tbody>
         ${c.results.map(r => `<tr><td class="rank">${r.place ?? "—"}</td><td>${corpsLink(r.corps)}</td><td class="num score">${score3(r.score)}</td></tr>`).join("")}
         </tbody></table>`).join("")}
+      <div class="predictmount"></div>
       <div style="margin-top:10px;font-size:13px">
         <a href="#/event/${year}/${i}">${ev.has_recap ? "Caption breakdown & full page →" : "Event page →"}</a>
       </div>`;
@@ -1197,6 +1312,30 @@
     events.forEach(ev => (ev.classes || []).forEach(c => clsSet.add(c.class)));
     const clsList = sortClasses([...clsSet]);
 
+    // World Class corps this season (+ a rank by season-best score) so the
+    // prediction game knows which lineup names to rank and can auto-fill
+    const wcCorps = new Set();
+    const wcBest = {};
+    events.forEach(ev => (ev.classes || []).forEach(c => {
+      if (c.class !== "World Class") return;
+      (c.results || []).forEach(r => {
+        wcCorps.add(r.corps);
+        wcBest[r.corps] = Math.max(wcBest[r.corps] || 0, r.score || 0);
+      });
+    }));
+    const wcRank = {};
+    Object.keys(wcBest).sort((a, b) => wcBest[b] - wcBest[a]).forEach((c, i) => { wcRank[c] = i; });
+    // this season's graded calls, for the little record strip
+    const graded = [];
+    events.forEach(ev => {
+      const p = PREDS.get(pinKeyOf(ev)), ord = wcOrder(ev);
+      if (p && ord.length) graded.push(scorePred(p.order, ord).pct);
+    });
+    const recordStrip = graded.length
+      ? `<div class="pr-record">🎯 Your calls · ${graded.length} show${graded.length > 1 ? "s" : ""} · `
+        + `avg ${Math.round(graded.reduce((a, b) => a + b, 0) / graded.length)}% · best ${Math.max(...graded)}%</div>`
+      : "";
+
     const cnt = document.getElementById("evCount");
     if (cnt) cnt.textContent = `· ${year} — ${events.filter(e => !e.future).length} events${events.some(e => e.future) ? `, ${events.filter(e => e.future).length} upcoming` : ""}`;
     mount().innerHTML = h`
@@ -1207,6 +1346,7 @@
         <button class="tab" id="toggleAll">Expand All ▾</button>
       </div>
       <div id="evcount" class="kicker" style="margin:-6px 0 10px"></div>
+      ${recordStrip}
       <div id="evlist"></div>`;
 
     const list = document.getElementById("evlist");
@@ -1218,6 +1358,7 @@
       if (open && !body.dataset.filled) {
         const i = +row.dataset.i;
         body.innerHTML = eventBodyHtml(events[i], year, i);
+        body.querySelectorAll(".predictmount").forEach(mnt => mountPredict(mnt, events[i], wcCorps, wcRank));
         body.dataset.filled = "1";
       }
       body.hidden = !open;
