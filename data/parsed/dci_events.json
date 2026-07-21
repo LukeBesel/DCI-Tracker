@@ -603021,8 +603021,6 @@
   "recap_url": "https://www.dci.org/scores/recap/2026-dci-mckinney/",
   "classes": [
    {
-<<<<<<< Updated upstream
-=======
     "class": "World Class",
     "results": [
      {
@@ -603058,7 +603056,6 @@
     ]
    },
    {
->>>>>>> Stashed changes
     "class": "Open Class",
     "results": [
      {
@@ -603071,8 +603068,6 @@
   ],
   "recap": [
    {
-<<<<<<< Updated upstream
-=======
     "class": "World Class",
     "captions": [],
     "rows": [
@@ -603295,7 +603290,6 @@
     ]
    },
    {
->>>>>>> Stashed changes
     "class": "Open Class",
     "captions": [],
     "rows": [
