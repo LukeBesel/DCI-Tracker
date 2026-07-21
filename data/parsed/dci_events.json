@@ -603012,6 +603012,72 @@
   "source": "competitionsuite"
  },
  {
+  "url": "https://www.dci.org/scores/final-scores/2026-dci-mckinney/",
+  "slug": "2026-dci-mckinney",
+  "year": 2026,
+  "name": "DCI McKinney",
+  "date_display": "July 20, 2026",
+  "location": "McKinney, TX",
+  "recap_url": "https://www.dci.org/scores/recap/2026-dci-mckinney/",
+  "classes": [
+   {
+    "class": "Open Class",
+    "results": [
+     {
+      "place": 1,
+      "corps": "Zephyrus",
+      "score": 68.2
+     }
+    ]
+   }
+  ],
+  "recap": [
+   {
+    "class": "Open Class",
+    "captions": [],
+    "rows": [
+     {
+      "corps": "Zephyrus",
+      "total": 68.2,
+      "cells": [
+       "7.000 1",
+       "6.900 1",
+       "13.900 1",
+       "6.900 1",
+       "6.500 1",
+       "13.400 1",
+       "27.300 1",
+       "7.300 1",
+       "7.000 1",
+       "14.300 1",
+       "7.000 1",
+       "6.700 1",
+       "13.700 1",
+       "6.800 1",
+       "6.600 1",
+       "13.400 1",
+       "20.700 1",
+       "7.000 1",
+       "6.900 1",
+       "13.900 1",
+       "6.900 1",
+       "6.500 1",
+       "13.400 1",
+       "6.700 1",
+       "6.400 1",
+       "13.100 1",
+       "20.200 1",
+       "68.200 1",
+       "0.000",
+       "68.200 1"
+      ]
+     }
+    ]
+   }
+  ],
+  "source": "competitionsuite"
+ },
+ {
   "url": "https://www.dci.org/scores/final-scores/2026-dci-capital-classic/",
   "slug": "2026-dci-capital-classic",
   "year": 2026,
