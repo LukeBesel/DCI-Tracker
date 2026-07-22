@@ -8,7 +8,7 @@
  "https://www.dci.org/scores/final-scores/2026-march-on/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-raiders-tour-send-off/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-sounds-by-the-seaport/": "HTTP 403, body 139B",
- "https://www.dci.org/scores/final-scores/2026-the-buccaneer-classic/": "HTTP 200, body 181083B",
+ "https://www.dci.org/scores/final-scores/2026-the-buccaneer-classic/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-dci-denton/": "not reached (deadline hit before it / not processed)",
  "https://www.dci.org/scores/final-scores/2026-dci-houston/": "not reached (deadline hit before it / not processed)"
 }
