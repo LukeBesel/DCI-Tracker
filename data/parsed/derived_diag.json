@@ -1,8 +1,8 @@
 {
  "https://www.dci.org/scores/final-scores/2026-dci-dallas/": "HTTP 200, body 183747B",
- "https://www.dci.org/scores/final-scores/2026-dci-mckinney/": "HTTP 200, body 181288B",
+ "https://www.dci.org/scores/final-scores/2026-dci-mckinney/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-dci-southern-mississippi/": "HTTP 403, body 139B",
- "https://www.dci.org/scores/final-scores/2026-dci-southwestern-championship/": "HTTP 200, body 191778B",
+ "https://www.dci.org/scores/final-scores/2026-dci-southwestern-championship/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-dci-st-louis/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-drums-on-the-ohio/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-march-on/": "HTTP 403, body 139B",
