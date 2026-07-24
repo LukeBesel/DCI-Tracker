@@ -1,6 +1,6 @@
 {
- "https://www.dci.org/scores/final-scores/2026-dci-birmingham/": "HTTP 403, body 139B",
- "https://www.dci.org/scores/final-scores/2026-dci-middle-tennessee/": "HTTP 403, body 139B",
+ "https://www.dci.org/scores/final-scores/2026-dci-birmingham/": "request error: RuntimeError: curl: curl: (28) Operation timed out after 15002 milliseconds with 0 bytes received",
+ "https://www.dci.org/scores/final-scores/2026-dci-middle-tennessee/": "request error: RuntimeError: curl: curl: (28) Operation timed out after 15001 milliseconds with 0 bytes received",
  "https://www.dci.org/scores/final-scores/2026-dci-syracuse/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-drums-on-parade/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-raiders-tour-send-off/": "HTTP 403, body 139B",
