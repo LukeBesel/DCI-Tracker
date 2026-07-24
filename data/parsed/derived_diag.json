@@ -1,4 +1,8 @@
 {
+ "https://www.dci.org/scores/final-scores/2026-dci-birmingham/": "HTTP 403, body 139B",
+ "https://www.dci.org/scores/final-scores/2026-dci-middle-tennessee/": "HTTP 403, body 139B",
+ "https://www.dci.org/scores/final-scores/2026-dci-syracuse/": "HTTP 403, body 139B",
+ "https://www.dci.org/scores/final-scores/2026-drums-on-parade/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-raiders-tour-send-off/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-sounds-by-the-seaport/": "HTTP 403, body 139B"
 }
