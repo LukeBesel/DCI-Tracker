@@ -3,7 +3,7 @@
  "https://www.dci.org/scores/final-scores/2026-dci-birmingham/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-dci-middle-tennessee/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-dci-southeastern-championship/": "HTTP 403, body 139B",
- "https://www.dci.org/scores/final-scores/2026-dci-syracuse/": "HTTP 200, body 181609B",
+ "https://www.dci.org/scores/final-scores/2026-dci-syracuse/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-drums-on-parade/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-midwestern-championship/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-music-on-the-mountain/": "HTTP 403, body 139B",
