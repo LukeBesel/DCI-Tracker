@@ -604534,6 +604534,72 @@
   "source": "competitionsuite"
  },
  {
+  "url": "https://www.dci.org/scores/final-scores/2026-dci-syracuse/",
+  "slug": "2026-dci-syracuse",
+  "year": 2026,
+  "name": "DCI Syracuse",
+  "date_display": "July 24, 2026",
+  "location": "Central Square, NY",
+  "recap_url": "https://www.dci.org/scores/recap/2026-dci-syracuse/",
+  "classes": [
+   {
+    "class": "All-Age - World Class",
+    "results": [
+     {
+      "place": 1,
+      "corps": "White Sabers",
+      "score": 80.9
+     }
+    ]
+   }
+  ],
+  "recap": [
+   {
+    "class": "All-Age - World Class",
+    "captions": [],
+    "rows": [
+     {
+      "corps": "White Sabers",
+      "total": 80.9,
+      "cells": [
+       "8.400 1",
+       "8.100 1",
+       "16.500 1",
+       "8.400 1",
+       "8.100 1",
+       "16.500 1",
+       "33.000 1",
+       "7.900 1",
+       "7.600 1",
+       "15.500 1",
+       "8.200 1",
+       "7.800 1",
+       "16.000 1",
+       "8.100 1",
+       "7.900 1",
+       "16.000 1",
+       "23.750 1",
+       "8.200 1",
+       "7.900 1",
+       "16.100 1",
+       "8.600 1",
+       "8.300 1",
+       "16.900 1",
+       "7.800 1",
+       "7.500 1",
+       "15.300 1",
+       "24.150 1",
+       "80.900 1",
+       "0.000",
+       "80.900 1"
+      ]
+     }
+    ]
+   }
+  ],
+  "source": "competitionsuite"
+ },
+ {
   "url": "https://www.dci.org/scores/final-scores/2026-dci-capital-classic/",
   "slug": "2026-dci-capital-classic",
   "year": 2026,
