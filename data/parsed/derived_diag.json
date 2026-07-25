@@ -7,5 +7,6 @@
  "https://www.dci.org/scores/final-scores/2026-drums-on-parade/": "HTTP 200, body 186013B",
  "https://www.dci.org/scores/final-scores/2026-midwestern-championship/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-music-on-the-mountain/": "HTTP 403, body 139B",
- "https://www.dci.org/scores/final-scores/2026-raiders-tour-send-off/": "HTTP 403, body 139B"
+ "https://www.dci.org/scores/final-scores/2026-raiders-tour-send-off/": "HTTP 403, body 139B",
+ "https://www.dci.org/scores/final-scores/2026-sounds-by-the-seaport/": "HTTP 403, body 139B"
 }
