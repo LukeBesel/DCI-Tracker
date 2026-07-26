@@ -1,12 +1,13 @@
 {
  "https://www.dci.org/scores/final-scores/2026-bushwackers-invitational/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-dci-birmingham/": "HTTP 200, body 189040B",
- "https://www.dci.org/scores/final-scores/2026-dci-middle-tennessee/": "HTTP 403, body 139B",
+ "https://www.dci.org/scores/final-scores/2026-dci-in-motion/": "HTTP 403, body 139B",
+ "https://www.dci.org/scores/final-scores/2026-dci-middle-tennessee/": "HTTP 200, body 181234B",
  "https://www.dci.org/scores/final-scores/2026-dci-southeastern-championship/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-dci-syracuse/": "HTTP 200, body 181609B",
  "https://www.dci.org/scores/final-scores/2026-drums-on-parade/": "HTTP 200, body 186013B",
  "https://www.dci.org/scores/final-scores/2026-midwestern-championship/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-music-on-the-mountain/": "HTTP 403, body 139B",
- "https://www.dci.org/scores/final-scores/2026-raiders-tour-send-off/": "HTTP 403, body 139B",
- "https://www.dci.org/scores/final-scores/2026-sounds-by-the-seaport/": "HTTP 403, body 139B"
+ "https://www.dci.org/scores/final-scores/2026-nightbeat/": "HTTP 403, body 139B",
+ "https://www.dci.org/scores/final-scores/2026-raiders-tour-send-off/": "HTTP 403, body 139B"
 }
