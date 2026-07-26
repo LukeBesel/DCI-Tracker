@@ -2472,151 +2472,6 @@
   "_seen": "2026-07-26"
  },
  {
-  "url": "https://www.dci.org/events/2026-dci-denton/",
-  "name": "DCI Denton",
-  "location": "Denton, TX",
-  "date_display": "July 16, 2026",
-  "date": "2026-07-16",
-  "lineup": [
-   "Guardians",
-   "Zephyrus",
-   "Seattle Cascades",
-   "Spirit of Atlanta",
-   "Phantom Regiment",
-   "Carolina Crown",
-   "Bluecoats",
-   "Boston Crusaders",
-   "Santa Clara Vanguard"
-  ],
-  "schedule": [
-   [
-    "7:00 PM",
-    "Gates Open"
-   ],
-   [
-    "8:20 PM",
-    "Welcome & National Anthem"
-   ],
-   [
-    "8:30 PM",
-    "Guardians"
-   ],
-   [
-    "8:42 PM",
-    "Zephyrus"
-   ],
-   [
-    "8:59 PM",
-    "Seattle Cascades"
-   ],
-   [
-    "9:16 PM",
-    "Spirit of Atlanta"
-   ],
-   [
-    "9:33 PM",
-    "Phantom Regiment"
-   ],
-   [
-    "9:50 PM",
-    "Carolina Crown"
-   ],
-   [
-    "10:07 PM",
-    "Bluecoats"
-   ],
-   [
-    "10:24 PM",
-    "Boston Crusaders"
-   ],
-   [
-    "10:41 PM",
-    "Santa Clara Vanguard"
-   ],
-   [
-    "11:06 PM",
-    "Scores Announced"
-   ]
-  ],
-  "bag_policy": "DATCU Stadium does have a Clear Bag Policy and more information can be found here . All bags are subject to search by event staff and security. For security and efficiency, all attendees are encouraged to keep all items to a minimum.",
-  "_seen": "2026-07-26"
- },
- {
-  "url": "https://www.dci.org/events/2026-dci-houston/",
-  "name": "DCI Houston",
-  "location": "Houston, TX",
-  "date_display": "July 17, 2026",
-  "date": "2026-07-17",
-  "lineup": [
-   "Spartans",
-   "Genesis",
-   "Crossmen",
-   "The Academy",
-   "The Cavaliers",
-   "Blue Stars",
-   "Blue Devils",
-   "Carolina Crown",
-   "Bluecoats",
-   "Boston Crusaders"
-  ],
-  "schedule": [
-   [
-    "6:30 PM",
-    "Gates Open"
-   ],
-   [
-    "8:00 PM",
-    "Welcome & National Anthem"
-   ],
-   [
-    "8:10 PM",
-    "Spartans"
-   ],
-   [
-    "8:27 PM",
-    "Genesis"
-   ],
-   [
-    "8:44 PM",
-    "Crossmen"
-   ],
-   [
-    "9:01 PM",
-    "The Academy"
-   ],
-   [
-    "9:18 PM",
-    "The Cavaliers"
-   ],
-   [
-    "9:35 PM",
-    "Blue Stars"
-   ],
-   [
-    "9:52 PM",
-    "Blue Devils"
-   ],
-   [
-    "10:09 PM",
-    "Carolina Crown"
-   ],
-   [
-    "10:26 PM",
-    "Bluecoats"
-   ],
-   [
-    "10:43 PM",
-    "Boston Crusaders"
-   ],
-   [
-    "11:08 PM",
-    "Scores Announced"
-   ]
-  ],
-  "bag_policy": "All guests will be required to abide by the Katy ISD Clear Bag Policy and pass through security screening including the use of walk-through and hand wand metal detectors. Outside food and beverage are prohibited and will not be allowed in the stadium. For a list of other prohibited items, visit katyisd.org . One empty reusable water bottle or one full sealed bottle of water will be permitted into the stadium.",
-  "_seen": "2026-07-26"
- },
- {
   "url": "https://www.dci.org/events/2026-sounds-by-the-seaport/",
   "name": "Sounds by the Seaport",
   "location": "New London, CT",
@@ -3791,6 +3646,10 @@
     "Blue Devils"
    ],
    [
+    "10:22 PM",
+    "Encore - Spirit of Atlanta - Atlanta, GA"
+   ],
+   [
     "10:30 PM",
     "Scores Announced"
    ]
@@ -4033,7 +3892,6 @@
    "Spartans",
    "The Academy",
    "Spirit of Atlanta",
-   "Crossmen",
    "Troopers",
    "Blue Knights",
    "Colts",
@@ -4085,10 +3943,6 @@
    ],
    [
     "7:23 PM",
-    "Crossmen"
-   ],
-   [
-    "7:41 PM",
     "Intermission"
    ],
    [
@@ -5196,19 +5050,19 @@
    "The Blue Way Middle School Honor Band",
    "Rhythm IN BLUE",
    "EN-CORPS by EN-RICH-MENT",
-   "Bluecoats",
-   "Blue Devils",
-   "Boston Crusaders",
-   "Carolina Crown",
-   "Colts",
-   "Crossmen",
    "Genesis",
-   "Madison Scouts",
-   "Music City",
-   "Pacific Crest",
-   "Santa Clara Vanguard",
    "Seattle Cascades",
-   "The Academy"
+   "Music City",
+   "The Academy",
+   "Crossmen",
+   "Pacific Crest",
+   "Madison Scouts",
+   "Colts",
+   "Santa Clara Vanguard",
+   "Carolina Crown",
+   "Boston Crusaders",
+   "Blue Devils",
+   "Bluecoats"
   ],
   "schedule": [
    [
@@ -5232,8 +5086,56 @@
     "EN-CORPS by EN-RICH-MENT"
    ],
    [
+    "6:42 PM",
+    "Genesis"
+   ],
+   [
+    "6:59 PM",
+    "Seattle Cascades"
+   ],
+   [
+    "7:16 PM",
+    "Music City"
+   ],
+   [
+    "7:33 PM",
+    "The Academy"
+   ],
+   [
+    "7:50 PM",
+    "Crossmen"
+   ],
+   [
     "8:07 PM",
     "Intermission"
+   ],
+   [
+    "8:24 PM",
+    "Pacific Crest"
+   ],
+   [
+    "8:41 PM",
+    "Madison Scouts"
+   ],
+   [
+    "8:58 PM",
+    "Colts"
+   ],
+   [
+    "9:15 PM",
+    "Santa Clara Vanguard"
+   ],
+   [
+    "9:32 PM",
+    "Carolina Crown"
+   ],
+   [
+    "9:49 PM",
+    "Boston Crusaders"
+   ],
+   [
+    "10:06 PM",
+    "Blue Devils"
    ],
    [
     "10:23 PM",
@@ -5246,54 +5148,6 @@
    [
     "10:48 PM",
     "Scores Announced"
-   ],
-   [
-    "TBD",
-    "Blue Devils"
-   ],
-   [
-    "TBD",
-    "Boston Crusaders"
-   ],
-   [
-    "TBD",
-    "Carolina Crown"
-   ],
-   [
-    "TBD",
-    "Colts"
-   ],
-   [
-    "TBD",
-    "Crossmen"
-   ],
-   [
-    "TBD",
-    "Genesis"
-   ],
-   [
-    "TBD",
-    "Madison Scouts"
-   ],
-   [
-    "TBD",
-    "Music City"
-   ],
-   [
-    "TBD",
-    "Pacific Crest"
-   ],
-   [
-    "TBD",
-    "Santa Clara Vanguard"
-   ],
-   [
-    "TBD",
-    "Seattle Cascades"
-   ],
-   [
-    "TBD",
-    "The Academy"
    ]
   ],
   "bag_policy": "There will be a clear bag policy in effect. More information can be found here .",
