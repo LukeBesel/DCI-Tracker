@@ -1,6 +1,7 @@
 {
- "https://www.dci.org/scores/final-scores/2026-dci-in-motion/": "HTTP 200, body 178784B",
+ "https://www.dci.org/scores/final-scores/2026-brass-at-the-beach/": "HTTP 403, body 139B",
+ "https://www.dci.org/scores/final-scores/2026-dci-annapolis/": "HTTP 403, body 139B",
+ "https://www.dci.org/scores/final-scores/2026-dci-in-motion/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-nightbeat/": "HTTP 200, body 185521B",
- "https://www.dci.org/scores/final-scores/2026-raiders-tour-send-off/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-summer-music-games-in-cincinnati/": "HTTP 403, body 139B"
 }
