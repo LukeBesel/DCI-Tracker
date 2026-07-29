@@ -1,7 +1,7 @@
 {
- "https://www.dci.org/scores/final-scores/2026-brass-at-the-beach/": "HTTP 200, body 180208B",
  "https://www.dci.org/scores/final-scores/2026-dci-annapolis/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-dci-huntington/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-summer-music-games-in-cincinnati/": "HTTP 403, body 139B",
- "https://www.dci.org/scores/final-scores/2026-summer-music-games-of-southwest-virginia/": "HTTP 403, body 139B"
+ "https://www.dci.org/scores/final-scores/2026-summer-music-games-of-southwest-virginia/": "HTTP 403, body 139B",
+ "https://www.dci.org/scores/final-scores/2026-brass-at-the-beach/": "not reached (deadline hit before it / not processed)"
 }
