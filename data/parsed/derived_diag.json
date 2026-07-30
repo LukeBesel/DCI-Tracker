@@ -1,5 +1,5 @@
 {
- "https://www.dci.org/scores/final-scores/2026-brass-at-the-beach/": "HTTP 403, body 139B",
+ "https://www.dci.org/scores/final-scores/2026-brass-at-the-beach/": "HTTP 200, body 178740B",
  "https://www.dci.org/scores/final-scores/2026-dci-annapolis/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-dci-east-coast-showcase/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-dci-huntington/": "HTTP 200, body 182351B",
