@@ -230,6 +230,12 @@
     if (!wc || !(wc.results || []).length) return [];
     return wc.results.slice().sort((a, b) => (a.place || 99) - (b.place || 99)).map(r => r.corps);
   }
+  function wcScoreMap(ev) {
+    const wc = (ev.classes || []).find(c => c.class === "World Class");
+    const m = new Map();
+    if (wc) (wc.results || []).forEach(r => { if (r.score != null) m.set(r.corps, r.score); });
+    return m;
+  }
   // exact spot = 3 pts, off by one = 1 pt. Graded only over the corps you
   // actually called that competed, so a partial pick isn't crushed by the
   // full-field size (and a scratched corps just doesn't count).
@@ -251,22 +257,23 @@
   // — manages its own re-renders and click handling.
   // the graded result card (head + you-vs-real table), reused inline on the
   // event card and on the My Calls page
-  function predResultHtml(order, actual) {
+  function predResultHtml(order, actual, scores) {
     const s = scorePred(order, actual);
     const apos = new Map(actual.map((c, i) => [c, i]));
     // side by side: at each finishing spot, the corps YOU put there and the
-    // corps that ACTUALLY landed there — so the guess and the result read
-    // straight across. Row tints green when they match (exact), amber when
-    // your pick was one spot off.
+    // corps that ACTUALLY landed there (with its final score) — so the guess
+    // and the result read straight across. Row tints green when they match
+    // (exact), amber when your pick was one spot off.
     const rows = order.map((corps, i) => {
       const ap = apos.get(corps);
       const d = ap == null ? null : Math.abs(ap - i);
       const st = d === 0 ? "hit" : d === 1 ? "near" : "miss";
       const real = actual[i];
       const tick = d === 0 ? ' <span class="pr-tick">✓</span>' : "";
+      const sv = real && scores && scores.get(real) != null ? `<div class="pr-score">${score3(scores.get(real))}</div>` : "";
       return `<tr class="pr-${st}"><td class="num">${i + 1}</td>`
         + `<td class="pr-you">${corpsLink(corps)}${tick}</td>`
-        + `<td class="pr-real">${real ? corpsLink(real) : "—"}</td></tr>`;
+        + `<td class="pr-real">${real ? corpsLink(real) + sv : "—"}</td></tr>`;
     }).join("");
     return h`<div class="pr-head">🎯 Your call: <b>${s.pct}%</b> <span class="kicker">${s.exact}/${s.n} exact · ${s.pts}/${s.max} pts</span></div>
       <table class="t pr-table"><thead><tr><th class="num">#</th><th>Your pick</th><th>Actual finish</th></tr></thead><tbody>${rows}</tbody></table>`;
@@ -279,7 +286,7 @@
 
     if (actual.length) {                       // show is scored → grade the call
       if (!pred) { container.innerHTML = ""; return; }
-      container.innerHTML = `<div class="predict done">${predResultHtml(pred.order, actual)}</div>`;
+      container.innerHTML = `<div class="predict done">${predResultHtml(pred.order, actual, wcScoreMap(ev))}</div>`;
       return;
     }
 
@@ -368,7 +375,7 @@
       const name = k.slice(k.indexOf("|") + 1);
       const ev = byKey.get(k);
       const actual = ev ? wcOrder(ev) : [];
-      if (actual.length) graded.push({ date, name, pred, actual, s: scorePred(pred.order, actual) });
+      if (actual.length) graded.push({ date, name, pred, actual, scores: wcScoreMap(ev), s: scorePred(pred.order, actual) });
       else pending.push({ date, name, pred, ev });
     }
     graded.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
@@ -393,7 +400,7 @@
           <span class="prcall-name">${esc(g.name)}</span>
           <span class="prcall-pct">${g.s.pct}%</span>
         </button>
-        <div class="prcall-body"${i === 0 ? "" : " hidden"}>${predResultHtml(g.pred.order, g.actual)}</div>
+        <div class="prcall-body"${i === 0 ? "" : " hidden"}>${predResultHtml(g.pred.order, g.actual, g.scores)}</div>
       </div>`).join("");
 
     const pendingHtml = pending.length ? h`

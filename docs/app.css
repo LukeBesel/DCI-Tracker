@@ -557,6 +557,7 @@ a.tile:hover { text-decoration: none; }
 .pr-table tr.pr-near td { background: rgba(240,180,41,0.14); }
 .pr-table tr.pr-hit .pr-real { color: var(--text-primary); }
 .pr-tick { color: var(--good); font-weight: 700; }
+.pr-score { color: var(--muted); font-size: 11.5px; font-weight: 600; margin-top: 1px; }
 .pr-record { margin: 2px 0 12px; padding: 8px 12px; border-radius: 10px;
   background: var(--accent-wash); color: var(--heading); font-size: 13px; font-weight: 600; }
 
