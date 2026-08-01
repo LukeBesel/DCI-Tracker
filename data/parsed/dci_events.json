@@ -600322,6 +600322,87 @@
    {
     "class": "World Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "T. Wemhoff",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "A. Snipes",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "D. Henderson",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "K. Miller",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "H. Nguyen",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "B. Dacy",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "J. Kennedy",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "J. Prosperie",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Bluecoats",
@@ -600580,6 +600661,87 @@
    {
     "class": "Open Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "T. Wemhoff",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "A. Snipes",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "D. Henderson",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "K. Miller",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "H. Nguyen",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "B. Dacy",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "J. Kennedy",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "J. Prosperie",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Zephyrus",
@@ -600691,6 +600853,87 @@
    {
     "class": "World Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "T. Wemhoff",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "M. Howard",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "D. Henderson",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "B. Kuhn",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "A. Dalton",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "C. Armbruster",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "M. McGahey",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "G. Fugett",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Bluecoats",
@@ -601196,6 +601439,111 @@
    {
     "class": "World Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "C. Costanza",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 1",
+        "j": "K. Miller",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "G. Miller",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "D. Carbone",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "M. Thompson",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "J. Sturgeon",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "D. Padilla",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "B. Fabrizio",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "C. Rothe",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "K. Young",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "J. Brooks",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Bluecoats",
@@ -602102,6 +602450,111 @@
    {
     "class": "Open Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "C. Costanza",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 1",
+        "j": "K. Miller",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "G. Miller",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "D. Carbone",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "M. Thompson",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "J. Sturgeon",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "D. Padilla",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "B. Fabrizio",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "C. Rothe",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "K. Young",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "J. Brooks",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Gold",
@@ -602297,6 +602750,87 @@
    {
     "class": "Open Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "B. Spidel",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "P. Smith",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "C. Nelson",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "K. Baker",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "D. Deems",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "J. Harper",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "C. Marra",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "T. Fox",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Raiders",
@@ -602375,6 +602909,87 @@
    {
     "class": "All-Age - World Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "B. Spidel",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "P. Smith",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "C. Nelson",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual Analysis",
+        "j": "K. Baker",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "D. Deems",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "J. Harper",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "C. Marra",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "T. Fox",
+        "cols": [
+         "Comp",
+         "Perf"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Reading Buccaneers",
@@ -602603,6 +603218,87 @@
    {
     "class": "World Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "C. Dillon",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "W. Dillon",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "C. Raichle",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "D. Torchia",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "J. Gilley",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "P. McGarr",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "J. Harper",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "M. Leitzke",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Blue Devils",
@@ -602933,6 +603629,87 @@
    {
     "class": "Open Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "C. Dillon",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "W. Dillon",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "C. Raichle",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "D. Torchia",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "J. Gilley",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "P. McGarr",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "J. Harper",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "M. Leitzke",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Zephyrus",
@@ -603070,6 +603847,87 @@
    {
     "class": "World Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "J. Gilley",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "D. Davis",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "C. Dillon",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "C. Raichle",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "D. Torchia",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "W. Dillon",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "P. McGarr",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "C. Rapacki",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Carolina Crown",
@@ -603292,6 +604150,87 @@
    {
     "class": "Open Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "J. Gilley",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "D. Davis",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "C. Dillon",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "C. Raichle",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "D. Torchia",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "W. Dillon",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "P. McGarr",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "C. Rapacki",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Zephyrus",
@@ -603393,6 +604332,87 @@
    {
     "class": "World Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "K. Baker",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "J. Denton",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "S. Clark",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "T. Ochran",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "D. Henderson",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "A. Cook",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "N. Konouchi",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "M. Davis",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Santa Clara Vanguard",
@@ -603579,6 +604599,87 @@
    {
     "class": "Open Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "K. Baker",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "J. Denton",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "S. Clark",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "T. Ochran",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "D. Henderson",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "A. Cook",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "N. Konouchi",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "M. Davis",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Gold",
@@ -603706,6 +604807,87 @@
    {
     "class": "World Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "K. LeJeune",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "J. Denton",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "D. Henderson",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "T. Ochran",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "M. Turner",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "A. Cook",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "J. Rhodes",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "J. Brooks",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Blue Devils",
@@ -603992,6 +605174,87 @@
    {
     "class": "World Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "K. Baker",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "J. Webb",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "D. Deems",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "T. Pierce",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "J. Pursifull",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "S. Page",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "K. Weirich",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "J. Prosperie",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Santa Clara Vanguard",
@@ -604214,6 +605477,87 @@
    {
     "class": "Open Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "K. Baker",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "J. Webb",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "D. Deems",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "T. Pierce",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "J. Pursifull",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "S. Page",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "K. Weirich",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "J. Prosperie",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "The Battalion",
@@ -604341,6 +605685,87 @@
    {
     "class": "Open Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "A. Combites",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "D. Orser",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "C. CHURCH",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "S. Chumley",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "M. Bowers",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "B. Dacy",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "R. Rios",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "J. Myers",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "River City Rhythm",
@@ -604455,6 +605880,87 @@
    {
     "class": "All-Age - World Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "A. Combites",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "D. Orser",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "C. CHURCH",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual Analysis",
+        "j": "S. Chumley",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "M. Bowers",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "B. Dacy",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "R. Rios",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "J. Myers",
+        "cols": [
+         "Comp",
+         "Perf"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Govenaires",
@@ -604622,6 +606128,87 @@
    {
     "class": "World Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "K. LeJeune",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "M. Howard",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "M. Turner",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "I. Delgado",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "B. Brahan",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "S. Page",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "M. McGahey",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "T. Sanders",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Blue Stars",
@@ -604844,6 +606431,87 @@
    {
     "class": "Open Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "K. LeJeune",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "M. Howard",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "M. Turner",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "I. Delgado",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "B. Brahan",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "S. Page",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "M. McGahey",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "T. Sanders",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Memphis Blues",
@@ -604922,6 +606590,20 @@
    {
     "class": "SoundSport Medalist Division",
     "captions": [],
+    "groups": [
+     {
+      "n": "SoundSport Medalist Division",
+      "subs": [
+       {
+        "n": "",
+        "j": "K. LeJeune",
+        "cols": [
+         "Ovr"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Apollo",
@@ -604939,6 +606621,87 @@
    {
     "class": "All-Age - World Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "K. LeJeune",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "M. Howard",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "M. Turner",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual Analysis",
+        "j": "I. Delgado",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "B. Brahan",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "S. Page",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "M. McGahey",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "T. Sanders",
+        "cols": [
+         "Comp",
+         "Perf"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Atlanta CV",
@@ -605071,6 +606834,87 @@
    {
     "class": "World Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "J. Sturgeon",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "M. Hoskins",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "J. Oswald",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "T. Slaughter",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "S. Clark",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "B. Crisp",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "D. Carbone",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "J. Prosperie",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Bluecoats",
@@ -605353,6 +607197,87 @@
    {
     "class": "All-Age - World Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "M. Tarr",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "C. Marra",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "J. Campbell",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual Analysis",
+        "j": "B. Kuhn",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "T. Hudnall",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "D. Orser",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "P. Furnari",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "C. Rapacki",
+        "cols": [
+         "Comp",
+         "Perf"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "White Sabers",
@@ -605469,6 +607394,87 @@
    {
     "class": "World Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "K. Miller",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "G. Miller",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "J. Bierschenk",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "G. Llacer",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "C. Costanza",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "S. Halquist",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "P. Haines",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "M. Leitzke",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Santa Clara Vanguard",
@@ -605727,6 +607733,87 @@
    {
     "class": "Open Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "K. Miller",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "G. Miller",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "J. Bierschenk",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "G. Llacer",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "C. Costanza",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "S. Halquist",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "P. Haines",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "M. Leitzke",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Colt Cadets",
@@ -605769,6 +607856,87 @@
    {
     "class": "All-Age - World Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "K. Miller",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "G. Miller",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "J. Bierschenk",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual Analysis",
+        "j": "G. Llacer",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "C. Costanza",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "S. Halquist",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "P. Haines",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "M. Leitzke",
+        "cols": [
+         "Comp",
+         "Perf"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Govenaires",
@@ -605855,6 +608023,87 @@
    {
     "class": "All-Age - World Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "J. Howell",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "J. Denton",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "S. Clark",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual Analysis",
+        "j": "T. Ochran",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "B. Kenny",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "D. Thomas",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "T. Fox",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "C. Rapacki",
+        "cols": [
+         "Comp",
+         "Perf"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Reading Buccaneers",
@@ -606150,6 +608399,111 @@
    {
     "class": "World Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "W. Rickart",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 1",
+        "j": "W. Chumley",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "M. McGahey",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "N. Jones",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "R. Solomon",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "T. Wingate",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "H. Nguyen",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "B. Crisp",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "J. Rhodes",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "C. Romanowski",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "M. Davis",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Bluecoats",
@@ -606741,6 +609095,111 @@
    {
     "class": "Open Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "W. Rickart",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 1",
+        "j": "W. Chumley",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "M. McGahey",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "N. Jones",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "R. Solomon",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "T. Wingate",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "H. Nguyen",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "B. Crisp",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "J. Rhodes",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "C. Romanowski",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "M. Davis",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Memphis Blues",
@@ -606792,6 +609251,111 @@
    {
     "class": "All-Age - World Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "W. Rickart",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 1",
+        "j": "W. Chumley",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "M. McGahey",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "N. Jones",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "R. Solomon",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual Analysis",
+        "j": "T. Wingate",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "H. Nguyen",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "B. Crisp",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "J. Rhodes",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "C. Romanowski",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "M. Davis",
+        "cols": [
+         "Comp",
+         "Perf"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Atlanta CV",
@@ -606977,6 +609541,111 @@
    {
     "class": "World Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "C. Costanza",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 1",
+        "j": "K. Miller",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "A. Snipes",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "M. Howard",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "J. Barton",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "G. Llacer",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "J. Oswald",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "K. Weirich",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "K. Young",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "J. Kennedy",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "J. Myers",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Santa Clara Vanguard",
@@ -607298,6 +609967,111 @@
    {
     "class": "Open Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "C. Costanza",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 1",
+        "j": "K. Miller",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "A. Snipes",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "M. Howard",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "J. Barton",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "G. Llacer",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "J. Oswald",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "K. Weirich",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "K. Young",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "J. Kennedy",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "J. Myers",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "River City Rhythm",
@@ -607439,6 +610213,111 @@
    {
     "class": "All-Age - World Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "C. Costanza",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 1",
+        "j": "K. Miller",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "A. Snipes",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "M. Howard",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "J. Barton",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual Analysis",
+        "j": "G. Llacer",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "J. Oswald",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "K. Weirich",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "K. Young",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "J. Kennedy",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "J. Myers",
+        "cols": [
+         "Comp",
+         "Perf"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Govenaires",
@@ -607588,6 +610467,87 @@
    {
     "class": "Open Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "D. Deems",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "J. Webb",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "B. Jones",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "K. Baker",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "R. Bailey",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "I. Cox",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "G. Howarth",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "J. Brooks",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "The Battalion",
@@ -607774,6 +610734,87 @@
    {
     "class": "All-Age - World Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "D. Deems",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "J. Webb",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "B. Jones",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual Analysis",
+        "j": "K. Baker",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "R. Bailey",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "I. Cox",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "G. Howarth",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "J. Brooks",
+        "cols": [
+         "Comp",
+         "Perf"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Cincinnati Tradition",
@@ -607895,6 +610936,87 @@
    {
     "class": "Open Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "T. Pierce",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "N. Jones",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "J. Campbell",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "I. Delgado",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "D. Deems",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "I. Cox",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "P. Furnari",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "J. Myers",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Gold",
@@ -608009,6 +611131,87 @@
    {
     "class": "All-Age - World Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "T. Pierce",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "N. Jones",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "J. Campbell",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual Analysis",
+        "j": "I. Delgado",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "D. Deems",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "I. Cox",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "P. Furnari",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "J. Myers",
+        "cols": [
+         "Comp",
+         "Perf"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Cincinnati Tradition",
@@ -608175,6 +611378,87 @@
    {
     "class": "World Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "C. Moss",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "A. Snipes",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "M. Tarr",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "D. Solomonson",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "M. Turner",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "P. McGarr",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "K. Young",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "M. Griffin",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Bluecoats",
@@ -608577,6 +611861,87 @@
    {
     "class": "Open Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "C. Moss",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "A. Snipes",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "M. Tarr",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "D. Solomonson",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "M. Turner",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "P. McGarr",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "K. Young",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "M. Griffin",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Heat Wave",
@@ -608619,6 +611984,87 @@
    {
     "class": "All-Age - World Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "C. Moss",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "A. Snipes",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "M. Tarr",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual Analysis",
+        "j": "D. Solomonson",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "M. Turner",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "P. McGarr",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "K. Young",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "M. Griffin",
+        "cols": [
+         "Comp",
+         "Perf"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Atlanta CV",
@@ -608710,6 +612156,87 @@
    {
     "class": "World Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "C. Moss",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "J. Mills",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "C. Raichle",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "E. Beens",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "J. Campbell",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "B. Fabrizio",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "D. Carbone",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "C. Romanowski",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Carolina Crown",
@@ -609001,6 +612528,87 @@
    {
     "class": "World Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "C. Moss",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "N. Jones",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "D. Solomonson",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "E. Beens",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "G. Llacer",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "R. Badua",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "D. Thomas",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "C. Poole",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Santa Clara Vanguard",
@@ -609151,6 +612759,87 @@
    {
     "class": "Open Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "C. Moss",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "N. Jones",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "D. Solomonson",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "E. Beens",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "G. Llacer",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "R. Badua",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "D. Thomas",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "C. Poole",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "The Battalion",
@@ -609401,6 +613090,87 @@
    {
     "class": "World Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "K. LeJeune",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "D. Carbone",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "C. CHURCH",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "T. Wingate",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "M. Thompson",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "P. Haines",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "J. Mills",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "J. Prosperie",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Carolina Crown",
@@ -609623,6 +613393,87 @@
    {
     "class": "Open Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "K. LeJeune",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "D. Carbone",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "C. CHURCH",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "T. Wingate",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "M. Thompson",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "P. Haines",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "J. Mills",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "J. Prosperie",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Raiders",
@@ -610283,6 +614134,87 @@
    {
     "class": "World Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "G. Oliviero",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "D. Thomas",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "G. Llacer",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "C. Raichle",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "D. Torchia",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "R. Badua",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "M. Brown",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "C. Poole",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Bluecoats",
@@ -610543,6 +614475,87 @@
    {
     "class": "Open Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "J. Howell",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "D. Orser",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "W. Chumley",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "T. Ochran",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "D. Padilla",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "R. Rios",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "J. Wilson",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "J. Myers",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Gold",
@@ -610873,6 +614886,87 @@
    {
     "class": "All Age Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "J. Howell",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "D. Orser",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "W. Chumley",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual Analysis",
+        "j": "T. Ochran",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "D. Padilla",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "R. Rios",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "J. Wilson",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "J. Myers",
+        "cols": [
+         "Comp",
+         "Perf"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Cincinnati Tradition",
@@ -610999,6 +615093,111 @@
    {
     "class": "World Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "M. Anderson",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 1",
+        "j": "T. Wemhoff",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "D. Davis",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "M. Howard",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "M. Tarr",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "T. Slaughter",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "J. Oswald",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "S. Halquist",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "W. Dillon",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "G. Fugett",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "M. Leitzke",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Bluecoats",
@@ -611410,6 +615609,111 @@
    {
     "class": "All Age Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "M. Anderson",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 1",
+        "j": "T. Wemhoff",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "D. Davis",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "M. Howard",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "M. Tarr",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual Analysis",
+        "j": "T. Slaughter",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "J. Oswald",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "S. Halquist",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "W. Dillon",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "G. Fugett",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "M. Leitzke",
+        "cols": [
+         "Comp",
+         "Perf"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "Reading Buccaneers",
@@ -611707,6 +616011,87 @@
    {
     "class": "Open Class",
     "captions": [],
+    "groups": [
+     {
+      "n": "General Effect",
+      "subs": [
+       {
+        "n": "General Effect 1",
+        "j": "W. Chumley",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       },
+       {
+        "n": "General Effect 2",
+        "j": "N. Jones",
+        "cols": [
+         "Rep",
+         "Perf"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Visual",
+      "subs": [
+       {
+        "n": "Visual Proficiency",
+        "j": "S. Clark",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Visual - Analysis",
+        "j": "T. Pierce",
+        "cols": [
+         "Comp",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Color Guard",
+        "j": "D. Padilla",
+        "cols": [
+         "CONT",
+         "Achv"
+        ]
+       }
+      ]
+     },
+     {
+      "n": "Music",
+      "subs": [
+       {
+        "n": "Music - Brass",
+        "j": "A. Cook",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Analysis",
+        "j": "K. Weirich",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       },
+       {
+        "n": "Music - Percussion",
+        "j": "J. Brooks",
+        "cols": [
+         "Cont",
+         "Achv"
+        ]
+       }
+      ]
+     }
+    ],
     "rows": [
      {
       "corps": "The Battalion",
