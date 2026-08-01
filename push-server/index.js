@@ -12,7 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import webpush from "web-push";
 
-const VERSION = 10; // bump on every behavior change — /status shows what's really deployed
+const VERSION = 11; // bump on every behavior change — /status shows what's really deployed
 const SITE = process.env.SITE_URL || "https://lukebesel.github.io/DCI-Tracker/";
 const PORT = process.env.PORT || 8787;
 const POLL_MS = +(process.env.POLL_SECONDS || 60) * 1000;
@@ -155,8 +155,26 @@ async function broadcast(events) {
   console.log(`pushed to ${jobs.length} subscribers`);
 }
 
-setInterval(check, POLL_MS);
-check();
+// Adaptive cadence: poll hard on show days (a show today or last night, for
+// late West-Coast results) so a score drop pushes within ~25s of the commit;
+// idle the rest of the time. showToday is refreshed from the upcoming feed.
+let showToday = false;
+const SHOW_POLL = 25_000, IDLE_POLL = 120_000;
+async function refreshShowFlag() {
+  try {
+    const up = await fetchJson("data/upcoming.json");
+    const day = ms => new Date(ms).toISOString().slice(0, 10);
+    const now = Date.now();
+    const days = new Set([day(now), day(now - 864e5)]);
+    showToday = Array.isArray(up) && up.some(e => days.has(e.date));
+  } catch (e) { /* keep prior flag */ }
+}
+(async function poll() {
+  await check();
+  setTimeout(poll, showToday ? SHOW_POLL : IDLE_POLL);
+})();
+refreshShowFlag();
+setInterval(refreshShowFlag, 15 * 60 * 1000);
 
 // ---- tiny HTTP API ----
 const CORS = {
