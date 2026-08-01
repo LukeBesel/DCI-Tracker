@@ -68,28 +68,37 @@ jobs:
             echo "::warning::live publish failed after retries"
             return 1
           }
-          # Poll two sources and rescrape when EITHER changes:
-          #  - dci.org/scores (the authoritative index) for when the runner
-          #    can reach it, and
-          #  - downbeatdesigns.com (the fallback) for when dci.org is
-          #    Cloudflare-challenging the runner — that mirror is reachable
-          #    from here and posts the same results within minutes.
-          # Each source is validated to look real before hashing so a
-          # challenge page (whose nonce rotates every request) can't make
-          # every poll look like a fresh score drop.
-          DCI="https://www.dci.org/scores"
-          FALLBACK="https://downbeatdesigns.com/dci_2026"
+          # Poll every ~60 seconds during show windows and rescrape the moment
+          # a source changes. Primary signal is CompetitionSuite's season list
+          # (authoritative — its per-show recapUrl populates when scores post,
+          # so it changes on both a new show AND fresh results); drum-corps.net
+          # and downbeatdesigns are cross-checks. Each response is validated to
+          # look real before hashing so a challenge/error page can't make every
+          # poll look like a fresh drop.
+          ORG="96b77ec2-333e-41e9-8d7d-806a8cbe116b"
+          YEAR=$(date -u +%Y)
+          SG=$(curl -sS --max-time 20 -H "Accept: application/json" \
+                "https://bridge.competitionsuite.com/api/orgscores/GetSeasons/jsonp?organization=$ORG" 2>/dev/null \
+              | python3 -c "import json,sys;print(next((s['seasonGuid'] for s in json.load(sys.stdin) if str(s.get('name'))=='$YEAR'),''))" 2>/dev/null || echo "")
+          CS="https://bridge.competitionsuite.com/api/orgscores/GetCompetitionsBySeason/jsonp?season=$SG"
+          DCN="https://www.drum-corps.net/scores"
+          DBD="https://downbeatdesigns.com/dci_2026"
+          echo "watching (season guid: ${SG:-none})"
           last=""
           end=$(( $(date +%s) + 300 * 60 ))   # five hours of watching
           while [ "$(date +%s)" -lt "$end" ]; do
             sig=""
-            d=$(curl -sS --max-time 30 "$DCI" || echo "")
-            echo "$d" | grep -q "final-scores" && sig="$sig$(echo "$d" | md5sum | cut -d' ' -f1)"
-            f=$(curl -sS --max-time 30 "$FALLBACK" || echo "")
-            echo "$f" | grep -q "se-title" && sig="$sig$(echo "$f" | md5sum | cut -d' ' -f1)"
+            if [ -n "$SG" ]; then
+              c=$(curl -sS --max-time 25 -H "Accept: application/json" "$CS" 2>/dev/null || echo "")
+              echo "$c" | grep -q "competitionGuid\|\"competitions\"" && sig="$sig$(printf '%s' "$c" | md5sum | cut -d' ' -f1)"
+            fi
+            a=$(curl -sS --max-time 25 "$DCN" 2>/dev/null || echo "")
+            echo "$a" | grep -q "scores/dci/" && sig="$sig$(printf '%s' "$a" | md5sum | cut -d' ' -f1)"
+            b=$(curl -sS --max-time 25 "$DBD" 2>/dev/null || echo "")
+            echo "$b" | grep -q "se-title" && sig="$sig$(printf '%s' "$b" | md5sum | cut -d' ' -f1)"
             if [ -z "$sig" ]; then
               echo "no reachable score source this poll — retrying"
-              sleep 180; continue
+              sleep 60; continue
             fi
             cur=$(printf '%s' "$sig" | md5sum | cut -d' ' -f1)
             if [ -n "$last" ] && [ "$cur" != "$last" ]; then
@@ -98,6 +107,6 @@ jobs:
               publish || true
             fi
             last="$cur"
-            sleep 180
+            sleep 60
           done
           echo "watch window closed"
