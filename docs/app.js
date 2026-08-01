@@ -86,24 +86,35 @@
   }
 
   /* ===== corps color themes =====
-     Pick your corps in Settings and the whole app takes on its colors —
-     Phantom paints it red, the Cavaliers green, Blue Devils blue. From one
-     identity color per corps we derive a dark topbar (bar), a bright accent,
-     a translucent wash and a light link tint, then inject them as CSS-variable
-     overrides that still respect the current light/dark mode. The chart-legend
-     colors (corpsColor) stay separate — a few marquee corps carry a chart hue
-     that isn't their true identity color (Phantom is graphite for legibility),
-     so this map re-states the identity color for theming only. */
+     Pick your corps in Settings and the whole app takes on its colors. Each
+     corps is a TWO-color identity — a dark brand color (bar: the topbar and
+     dark UI) and a bright accent (buttons, links, active tab). Two colors is
+     what keeps same-hue corps apart: Boston, Phantom and Santa Clara are all
+     "red", but Boston reads maroon/red, Phantom black/red, and Vanguard
+     red/green — clearly different. From the pair we derive ink, wash, a
+     light-bg link tint and legible on-color text. Unlisted corps fall back to
+     their stable chart color, darkened for the bar. (These are separate from
+     the chart-legend colors, which optimize for line separation, not identity.) */
   const CORPS_THEME = {
-    "Blue Devils": "#1e63c8", "Bluecoats": "#0f9bb0", "Boston Crusaders": "#c1272d",
-    "Carolina Crown": "#7a3ff2", "The Cadets": "#b3123c", "Phantom Regiment": "#d61f26",
-    "Santa Clara Vanguard": "#c8102e", "The Cavaliers": "#2f9e44", "Madison Scouts": "#2f9e44",
-    "Blue Knights": "#3457d5", "Blue Stars": "#1f6fd0", "Mandarins": "#e8590c",
-    "Colts": "#d12e2e", "Crossmen": "#d4a017", "Spirit of Atlanta": "#e03131",
-    "Troopers": "#c92a2a", "Pacific Crest": "#0ca678", "Genesis": "#0aa0a0",
-    "The Academy": "#c39a1e", "Music City": "#7048e8", "Jersey Surf": "#1098ad",
-    "Seattle Cascades": "#2f9e44", "Gold": "#c9a227", "Raiders": "#c92a2a",
-    "The Battalion": "#d97706", "Golden Empire": "#c9a227", "Guardians": "#2f9e44",
+    // [ bar (dark brand), accent (bright) ]
+    "Blue Devils": ["#0f2f66", "#2f6fd0"], "Bluecoats": ["#0a3f6b", "#1aa6c9"],
+    "Boston Crusaders": ["#5e1119", "#d2222d"], "Carolina Crown": ["#3f1d6b", "#f0b429"],
+    "The Cadets": ["#5c162c", "#e0a92e"], "The Cavaliers": ["#123019", "#2fa14a"],
+    "Phantom Regiment": ["#1b1b1e", "#d81f26"], "Santa Clara Vanguard": ["#8f1620", "#2e9e46"],
+    "Blue Knights": ["#14224f", "#3b5bdb"], "Blue Stars": ["#123a7a", "#f0b429"],
+    "Crossmen": ["#1a1a1a", "#d4a017"], "Madison Scouts": ["#0e4423", "#e6c02e"],
+    "Mandarins": ["#6f1512", "#eab308"], "Colts": ["#8a1626", "#4da3e0"],
+    "Spirit of Atlanta": ["#8a1626", "#2f6fd0"], "The Academy": ["#182a5e", "#c9a227"],
+    "Pacific Crest": ["#0c4f45", "#e8590c"], "Music City": ["#33206b", "#12a5b0"],
+    "Genesis": ["#0a3a40", "#12a0a0"], "Seattle Cascades": ["#0e4a3d", "#2fa14a"],
+    "Jersey Surf": ["#123a5e", "#14aabd"], "Troopers": ["#8a1626", "#2b6cd4"],
+    "Gold": ["#1c1c18", "#c9a227"], "Raiders": ["#1a1a1a", "#c8202f"],
+    "The Battalion": ["#152a52", "#e8590c"], "Golden Empire": ["#1c1c18", "#c9a227"],
+    "Guardians": ["#14224f", "#8a94a6"], "Colt Cadets": ["#8a1626", "#4da3e0"],
+    "Vessel": ["#123a5e", "#14aabd"], "Impulse": ["#1a1a1a", "#e8590c"],
+    "Legends": ["#123019", "#d4a017"], "River City Rhythm": ["#33206b", "#12a5b0"],
+    "Les Stentors": ["#0f2f66", "#d2222d"], "7th Regiment": ["#5e1119", "#c9a227"],
+    "Southwind": ["#0c4f45", "#e6c02e"], "Heat Wave": ["#8a1626", "#e8590c"],
   };
   // marquee corps to surface as one-tap color chips (only those with data show)
   const THEME_FEATURED = [
@@ -127,18 +138,45 @@
     const L = _lum(a);
     return (L + 0.05) / 0.05 >= 1.05 / (L + 0.05) ? "#15130f" : "#ffffff";
   };
-  const corpsAccent = name => CORPS_THEME[name] || corpsColor(name);
+  // resolve a corps to its {bar, accent} pair (curated, or derived from its
+  // chart color for the long tail)
+  function corpsPair(name) {
+    const p = CORPS_THEME[name];
+    if (p) return { bar: p[0], accent: p[1] };
+    const base = corpsColor(name);
+    return { bar: _rgb(_mix(_hx(base), [16, 18, 26], 0.6)), accent: base };
+  }
+  const corpsAccent = name => corpsPair(name).accent;
   function corpsThemeVars(name) {
-    const acc = _hx(corpsAccent(name));
+    const pair = corpsPair(name);
+    let barRgb = _hx(pair.bar);
+    if (_lum(barRgb) > 0.26) barRgb = _mix(barRgb, [14, 16, 24], 0.5); // topbar must stay dark for white text
+    const acc = _hx(pair.accent);
     return {
-      accent: _rgb(acc),
-      bar: _rgb(_mix(acc, [17, 20, 30], 0.66)),   // dark topbar, hue-tinted
+      accent: pair.accent,
+      bar: _rgb(barRgb),
       ink: _rgb(_mix(acc, [10, 10, 10], 0.34)),   // darker accent for text on light
       light: _rgb(_mix(acc, [255, 255, 255], 0.36)), // brighter link on dark bg
       onAccent: _onColor(acc),                    // legible text on the bright accent
       wash: `rgba(${acc[0]},${acc[1]},${acc[2]},0.15)`,
     };
   }
+  // a small two-tone identity badge (bar field + accent corner + initials) —
+  // a rights-safe stand-in for a corps logo. `size` in px.
+  function corpsInitials(name) {
+    const words = String(name || "").replace(/^The\s+/i, "").split(/\s+/).filter(Boolean);
+    if (!words.length) return "?";
+    if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+    return words.slice(0, 3).map(w => w[0]).join("").toUpperCase();
+  }
+  function corpsBadge(name, size) {
+    const v = corpsThemeVars(name);
+    const s = size || 26;
+    return `<span class="corpsbadge" style="width:${s}px;height:${s}px;background:${v.bar};color:${_onColor(_hx(v.bar))};font-size:${Math.round(s * 0.4)}px">`
+      + `<span class="corpsbadge-cnr" style="border-top-color:${v.accent};border-right-color:${v.accent}"></span>`
+      + `<span class="corpsbadge-tx">${esc(corpsInitials(name))}</span></span>`;
+  }
+  window.corpsBadge = corpsBadge;
   function corpsThemeCSS(name) {
     const v = corpsThemeVars(name);
     const base = `--navy:${v.bar};--gold:${v.accent};--accent:${v.accent};--accent-ink:${v.ink};--accent-wash:${v.wash};--on-accent:${v.onAccent};--link:${v.bar};--heading:${v.bar};`;
@@ -175,6 +213,14 @@
   }
   const currentCorpsTheme = () => { try { return localStorage.getItem("cad-corps-theme") || ""; } catch (e) { return ""; } };
   window.CadCorps = { apply: applyCorpsTheme, current: currentCorpsTheme, vars: corpsThemeVars, accent: corpsAccent };
+  // whole-app text scaling — zoom on the root reflows like browser zoom, so
+  // the mobile layout still adapts and nothing overflows sideways
+  function applyFontSize(scale) {
+    const s = String(scale || "1");
+    document.documentElement.style.zoom = s === "1" ? "" : s;
+    try { s === "1" ? localStorage.removeItem("cad-fontsize") : localStorage.setItem("cad-fontsize", s); } catch (e) {}
+  }
+  window.CadFontSize = applyFontSize;
   const FAVS = (() => {
     let set;
     try { set = new Set(JSON.parse(localStorage.getItem("cad-favs") || "[]")); }
@@ -1094,7 +1140,7 @@
       const favLabel = () => FAVS.has(detail.name)
         ? "★ Favorited — rises to the top of standings"
         : "☆ Add to favorites";
-      pt.innerHTML = `${esc(detail.name)} <button id="corpFav" class="favtoggle${FAVS.has(detail.name) ? " on" : ""}">${favLabel()}</button>`;
+      pt.innerHTML = `${corpsBadge(detail.name, 30)}${esc(detail.name)} <button id="corpFav" class="favtoggle${FAVS.has(detail.name) ? " on" : ""}">${favLabel()}</button>`;
       const fb = document.getElementById("corpFav");
       fb.onclick = () => {
         FAVS.toggle(detail.name);
@@ -2821,7 +2867,8 @@
     const themeMode = (window.CadTheme && window.CadTheme.mode()) || (localStorage.getItem("cad-theme") || "auto");
     const curCorps = currentCorpsTheme();
 
-    // corps list from current-season standings — relevant and short
+    // corps to offer: everyone in the current season, every curated theme, and
+    // whatever's currently applied — a relevant, searchable pool
     let all = [];
     try {
       const rk = await data("rankings.json");
@@ -2829,13 +2876,19 @@
       const st = rk.standings || {};
       ["World Class", "Open Class", "All-Age"].forEach(c => (st[c] && st[c].rows || []).forEach(r => r.corps && all.push(r.corps)));
     } catch (e) {}
-    all = [...new Set(all)];
-    if (curCorps && !all.includes(curCorps)) all.push(curCorps);
-    all.sort((a, b) => a.localeCompare(b));
+    Object.keys(CORPS_THEME).forEach(n => all.push(n));
+    if (curCorps) all.push(curCorps);
+    all = [...new Set(all)].sort((a, b) => a.localeCompare(b));
     const featured = THEME_FEATURED.filter(n => all.includes(n) || CORPS_THEME[n]);
+    const fontSize = (() => { try { return localStorage.getItem("cad-fontsize") || "1"; } catch (e) { return "1"; } })();
 
     const segBtn = (val, label) => `<button class="segbtn${themeMode === val ? " on" : ""}" data-theme-set="${val}">${label}</button>`;
-    const chip = n => `<button class="corpschip${curCorps === n ? " on" : ""}" data-corps-set="${esc(n)}" style="--sw:${corpsThemeVars(n).accent}"><span class="corpschip-sw"></span>${esc(n)}</button>`;
+    const fsBtn = (val, label) => `<button class="segbtn${fontSize === val ? " on" : ""}" data-fs-set="${val}">${label}</button>`;
+    const twoTone = n => { const v = corpsThemeVars(n); return `--c1:${v.bar};--c2:${v.accent}`; };
+    const chip = n => `<button class="corpschip${curCorps === n ? " on" : ""}" data-corps-set="${esc(n)}"><span class="corpschip-sw" style="${twoTone(n)}"></span>${esc(n)}</button>`;
+    const corpsRow = n => `<button class="corpsrow${curCorps === n ? " on" : ""}" data-corps-set="${esc(n)}" data-name="${esc(n.toLowerCase())}">`
+      + corpsBadge(n, 26) + `<span class="corpsrow-name">${esc(n)}</span>`
+      + `<span class="corpsrow-sw" style="${twoTone(n)}"></span></button>`;
     const scope = (window.CadPush && CadPush.scope()) || "all";
     const predsOn = (() => { try { return (localStorage.getItem("cad-notify-preds") || "on") === "on"; } catch (e) { return true; } })();
     const selClasses = (window.CadPush && CadPush.classes) ? CadPush.classes() : null; // null = all
@@ -2852,6 +2905,12 @@
       </div>
 
       <div class="card setcard">
+        <h2>Text size</h2>
+        <p class="setnote">Make everything a little easier to read.</p>
+        <div class="seg" id="fsSeg">${fsBtn("1", "Default")}${fsBtn("1.1", "Large")}${fsBtn("1.2", "Larger")}</div>
+      </div>
+
+      <div class="card setcard">
         <h2>Team colors</h2>
         <p class="setnote">Paint Cadence in your corps' colors — or keep the classic Cadence look.</p>
         <button class="setreset${curCorps ? " armed" : " on"}" data-corps-set="">
@@ -2863,13 +2922,11 @@
         <div class="chipwrap">
           ${featured.map(chip).join("")}
         </div>
-        <label class="setrow setrow-sel">
-          <span>More corps</span>
-          <select class="ctrl" id="corpsMore">
-            <option value="">Cadence (default)</option>
-            ${all.map(n => `<option value="${esc(n)}"${curCorps === n ? " selected" : ""}>${esc(n)}</option>`).join("")}
-          </select>
-        </label>
+        <div class="corpsearch">
+          <input type="search" id="corpsSearch" class="ctrl" placeholder="Search all corps…" autocomplete="off" autocapitalize="off" spellcheck="false">
+          <div class="corpslist" id="corpsList">${all.map(corpsRow).join("")}</div>
+          <div class="corpslist-empty" id="corpsEmpty" hidden>No corps match “<span id="corpsEmptyQ"></span>”.</div>
+        </div>
       </div>
 
       <div class="card setcard">
@@ -2904,8 +2961,13 @@
       app.querySelectorAll("[data-theme-set]").forEach(x => x.classList.toggle("on", x === b));
     }));
 
+    // text size — scale the whole app (like browser zoom, layout-safe)
+    app.querySelectorAll("[data-fs-set]").forEach(b => b.addEventListener("click", () => {
+      applyFontSize(b.dataset.fsSet);
+      app.querySelectorAll("[data-fs-set]").forEach(x => x.classList.toggle("on", x === b));
+    }));
+
     // team colors — live preview, no full re-render (keeps scroll position)
-    const moreSel = document.getElementById("corpsMore");
     function pickCorps(name) {
       applyCorpsTheme(name);
       app.querySelectorAll("[data-corps-set]").forEach(x => x.classList.toggle("on", (x.dataset.corpsSet || "") === (name || "")));
@@ -2915,10 +2977,29 @@
         const hint = reset.querySelector(".setreset-hint");
         if (hint) hint.textContent = name ? "Reset to default" : "Default look";
       }
-      if (moreSel) moreSel.value = name && all.includes(name) ? name : "";
     }
-    app.querySelectorAll("[data-corps-set]").forEach(b => b.addEventListener("click", () => pickCorps(b.dataset.corpsSet || "")));
-    if (moreSel) moreSel.addEventListener("change", () => pickCorps(moreSel.value));
+    // attach to each control (all live in this render's fresh innerHTML, so
+    // they're replaced — not leaked — on the next visit)
+    app.querySelectorAll("[data-corps-set]").forEach(btn =>
+      btn.addEventListener("click", () => pickCorps(btn.dataset.corpsSet || "")));
+    // search the corps list
+    const search = document.getElementById("corpsSearch");
+    const list = document.getElementById("corpsList");
+    const empty = document.getElementById("corpsEmpty");
+    if (search && list) search.addEventListener("input", () => {
+      const q = search.value.trim().toLowerCase();
+      let shown = 0;
+      list.querySelectorAll(".corpsrow").forEach(row => {
+        const hit = !q || (row.dataset.name || "").includes(q);
+        row.hidden = !hit;
+        if (hit) shown++;
+      });
+      if (empty) {
+        empty.hidden = shown > 0;
+        const qs = document.getElementById("corpsEmptyQ");
+        if (qs) qs.textContent = search.value.trim();
+      }
+    });
 
     // notifications
     const pushToggle = document.getElementById("pushToggle");

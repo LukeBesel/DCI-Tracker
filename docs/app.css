@@ -95,7 +95,9 @@ select.ctrl { -webkit-appearance: none; appearance: none;
   background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
   padding-right: 28px;
 }
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; overflow-x: clip; }
+/* clip (not hidden) guards against sub-pixel overflow from the Text-size zoom
+   without creating a scroll container — so the sticky topbar keeps working */
 body {
   margin: 0; color: var(--text-primary);
   background: var(--page);
@@ -598,9 +600,35 @@ a.tile:hover { text-decoration: none; }
   font: inherit; font-size: 13.5px; font-weight: 600; padding: 7px 13px 7px 9px; border-radius: 999px; }
 .corpschip:hover { border-color: var(--muted); }
 .corpschip.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-wash); }
-.corpschip-sw { width: 15px; height: 15px; border-radius: 50%; background: var(--sw);
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.15); flex: none; }
+.corpschip-sw { width: 16px; height: 16px; border-radius: 50%; flex: none;
+  background: linear-gradient(135deg, var(--c1, var(--gold)) 0 50%, var(--c2, var(--gold)) 50% 100%);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.18); }
 .corpschip.nochip .corpschip-sw { background: #f0b429; }
+/* two-tone identity badge (rights-safe logo stand-in) */
+.corpsbadge { position: relative; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 6px; font-weight: 800; letter-spacing: -0.3px; flex: none; overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.15); }
+.corpsbadge-cnr { position: absolute; top: 0; right: 0; width: 0; height: 0;
+  border-style: solid; border-width: 0 10px 10px 0; border-left-color: transparent; border-bottom-color: transparent; }
+.corpsbadge-tx { position: relative; z-index: 1; }
+h1.page .corpsbadge { vertical-align: -5px; margin-right: 10px; }
+/* searchable corps color picker */
+.corpsearch { margin-top: 14px; }
+#corpsSearch { width: 100%; }
+.corpslist { margin-top: 8px; max-height: 300px; overflow-y: auto; border: 1px solid var(--border);
+  border-radius: 11px; background: var(--surface-1); -webkit-overflow-scrolling: touch; }
+.corpsrow { display: flex; align-items: center; gap: 11px; width: 100%; cursor: pointer;
+  border: 0; border-bottom: 1px solid var(--grid); background: none; color: var(--text-primary);
+  font: inherit; font-size: 14px; font-weight: 600; padding: 9px 12px; text-align: left; }
+.corpsrow:last-child { border-bottom: 0; }
+.corpsrow:hover { background: var(--surface-2); }
+.corpsrow.on { background: var(--accent-wash); }
+.corpsrow-name { flex: 1; min-width: 0; }
+.corpsrow.on .corpsrow-name { color: var(--accent-ink); font-weight: 700; }
+.corpsrow-sw { width: 22px; height: 14px; border-radius: 4px; flex: none;
+  background: linear-gradient(135deg, var(--c1) 0 50%, var(--c2) 50% 100%);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.18); }
+.corpslist-empty { padding: 16px 12px; color: var(--muted); font-size: 13px; }
 /* labelled rows (select + toggles) */
 .setrow { display: flex; align-items: center; justify-content: space-between; gap: 14px;
   padding: 13px 0; border-top: 1px solid var(--grid); }
