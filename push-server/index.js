@@ -12,7 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import webpush from "web-push";
 
-const VERSION = 7; // bump on every behavior change — /status shows what's really deployed
+const VERSION = 8; // bump on every behavior change — /status shows what's really deployed
 const SITE = process.env.SITE_URL || "https://lukebesel.github.io/DCI-Tracker/";
 const PORT = process.env.PORT || 8787;
 const POLL_MS = +(process.env.POLL_SECONDS || 120) * 1000;
@@ -83,14 +83,16 @@ async function check() {
     const state = snapshot(rk);
     if (lastState) {
       // which events produced new scores since last look?
-      const events = new Map(); // "event|date" -> [{corps, score}]
+      const events = new Map(); // "event|date" -> [{corps, score, cls}]
       for (const [key, val] of state) {
         if (lastState.get(key) === val) continue;
-        const corps = key.split("|").slice(1).join("|");
+        const parts = key.split("|");
+        const cls = parts[0];                       // state key is "class|corps"
+        const corps = parts.slice(1).join("|");
         const [date, event, score] = val.split("|");
         const ek = event + "|" + date;
         if (!events.has(ek)) events.set(ek, []);
-        events.get(ek).push({ corps, score: +score });
+        events.get(ek).push({ corps, score: +score, cls });
       }
       if (events.size) {
         status.lastChange = new Date().toISOString();
@@ -105,19 +107,31 @@ async function check() {
 }
 
 async function broadcast(events) {
-  const names = [...events.keys()].map(k => k.split("|")[0]);
-  const title = names.length === 1 ? `🥁 Scores in: ${names[0]}` : `🥁 New scores: ${names.length} shows`;
-  const leads = [];
-  for (const [ek, rows] of events) {
-    rows.sort((a, b) => b.score - a.score);
-    leads.push(`${rows[0].corps} ${rows[0].score.toFixed(3)}${rows[1] ? `, ${rows[1].corps} ${rows[1].score.toFixed(3)}` : ""}`);
-  }
-  const allRows = [...events.values()].flat();
   const jobs = [];
-  for (const { sub, favs } of subs.values()) {
+  for (const { sub, favs, favsOnly, classes } of subs.values()) {
+    // class filter: null/absent = every class; an array = only those picked
+    const clsSet = Array.isArray(classes) ? new Set(classes) : null;
+    const myEvents = [];
+    for (const [ek, rows] of events) {
+      const fr = clsSet ? rows.filter(r => clsSet.has(r.cls)) : rows;
+      if (fr.length) myEvents.push([ek, fr]);
+    }
+    if (!myEvents.length) continue; // nothing in the classes they follow
+    const myRows = myEvents.flatMap(([, rows]) => rows);
+    // favorites-only: skip unless one of their corps is in this batch
+    if (favsOnly) {
+      const favSet = new Set(favs || []);
+      if (!myRows.some(r => favSet.has(r.corps))) continue;
+    }
+    const names = myEvents.map(([k]) => k.split("|")[0]);
+    const title = names.length === 1 ? `🥁 Scores in: ${names[0]}` : `🥁 New scores: ${names.length} shows`;
+    const leads = myEvents.map(([, rows]) => {
+      const s = [...rows].sort((a, b) => b.score - a.score);
+      return `${s[0].corps} ${s[0].score.toFixed(3)}${s[1] ? `, ${s[1].corps} ${s[1].score.toFixed(3)}` : ""}`;
+    });
     // favorites first: if one of the subscriber's corps scored, lead with it
     let body = leads.slice(0, 3).join(" · ");
-    const mine = (favs || []).map(f => allRows.find(r => r.corps === f)).filter(Boolean);
+    const mine = (favs || []).map(f => myRows.find(r => r.corps === f)).filter(Boolean);
     if (mine.length) {
       body = mine.slice(0, 3).map(r => `${r.corps} ${r.score.toFixed(3)}`).join(" · ")
         + (names.length ? ` — ${names[0]}` : "");
@@ -134,7 +148,7 @@ async function broadcast(events) {
   }
   await Promise.allSettled(jobs);
   saveSubs();
-  console.log(`pushed to ${jobs.length} subscribers: ${title}`);
+  console.log(`pushed to ${jobs.length} subscribers`);
 }
 
 setInterval(check, POLL_MS);
@@ -213,7 +227,12 @@ http.createServer(async (req, res) => {
   if (req.method === "POST" && url.pathname === "/subscribe") {
     const sub = json.subscription;
     if (!sub || !sub.endpoint) return send(res, 400, { error: "subscription required" });
-    subs.set(sub.endpoint, { sub, favs: Array.isArray(json.favs) ? json.favs.slice(0, 30) : [] });
+    subs.set(sub.endpoint, {
+      sub,
+      favs: Array.isArray(json.favs) ? json.favs.slice(0, 30) : [],
+      favsOnly: !!json.favsOnly,
+      classes: Array.isArray(json.classes) ? json.classes.slice(0, 8) : null,
+    });
     saveSubs();
     return send(res, 200, { ok: true, subscribers: subs.size });
   }
