@@ -604,18 +604,6 @@ a.tile:hover { text-decoration: none; }
   background: linear-gradient(135deg, var(--c1, var(--gold)) 0 50%, var(--c2, var(--gold)) 50% 100%);
   box-shadow: inset 0 0 0 1px rgba(0,0,0,0.18); }
 .corpschip.nochip .corpschip-sw { background: #f0b429; }
-/* two-tone identity badge (rights-safe logo stand-in) */
-.corpsbadge { position: relative; display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 6px; font-weight: 800; letter-spacing: -0.3px; flex: none; overflow: hidden;
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.15); }
-.corpsbadge-cnr { position: absolute; top: 0; right: 0; width: 0; height: 0;
-  border-style: solid; border-width: 0 10px 10px 0; border-left-color: transparent; border-bottom-color: transparent; }
-.corpsbadge-tx { position: relative; z-index: 1; }
-h1.page .corpsbadge { vertical-align: -5px; margin-right: 10px; }
-/* corps cell with badge (scoreboard) */
-.corpscell { display: flex; align-items: center; gap: 9px; }
-.corpscell .corpsbadge { margin-top: 1px; }
-.corpscell-body { min-width: 0; }
 /* searchable corps color picker */
 .corpsearch { margin-top: 14px; }
 #corpsSearch { width: 100%; }

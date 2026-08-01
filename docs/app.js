@@ -176,22 +176,6 @@
       wash: `rgba(${acc[0]},${acc[1]},${acc[2]},0.15)`,
     };
   }
-  // a small two-tone identity badge (bar field + accent corner + initials) —
-  // a rights-safe stand-in for a corps logo. `size` in px.
-  function corpsInitials(name) {
-    const words = String(name || "").replace(/^The\s+/i, "").split(/\s+/).filter(Boolean);
-    if (!words.length) return "?";
-    if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-    return words.slice(0, 3).map(w => w[0]).join("").toUpperCase();
-  }
-  function corpsBadge(name, size) {
-    const v = corpsThemeVars(name);
-    const s = size || 26;
-    return `<span class="corpsbadge" style="width:${s}px;height:${s}px;background:${v.bar};color:${_onColor(_hx(v.bar))};font-size:${Math.round(s * 0.4)}px">`
-      + `<span class="corpsbadge-cnr" style="border-top-color:${v.accent};border-right-color:${v.accent}"></span>`
-      + `<span class="corpsbadge-tx">${esc(corpsInitials(name))}</span></span>`;
-  }
-  window.corpsBadge = corpsBadge;
   function corpsThemeCSSFromVars(v) {
     const base = `--navy:${v.bar};--gold:${v.accent};--accent:${v.accent};--accent-ink:${v.ink};--accent-wash:${v.wash};--on-accent:${v.onAccent};--link:${v.bar};--heading:${v.bar};`;
     const dark = `--link:${v.light};--heading:#e8ecf5;`;
@@ -794,7 +778,7 @@
         <table class="t standings"><thead><tr><th>#</th><th>Corps · last event</th><th class="num">Score</th><th class="num col-high">3-show avg</th><th class="num col-high">Season high</th><th class="num">vs prev</th><th class="col-trend">Trend</th></tr></thead><tbody>
         ${sorted.map(r => h`<tr${FAVS.has(r.corps) ? ' class="favrow"' : ""}>
           <td class="rank">${r.rank}</td>
-          <td><span class="corpscell">${corpsBadge(r.corps, 22)}<span class="corpscell-body">${corpsLink(r.corps)}<div class="lastev">${esc(fmtDateY(r.date))} · ${esc(r.event)}</div></span></span></td>
+          <td>${corpsLink(r.corps)}<div class="lastev">${esc(fmtDateY(r.date))} · ${esc(r.event)}</div></td>
           <td class="num score">${score3(r.score)}</td>
           <td class="num col-high" data-tip="Average of the last ${Math.min(3, r.trend.length)} shows — smooths out one judging panel">${score3(r.trend.slice(-3).reduce((a, t) => a + t[1], 0) / Math.min(3, r.trend.length))}</td>
           <td class="num col-high" data-tip="${esc(`${score3(r.high)} — ${r.high_event || ""} · ${fmtDateY(r.high_date) || ""}`)}">${score3(r.high)}</td>
@@ -1167,7 +1151,7 @@
       const favLabel = () => FAVS.has(detail.name)
         ? "★ Favorited — rises to the top of standings"
         : "☆ Add to favorites";
-      pt.innerHTML = `${corpsBadge(detail.name, 30)}${esc(detail.name)} <button id="corpFav" class="favtoggle${FAVS.has(detail.name) ? " on" : ""}">${favLabel()}</button>`;
+      pt.innerHTML = `${esc(detail.name)} <button id="corpFav" class="favtoggle${FAVS.has(detail.name) ? " on" : ""}">${favLabel()}</button>`;
       const fb = document.getElementById("corpFav");
       fb.onclick = () => {
         FAVS.toggle(detail.name);
@@ -2915,8 +2899,7 @@
     const twoTone = n => { const v = corpsThemeVars(n); return `--c1:${v.bar};--c2:${v.accent}`; };
     const chip = n => `<button class="corpschip${curCorps === n ? " on" : ""}" data-corps-set="${esc(n)}"><span class="corpschip-sw" style="${twoTone(n)}"></span>${esc(n)}</button>`;
     const corpsRow = n => `<button class="corpsrow${curCorps === n ? " on" : ""}" data-corps-set="${esc(n)}" data-name="${esc(n.toLowerCase())}">`
-      + corpsBadge(n, 26) + `<span class="corpsrow-name">${esc(n)}</span>`
-      + `<span class="corpsrow-sw" style="${twoTone(n)}"></span></button>`;
+      + `<span class="corpsrow-sw" style="${twoTone(n)}"></span><span class="corpsrow-name">${esc(n)}</span></button>`;
     const scope = (window.CadPush && CadPush.scope()) || "all";
     const predsOn = (() => { try { return (localStorage.getItem("cad-notify-preds") || "on") === "on"; } catch (e) { return true; } })();
     const selClasses = (window.CadPush && CadPush.classes) ? CadPush.classes() : null; // null = all
