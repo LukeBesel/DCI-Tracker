@@ -5106,18 +5106,18 @@
   "date_display": "August 3, 2026",
   "date": "2026-08-03",
   "lineup": [
-   "7th Regiment",
-   "Blue Devils B",
-   "Colt Cadets",
-   "Columbians",
    "Eclipse",
-   "Gold",
+   "Blue Devils B",
    "Heat Wave",
    "Les Stentors",
-   "Memphis Blues",
+   "7th Regiment",
    "Raiders",
+   "Colt Cadets",
+   "Columbians",
+   "Memphis Blues",
    "River City Rhythm",
-   "The Battalion"
+   "The Battalion",
+   "Gold"
   ],
   "schedule": [
    [
@@ -5129,60 +5129,60 @@
     "Welcome"
    ],
    [
-    "TBD",
-    "7th Regiment"
-   ],
-   [
-    "TBD",
-    "Blue Devils B"
-   ],
-   [
-    "TBD",
-    "Colt Cadets"
-   ],
-   [
-    "TBD",
-    "Columbians"
-   ],
-   [
-    "TBD",
+    "6:10 PM",
     "Eclipse"
    ],
    [
-    "TBD",
-    "Gold"
+    "6:27 PM",
+    "Blue Devils B"
    ],
    [
-    "TBD",
+    "6:44 PM",
     "Heat Wave"
    ],
    [
-    "TBD",
-    "Intermission"
-   ],
-   [
-    "TBD",
+    "7:01 PM",
     "Les Stentors"
    ],
    [
-    "TBD",
-    "Memphis Blues"
+    "7:18 PM",
+    "7th Regiment"
    ],
    [
-    "TBD",
+    "7:35 PM",
     "Raiders"
    ],
    [
-    "TBD",
+    "7:52 PM",
+    "Intermission"
+   ],
+   [
+    "8:09 PM",
+    "Colt Cadets"
+   ],
+   [
+    "8:26 PM",
+    "Columbians"
+   ],
+   [
+    "8:43 PM",
+    "Memphis Blues"
+   ],
+   [
+    "9:00 PM",
     "River City Rhythm"
    ],
    [
-    "TBD",
-    "Scores Announced"
+    "9:17 PM",
+    "The Battalion"
    ],
    [
-    "TBD",
-    "The Battalion"
+    "9:34 PM",
+    "Gold"
+   ],
+   [
+    "9:59 PM",
+    "Scores Announced"
    ]
   ],
   "bag_policy": "There is no bag policy for this event. Pet/Animal Policy: Welcome Stadium enforces a strict no pet policy, with the exception of service animals.",
