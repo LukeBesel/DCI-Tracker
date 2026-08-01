@@ -619,6 +619,7 @@ h1.page .corpslogo { vertical-align: -6px; margin-right: 11px; }
 #corpsSearch { width: 100%; }
 .corpslist { margin-top: 8px; max-height: 300px; overflow-y: auto; border: 1px solid var(--border);
   border-radius: 11px; background: var(--surface-1); -webkit-overflow-scrolling: touch; }
+.corpsrow[hidden] { display: none; }
 .corpsrow { display: flex; align-items: center; gap: 11px; width: 100%; cursor: pointer;
   border: 0; border-bottom: 1px solid var(--grid); background: none; color: var(--text-primary);
   font: inherit; font-size: 14px; font-weight: 600; padding: 9px 12px; text-align: left; }

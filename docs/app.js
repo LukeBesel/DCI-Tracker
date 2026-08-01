@@ -257,6 +257,16 @@
   // when the profile has no image). Same Wikimedia source the app already uses;
   // lives in code so the data pipeline can't overwrite it.
   const CORPS_LOGO = {
+    "Carolina Crown": "https://upload.wikimedia.org/wikipedia/commons/4/4e/Carolina_Crown_Drum_and_Bugle_Corps_Crown_Logo.png",
+    "Madison Scouts": "https://upload.wikimedia.org/wikipedia/en/2/24/Madison_Scouts_Corps.png",
+    "The Academy": "https://upload.wikimedia.org/wikipedia/en/2/25/The_Academy_Drum_and_Bugle_Corps.png",
+    "Music City": "https://upload.wikimedia.org/wikipedia/en/9/9b/Music_City_Drum_and_Bugle_Corps.png",
+    "Crossmen": "https://upload.wikimedia.org/wikipedia/en/1/15/Crossmen_logo.png",
+    "Seattle Cascades": "https://upload.wikimedia.org/wikipedia/en/0/0b/Cascades_Drum_and_Bugle_Corps_50th_Anniversary_logo.png",
+    "Blue Stars": "https://upload.wikimedia.org/wikipedia/en/thumb/6/64/Blue_Stars_Drum_and_Bugle_Corps_Logo%2C_2021.svg/330px-Blue_Stars_Drum_and_Bugle_Corps_Logo%2C_2021.svg.png",
+    "Blue Knights": "https://upload.wikimedia.org/wikipedia/en/thumb/9/9c/Blue_Knights_Drum_and_Bugle_Corps_Logo%2C_2021.svg/330px-Blue_Knights_Drum_and_Bugle_Corps_Logo%2C_2021.svg.png",
+    "Genesis": "https://upload.wikimedia.org/wikipedia/en/thumb/d/d2/Genesis_Drum_and_Bugle_Corps_Logo%2C_2021.svg/330px-Genesis_Drum_and_Bugle_Corps_Logo%2C_2021.svg.png",
+    "The Cadets": "https://upload.wikimedia.org/wikipedia/en/thumb/d/d8/The_Cadets_Drum_and_Bugle_Corps_Logo%2C_2021.svg/330px-The_Cadets_Drum_and_Bugle_Corps_Logo%2C_2021.svg.png",
   };
   const logoOf = name => {
     if (CORPS_LOGO[name]) return CORPS_LOGO[name];
