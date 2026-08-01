@@ -3351,7 +3351,10 @@
     async function check(auto) {
       if (document.hidden) return;
       try {
-        const r = await fetch("data/meta.json", { cache: "no-cache" });
+        // cache-buster: GitHub Pages' CDN caches meta.json and ignores request
+        // cache-control, so a unique query is the only way to always see the
+        // freshest stamp the instant new scores deploy
+        const r = await fetch("data/meta.json?t=" + Date.now(), { cache: "no-cache" });
         if (!r.ok) return;
         const m = await r.json();
         if (stamp && m.updated !== stamp) {
@@ -3362,9 +3365,23 @@
         } else stamp = m.updated;
       } catch (e) { /* offline — try again next tick */ }
     }
-    setInterval(() => check(false), 3 * 60 * 1000);
+    // Poll fast on show days (a show today or last night, for late West-Coast
+    // results) so an open app shows new scores within ~30s of them landing;
+    // sip the rest of the year. visibilitychange refreshes instantly on focus.
+    let showActive = false;
+    async function refreshShowFlag() {
+      try {
+        const up = await data("upcoming.json");
+        const day = ms => new Date(ms).toISOString().slice(0, 10);
+        const now = Date.now();
+        const days = new Set([day(now), day(now - 864e5)]);
+        showActive = (up || []).some(e => days.has(e.date));
+      } catch (e) { /* keep prior flag */ }
+    }
+    (function loop() { check(false); setTimeout(loop, showActive ? 30000 : 180000); })();
+    refreshShowFlag();
+    setInterval(refreshShowFlag, 15 * 60 * 1000);
     document.addEventListener("visibilitychange", () => { if (!document.hidden) check(true); });
-    check(false);
   })();
 
   window.CadRedraw = route; // theme toggle re-renders the current view
