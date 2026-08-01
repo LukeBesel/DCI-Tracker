@@ -2,7 +2,5 @@
  "https://www.dci.org/scores/final-scores/2026-dci-annapolis/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-dci-eastern-classic-2/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-dci-pittsburgh/": "HTTP 403, body 139B",
- "https://www.dci.org/scores/final-scores/2026-summer-music-games-in-cincinnati/": "HTTP 403, body 139B",
- "https://www.dci.org/scores/final-scores/2026-dci-eastern-classic/": "not reached (deadline hit before it / not processed)",
- "https://www.dci.org/scores/final-scores/2026-dci-michigan/": "not reached (deadline hit before it / not processed)"
+ "https://www.dci.org/scores/final-scores/2026-summer-music-games-in-cincinnati/": "HTTP 403, body 139B"
 }
