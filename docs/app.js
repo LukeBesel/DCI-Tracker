@@ -232,6 +232,28 @@
     try { s === "1" ? localStorage.removeItem("cad-fontsize") : localStorage.setItem("cad-fontsize", s); } catch (e) {}
   }
   window.CadFontSize = applyFontSize;
+  // official corps logos come from the Wikipedia-sourced profiles (same source
+  // the corps page already uses). Show one next to the name where we have it,
+  // and fall back to the two-tone color swatch where we don't. Images are
+  // hotlinked, never copied into the app.
+  let _logos = null;
+  async function ensureLogos() {
+    if (_logos) return _logos;
+    try { _logos = await data("profiles.json"); } catch (e) { _logos = {}; }
+    return _logos;
+  }
+  const logoOf = name => { const p = _logos && _logos[slugOf(name)]; return p && p.img ? p.img : null; };
+  function corpsLogo(name, size, url) {
+    const s = size || 24;
+    const v = corpsThemeVars(name);
+    const img = url || logoOf(name);
+    // if the image 404s or is blocked, it removes itself and the color swatch shows
+    // profiles URLs are already percent-encoded — esc() (not encodeURI, which
+    // would re-encode the % and 404 the image) just makes it attribute-safe
+    const inner = img ? `<img src="${esc(img)}" alt="" loading="lazy" onerror="this.remove()">` : "";
+    return `<span class="corpslogo" style="width:${s}px;height:${s}px;--c1:${v.bar};--c2:${v.accent}">${inner}</span>`;
+  }
+  window.corpsLogo = corpsLogo;
   const FAVS = (() => {
     let set;
     try { set = new Set(JSON.parse(localStorage.getItem("cad-favs") || "[]")); }
@@ -699,6 +721,8 @@
     setNav("rankings");
     const rk = await data("rankings.json");
     if (stale()) return;
+    await ensureLogos();
+    if (stale()) return;
     const classes = sortClasses(Object.keys(rk.standings || {}));
     if (!classes.length) {
       app.innerHTML = `<div class="card"><div class="empty">No scores yet for ${rk.season} — check back after the first show.</div></div>`;
@@ -778,7 +802,7 @@
         <table class="t standings"><thead><tr><th>#</th><th>Corps · last event</th><th class="num">Score</th><th class="num col-high">3-show avg</th><th class="num col-high">Season high</th><th class="num">vs prev</th><th class="col-trend">Trend</th></tr></thead><tbody>
         ${sorted.map(r => h`<tr${FAVS.has(r.corps) ? ' class="favrow"' : ""}>
           <td class="rank">${r.rank}</td>
-          <td>${corpsLink(r.corps)}<div class="lastev">${esc(fmtDateY(r.date))} · ${esc(r.event)}</div></td>
+          <td><span class="corpscell">${corpsLogo(r.corps, 26)}<span class="corpscell-body">${corpsLink(r.corps)}<div class="lastev">${esc(fmtDateY(r.date))} · ${esc(r.event)}</div></span></span></td>
           <td class="num score">${score3(r.score)}</td>
           <td class="num col-high" data-tip="Average of the last ${Math.min(3, r.trend.length)} shows — smooths out one judging panel">${score3(r.trend.slice(-3).reduce((a, t) => a + t[1], 0) / Math.min(3, r.trend.length))}</td>
           <td class="num col-high" data-tip="${esc(`${score3(r.high)} — ${r.high_event || ""} · ${fmtDateY(r.high_date) || ""}`)}">${score3(r.high)}</td>
@@ -1151,7 +1175,7 @@
       const favLabel = () => FAVS.has(detail.name)
         ? "★ Favorited — rises to the top of standings"
         : "☆ Add to favorites";
-      pt.innerHTML = `${esc(detail.name)} <button id="corpFav" class="favtoggle${FAVS.has(detail.name) ? " on" : ""}">${favLabel()}</button>`;
+      pt.innerHTML = `${corpsLogo(detail.name, 34, prof && prof.img)}${esc(detail.name)} <button id="corpFav" class="favtoggle${FAVS.has(detail.name) ? " on" : ""}">${favLabel()}</button>`;
       const fb = document.getElementById("corpFav");
       fb.onclick = () => {
         FAVS.toggle(detail.name);
@@ -1164,7 +1188,7 @@
     const site = prof && prof.website ? (/^https?:/i.test(prof.website) ? prof.website : "https://" + prof.website) : null;
     const profHtml = prof ? h`
       <div class="card profcard" style="margin-bottom:14px">
-        ${prof.img ? `<img src="${encodeURI(prof.img)}" alt="${esc(detail.name)} logo" loading="lazy" onerror="this.hidden=true">` : ""}
+        ${prof.img ? `<img src="${esc(prof.img)}" alt="${esc(detail.name)} logo" loading="lazy" onerror="this.hidden=true">` : ""}
         <div style="min-width:0">
           <p style="margin:0 0 8px">${esc(prof.summary || "")}</p>
           <div class="facts">
