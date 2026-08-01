@@ -3317,15 +3317,28 @@
   setInterval(() => paintUpdated(), 30 * 1000);
 
   (() => {
+    // On show days we read scores from raw.githubusercontent.com, which reflects
+    // a new-scores commit the moment the pipeline pushes it — GitHub purges
+    // raw's CDN cache on every push, and it sends `access-control-allow-origin:
+    // *` so the browser can fetch it directly. That's ~1–2 minutes ahead of the
+    // GitHub Pages CDN (which has to finish a build+deploy), so the scoreboard
+    // updates as fast as the source itself has the scores. Off-season / on
+    // failure it falls back to the normal Pages data.
+    const RAW = "https://raw.githubusercontent.com/LukeBesel/DCI-Tracker/main/docs/data/";
     let stamp = null;
     let toast = null;
-    function offer(newStamp) {
+    let showActive = false;
+    // seed the rankings cache so the scoreboard paints the fresh scores the
+    // instant we swap, even before Pages has them
+    const seedRankings = rk => { if (rk && rk.standings) cache.set("rankings.json", Promise.resolve(rk)); };
+    function offer(newStamp, seed) {
       if (toast) return;
       toast = document.createElement("button");
       toast.id = "liveToast";
       toast.innerHTML = "🥁 New scores just landed — <b>tap to refresh</b>";
       toast.onclick = () => {
         cache.clear();
+        seedRankings(seed);
         toast.remove();
         toast = null;
         stamp = newStamp;
@@ -3334,8 +3347,9 @@
       };
       document.body.appendChild(toast);
     }
-    function applyNow(newStamp) {
+    function applyNow(newStamp, seed) {
       cache.clear();
+      seedRankings(seed);
       stamp = newStamp;
       paintUpdated(newStamp);
       if (toast) { toast.remove(); toast = null; }
@@ -3348,27 +3362,42 @@
       document.body.appendChild(flash);
       setTimeout(() => flash.remove(), 2500);
     }
+    // freshest stamp available right now: raw on show days (with Pages
+    // fallback), Pages otherwise. `?t=` busts any browser/proxy cache.
+    async function freshMeta() {
+      if (showActive) {
+        try {
+          const r = await fetch(RAW + "meta.json?t=" + Date.now(), { cache: "no-store" });
+          if (r.ok) { const m = await r.json(); if (m && m.updated) return { updated: m.updated, raw: true }; }
+        } catch (e) { /* raw hiccup — fall through to Pages */ }
+      }
+      const r = await fetch("data/meta.json?t=" + Date.now(), { cache: "no-cache" });
+      if (!r.ok) return null;
+      const m = await r.json();
+      return m && m.updated ? { updated: m.updated, raw: false } : null;
+    }
     async function check(auto) {
       if (document.hidden) return;
       try {
-        // cache-buster: GitHub Pages' CDN caches meta.json and ignores request
-        // cache-control, so a unique query is the only way to always see the
-        // freshest stamp the instant new scores deploy
-        const r = await fetch("data/meta.json?t=" + Date.now(), { cache: "no-cache" });
-        if (!r.ok) return;
-        const m = await r.json();
+        const m = await freshMeta();
+        if (!m) return;
         if (stamp && m.updated !== stamp) {
+          // from raw, also pull raw's rankings so the scoreboard shows straight
+          // away instead of waiting for the Pages deploy to catch up
+          let seed = null;
+          if (m.raw) {
+            try { seed = await (await fetch(RAW + "rankings.json?t=" + Date.now(), { cache: "no-store" })).json(); } catch (e) {}
+          }
           // returning to the app: swap in fresh scores immediately;
           // mid-read: offer a tap so the page isn't yanked away
-          if (auto) applyNow(m.updated);
-          else offer(m.updated);
+          if (auto) applyNow(m.updated, seed);
+          else offer(m.updated, seed);
         } else stamp = m.updated;
       } catch (e) { /* offline — try again next tick */ }
     }
     // Poll fast on show days (a show today or last night, for late West-Coast
     // results) so an open app shows new scores within ~30s of them landing;
     // sip the rest of the year. visibilitychange refreshes instantly on focus.
-    let showActive = false;
     async function refreshShowFlag() {
       try {
         const up = await data("upcoming.json");
@@ -3378,8 +3407,12 @@
         showActive = (up || []).some(e => days.has(e.date));
       } catch (e) { /* keep prior flag */ }
     }
-    (function loop() { check(false); setTimeout(loop, showActive ? 30000 : 180000); })();
-    refreshShowFlag();
+    check(false); // one immediate check while we learn whether a show is on
+    // start the adaptive loop only after the show-flag is known, so a show day
+    // gets the 30s cadence (and the raw fast-path) from the very first tick
+    refreshShowFlag().then(() => (function loop() {
+      setTimeout(() => { check(false); loop(); }, showActive ? 30000 : 180000);
+    })());
     setInterval(refreshShowFlag, 15 * 60 * 1000);
     document.addEventListener("visibilitychange", () => { if (!document.hidden) check(true); });
   })();
