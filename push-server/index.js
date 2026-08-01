@@ -12,7 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import webpush from "web-push";
 
-const VERSION = 9; // bump on every behavior change — /status shows what's really deployed
+const VERSION = 10; // bump on every behavior change — /status shows what's really deployed
 const SITE = process.env.SITE_URL || "https://lukebesel.github.io/DCI-Tracker/";
 const PORT = process.env.PORT || 8787;
 const POLL_MS = +(process.env.POLL_SECONDS || 60) * 1000;
@@ -58,10 +58,14 @@ const saveState = () => {
 let status = { lastCheck: null, lastChange: null, lastError: null, sent: 0 };
 let relayBucket = 10, relayStamp = Date.now(); // token bucket for /fetch
 
+// read score data from raw.githubusercontent, not the Pages CDN: raw reflects
+// a new-scores commit the instant the pipeline pushes it (GitHub purges raw's
+// cache on push), so alerts fire ~1-2 min sooner than waiting for Pages to
+// finish deploying. Falls back to SITE if RAW_URL is cleared.
+const RAW = process.env.RAW_URL || "https://raw.githubusercontent.com/LukeBesel/DCI-Tracker/main/docs/";
 async function fetchJson(p) {
-  // unique query per poll: GitHub Pages' CDN caches for ~10 minutes and
-  // ignores request cache-control — a busted URL is always fresh
-  const r = await fetch(`${SITE}${p}?cb=${Date.now()}`, { headers: { "cache-control": "no-cache" } });
+  // unique query per poll so nothing serves a stale body
+  const r = await fetch(`${RAW}${p}?cb=${Date.now()}`, { headers: { "cache-control": "no-cache" } });
   if (!r.ok) throw new Error(p + " " + r.status);
   return r.json();
 }
