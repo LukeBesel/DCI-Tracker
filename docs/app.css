@@ -547,11 +547,16 @@ a.tile:hover { text-decoration: none; }
 .pr-actions .tab { font-size: 13px; }
 .pr-lock { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
 .pr-empty { color: var(--muted); font-size: 13px; }
-.pr-table { margin-top: 4px; }
+.pr-table { margin-top: 4px; table-layout: fixed; width: 100%; }
 .pr-table th { font-size: 11.5px; color: var(--muted); }
 .pr-table td { font-size: 13.5px; }
+.pr-table th.num, .pr-table td.num { width: 30px; text-align: center; }
+.pr-table .pr-you, .pr-table .pr-real { width: auto; line-height: 1.25; word-break: break-word; }
+.pr-table .pr-real { color: var(--text-secondary); }
 .pr-table tr.pr-hit td { background: rgba(43,138,62,0.15); }
 .pr-table tr.pr-near td { background: rgba(240,180,41,0.14); }
+.pr-table tr.pr-hit .pr-real { color: var(--text-primary); }
+.pr-tick { color: var(--good); font-weight: 700; }
 .pr-record { margin: 2px 0 12px; padding: 8px 12px; border-radius: 10px;
   background: var(--accent-wash); color: var(--heading); font-size: 13px; font-weight: 600; }
 

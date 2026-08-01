@@ -254,15 +254,22 @@
   function predResultHtml(order, actual) {
     const s = scorePred(order, actual);
     const apos = new Map(actual.map((c, i) => [c, i]));
+    // side by side: at each finishing spot, the corps YOU put there and the
+    // corps that ACTUALLY landed there — so the guess and the result read
+    // straight across. Row tints green when they match (exact), amber when
+    // your pick was one spot off.
     const rows = order.map((corps, i) => {
       const ap = apos.get(corps);
       const d = ap == null ? null : Math.abs(ap - i);
       const st = d === 0 ? "hit" : d === 1 ? "near" : "miss";
-      return `<tr class="pr-${st}"><td class="num">${i + 1}</td><td>${corpsLink(corps)}</td>`
-        + `<td class="num">${ap == null ? "—" : "#" + (ap + 1)}</td></tr>`;
+      const real = actual[i];
+      const tick = d === 0 ? ' <span class="pr-tick">✓</span>' : "";
+      return `<tr class="pr-${st}"><td class="num">${i + 1}</td>`
+        + `<td class="pr-you">${corpsLink(corps)}${tick}</td>`
+        + `<td class="pr-real">${real ? corpsLink(real) : "—"}</td></tr>`;
     }).join("");
     return h`<div class="pr-head">🎯 Your call: <b>${s.pct}%</b> <span class="kicker">${s.exact}/${s.n} exact · ${s.pts}/${s.max} pts</span></div>
-      <table class="t pr-table"><thead><tr><th class="num">You</th><th>Corps</th><th class="num">Real</th></tr></thead><tbody>${rows}</tbody></table>`;
+      <table class="t pr-table"><thead><tr><th class="num">#</th><th>Your pick</th><th>Actual finish</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
 
   function mountPredict(container, ev, wcCorps, wcRank) {
