@@ -81,6 +81,84 @@ def _atom(raw: str, rank: str) -> str:
     return f"{val:.3f}" + (f" {rank}" if rank and rank.isdigit() else "")
 
 
+_HDR_CELL = re.compile(r"<td\b([^>]*)>(.*?)</td>", re.S)
+# the groups row is wrapped in a nested scoring <table>; strip that opener so
+# the round-name / corps cells (rowspan=4) are read as their own cells and not
+# merged into the wrapper <td>.
+_HDR_WRAP = re.compile(r"^<tr\b[^>]*>\s*<td\b[^>]*>\s*<table\b[^>]*>\s*<tr\b[^>]*>", re.S)
+_TR = re.compile(r"<tr\b.*?</tr>", re.S)
+
+
+def _hdr_cells(row: str) -> list[tuple[str, int, int]]:
+    """(text, colspan, rowspan) for each <td> in a header row."""
+    out = []
+    for m in _HDR_CELL.finditer(_HDR_WRAP.sub("", row)):
+        attrs, inner = m.group(1), m.group(2)
+        cs = re.search(r"colspan=['\"]?(\d+)", attrs)
+        rs = re.search(r"rowspan=['\"]?(\d+)", attrs)
+        txt = norm_space(re.sub(r"<[^>]+>", " ", inner).replace("\xa0", " ").replace("&nbsp;", " "))
+        out.append((txt, int(cs.group(1)) if cs else 1, int(rs.group(1)) if rs else 1))
+    return out
+
+
+def parse_recap_groups(html: str):
+    """Structured recap header, same shape build_data._recap_header emits:
+    [{"n": group, "subs": [{"n": sub, "j": judge, "cols": [labels]}]}].
+
+    The sheet's four header rows (groups / subs / judges / leaf-columns) sit
+    just before <!--PerformancesStart-->. They're aligned at leaf-column
+    granularity (colspans expanded). One build_data "sub" is emitted per JUDGE
+    panel — so a double-judged sub-caption yields two subs (matching the row
+    atoms, which keep each judge's sub-total and drop the doubled panel's
+    combined captionTotal). Group-total (&nbsp;) spacer columns and the
+    Penalties column are not subs — build_recaps accounts for them with its
+    per-group +1 and trailing +3, and re-verifies every row's atom count
+    against this structure, so a mis-parse drops rows rather than lie."""
+    idx = html.find("<!--PerformancesStart-->")
+    if idx < 0:
+        a = _ANCHOR.search(html)
+        idx = a.start() if a else len(html)
+    trs = _TR.findall(html[:idx])
+    if len(trs) < 4:
+        return None
+    grow, srow, jrow, crow = trs[-4:]
+    gcells, scells, jcells, ccells = (_hdr_cells(r) for r in (grow, srow, jrow, crow))
+
+    def _expand(cells):
+        out = []
+        for txt, cs, _rs in cells:
+            out.extend([txt] * cs)
+        return out
+
+    # caption groups only: the named, non-rowspan cells (GE/Visual/Music).
+    # Round-name/corps/Sub Total/Total are rowspan=4; the Penalties spacer is
+    # blank — all excluded here.
+    group_specs = [(txt, cs) for txt, cs, rs in gcells if rs == 1 and txt]
+    if not group_specs:
+        return None
+    sub_by_leaf = _expand(scells)
+    leaf_labels = _expand(ccells)
+    L = len(leaf_labels)
+    group_by_leaf = []
+    for gname, gspan in group_specs:
+        group_by_leaf.extend([gname] * gspan)
+    group_by_leaf.extend([""] * (L - len(group_by_leaf)))   # penalty tail
+
+    groups, li = [], 0
+    for jname, jspan, _rs in jcells:
+        labels = leaf_labels[li:li + jspan]
+        g = group_by_leaf[li] if li < len(group_by_leaf) else ""
+        sname = sub_by_leaf[li] if li < len(sub_by_leaf) else ""
+        li += jspan
+        if not jname or not g:      # total/penalty spacer columns: not a sub
+            continue
+        cols = [x for x in labels if x.upper() != "TOT"]
+        if not groups or groups[-1]["n"] != g:
+            groups.append({"n": g, "subs": []})
+        groups[-1]["subs"].append({"n": sname, "j": jname, "cols": cols})
+    return groups or None
+
+
 def parse_recap(html: str) -> list[dict]:
     """CompetitionSuite recap page -> rows [{corps, total, cells:[atoms]}]."""
     anchors = list(_ANCHOR.finditer(html))
@@ -172,7 +250,11 @@ def _round_classes(detail: dict):
             html = fetch(url, force=True) or fetch(url)
             rows = parse_recap(html) if html else []
             if rows:
-                recap.append({"class": cls, "captions": [], "rows": rows})
+                # groups: the full judge/column header so build_recaps can
+                # render sub-columns (Rep/Perf, Cont/Achv…) like dci.org recaps,
+                # not just totals. None on an unrecognized sheet -> falls back.
+                groups = parse_recap_groups(html) if html else None
+                recap.append({"class": cls, "captions": [], "groups": groups, "rows": rows})
     ordr = lambda x: _CLASS_ORDER.get(x["class"], 9)
     classes.sort(key=ordr)
     recap.sort(key=ordr)

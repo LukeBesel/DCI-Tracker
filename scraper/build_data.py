@@ -807,7 +807,7 @@ def build_recaps(events):
             cls = canon_class(rc.get("class"))
             if cls == "Exhibition" or IE_CLASS.search(norm_space(rc.get("class") or "")):
                 continue
-            groups = _recap_header(rc.get("captions") or [])
+            groups = rc.get("groups") or _recap_header(rc.get("captions") or [])
             if not groups:
                 skipped += len(rc.get("rows") or [])
                 continue
