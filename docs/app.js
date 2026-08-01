@@ -2824,6 +2824,9 @@
     const chip = n => `<button class="corpschip${curCorps === n ? " on" : ""}" data-corps-set="${esc(n)}" style="--sw:${corpsThemeVars(n).accent}"><span class="corpschip-sw"></span>${esc(n)}</button>`;
     const scope = (window.CadPush && CadPush.scope()) || "all";
     const predsOn = (() => { try { return (localStorage.getItem("cad-notify-preds") || "on") === "on"; } catch (e) { return true; } })();
+    const selClasses = (window.CadPush && CadPush.classes) ? CadPush.classes() : null; // null = all
+    const CLASS_OPTS = ["World Class", "Open Class", "All-Age"];
+    const clsOn = c => !selClasses || selClasses.includes(c);
 
     app.innerHTML = h`
       <h1 class="page">Settings</h1>
@@ -2836,15 +2839,20 @@
 
       <div class="card setcard">
         <h2>Team colors</h2>
-        <p class="setnote">Paint Cadence in your corps' colors. Tap the same chip again to switch it off.</p>
+        <p class="setnote">Paint Cadence in your corps' colors — or keep the classic Cadence look.</p>
+        <button class="setreset${curCorps ? " armed" : " on"}" data-corps-set="">
+          <span class="corpschip-sw" style="background:#f0b429"></span>
+          <span class="setreset-label">Cadence</span>
+          <span class="setreset-hint">${curCorps ? "Reset to default" : "Default look"}</span>
+          <svg class="setreset-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><path d="M3 3v5h5"/></svg>
+        </button>
         <div class="chipwrap">
-          <button class="corpschip nochip${curCorps ? "" : " on"}" data-corps-set=""><span class="corpschip-sw" style="background:#f0b429"></span>Cadence gold</button>
           ${featured.map(chip).join("")}
         </div>
         <label class="setrow setrow-sel">
           <span>More corps</span>
           <select class="ctrl" id="corpsMore">
-            <option value="">Pick a corps…</option>
+            <option value="">Cadence (default)</option>
             ${all.map(n => `<option value="${esc(n)}"${curCorps === n ? " selected" : ""}>${esc(n)}</option>`).join("")}
           </select>
         </label>
@@ -2858,8 +2866,14 @@
           <button class="toggle" id="pushToggle" aria-pressed="false" aria-label="Score alerts"></button>
         </div>
         <div class="setrow">
-          <div><b>Only my favorites</b><div class="setsub">Alert just for your ★ corps, where supported</div></div>
+          <div><b>Only my favorites</b><div class="setsub">Alert just for your ★ corps</div></div>
           <button class="toggle${scope === "favs" ? " on" : ""}" id="scopeToggle" aria-pressed="${scope === "favs"}" aria-label="Favorites only"></button>
+        </div>
+        <div class="setrow setrow-classes">
+          <div><b>Which classes</b><div class="setsub">Only alert me for the classes I follow</div></div>
+        </div>
+        <div class="classchips" id="classChips">
+          ${CLASS_OPTS.map(c => `<button class="classchip${clsOn(c) ? " on" : ""}" data-cls="${esc(c)}" aria-pressed="${clsOn(c)}">${esc(c)}</button>`).join("")}
         </div>
         <div class="setrow">
           <div><b>Prediction results</b><div class="setsub">Nudge me to check my Call the Finish score after a show posts</div></div>
@@ -2881,6 +2895,12 @@
     function pickCorps(name) {
       applyCorpsTheme(name);
       app.querySelectorAll("[data-corps-set]").forEach(x => x.classList.toggle("on", (x.dataset.corpsSet || "") === (name || "")));
+      const reset = app.querySelector(".setreset");
+      if (reset) {
+        reset.classList.toggle("armed", !!name);
+        const hint = reset.querySelector(".setreset-hint");
+        if (hint) hint.textContent = name ? "Reset to default" : "Default look";
+      }
       if (moreSel) moreSel.value = name && all.includes(name) ? name : "";
     }
     app.querySelectorAll("[data-corps-set]").forEach(b => b.addEventListener("click", () => pickCorps(b.dataset.corpsSet || "")));
@@ -2920,6 +2940,13 @@
       predsToggle.setAttribute("aria-pressed", on);
       try { localStorage.setItem("cad-notify-preds", on ? "on" : "off"); } catch (e) {}
     });
+    const clsChips = [...app.querySelectorAll("#classChips .classchip")];
+    clsChips.forEach(ch => ch.addEventListener("click", () => {
+      ch.classList.toggle("on");
+      ch.setAttribute("aria-pressed", ch.classList.contains("on"));
+      const picked = clsChips.filter(c => c.classList.contains("on")).map(c => c.dataset.cls);
+      if (window.CadPush && CadPush.setClasses) CadPush.setClasses(picked);
+    }));
     paintPush();
   }
 

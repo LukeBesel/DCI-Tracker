@@ -611,4 +611,25 @@ a.tile:hover { text-decoration: none; }
 .toggle.on { background: var(--accent); }
 .toggle.on::after { transform: translateX(19px); }
 .toggle:disabled { opacity: 0.5; cursor: not-allowed; }
+/* Cadence default / reset button — always an obvious way back */
+.setreset { display: flex; align-items: center; gap: 11px; width: 100%; cursor: pointer;
+  border: 1.5px solid var(--border); background: var(--surface-1); color: var(--text-primary);
+  font: inherit; font-size: 14.5px; font-weight: 650; padding: 12px 15px; border-radius: 12px;
+  margin-bottom: 13px; text-align: left; }
+.setreset:hover { border-color: var(--muted); }
+.setreset .setreset-hint { margin-left: auto; color: var(--muted); font-size: 12.5px; font-weight: 600; }
+.setreset .setreset-ico { width: 17px; height: 17px; flex: none; color: var(--muted); display: none; }
+.setreset.on { border-color: #f0b429; box-shadow: 0 0 0 2px rgba(240,180,41,0.28); }
+.setreset.on .setreset-hint { color: var(--text-secondary); }
+/* a corps color is live — invite a tap back to default */
+.setreset.armed { border: 2px solid #f0b429; background: rgba(240,180,41,0.12); padding: 11px 14px; }
+.setreset.armed .setreset-hint { color: var(--heading); font-weight: 750; }
+.setreset.armed .setreset-ico { display: block; color: #c0870f; }
+/* notification class picker */
+.setrow-classes { border-top: 1px solid var(--grid); padding-bottom: 6px; }
+.classchips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 6px; }
+.classchip { border: 1.5px solid var(--border); background: var(--surface-1); color: var(--muted);
+  font: inherit; font-size: 13px; font-weight: 600; padding: 6px 14px; border-radius: 999px; cursor: pointer; }
+.classchip:hover { border-color: var(--muted); }
+.classchip.on { border-color: var(--accent); background: var(--accent-wash); color: var(--accent-ink); }
 .prcall.pending { background: var(--accent-wash); }
