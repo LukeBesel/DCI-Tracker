@@ -147,6 +147,21 @@
     return { bar: _rgb(_mix(_hx(base), [16, 18, 26], 0.6)), accent: base };
   }
   const corpsAccent = name => corpsPair(name).accent;
+  // build the full CSS-variable set from any {bar, accent} pair — shared by the
+  // curated corps themes and the custom color picker
+  function themeVarsFromPair(barHex, accentHex) {
+    let barRgb = _hx(barHex);
+    if (_lum(barRgb) > 0.26) barRgb = _mix(barRgb, [14, 16, 24], 0.5); // topbar must stay dark for white text
+    const acc = _hx(accentHex);
+    return {
+      accent: accentHex,
+      bar: _rgb(barRgb),
+      ink: _rgb(_mix(acc, [10, 10, 10], 0.34)),
+      light: _rgb(_mix(acc, [255, 255, 255], 0.36)),
+      onAccent: _onColor(acc),
+      wash: `rgba(${acc[0]},${acc[1]},${acc[2]},0.15)`,
+    };
+  }
   function corpsThemeVars(name) {
     const pair = corpsPair(name);
     let barRgb = _hx(pair.bar);
@@ -177,8 +192,7 @@
       + `<span class="corpsbadge-tx">${esc(corpsInitials(name))}</span></span>`;
   }
   window.corpsBadge = corpsBadge;
-  function corpsThemeCSS(name) {
-    const v = corpsThemeVars(name);
+  function corpsThemeCSSFromVars(v) {
     const base = `--navy:${v.bar};--gold:${v.accent};--accent:${v.accent};--accent-ink:${v.ink};--accent-wash:${v.wash};--on-accent:${v.onAccent};--link:${v.bar};--heading:${v.bar};`;
     const dark = `--link:${v.light};--heading:#e8ecf5;`;
     const light = `--link:${v.bar};--heading:${v.bar};`;
@@ -191,28 +205,41 @@
       + `:root${S}[data-theme="dark"],:root${S}[data-theme="dark"] .viz-root{${dark}}`
       + `:root${S}[data-theme="light"],:root${S}[data-theme="light"] .viz-root{${light}}`;
   }
-  function applyCorpsTheme(name) {
+  const corpsThemeCSS = name => corpsThemeCSSFromVars(corpsThemeVars(name));
+  // write a theme (curated corps, custom pair, or none) to the page + storage
+  function writeTheme(slug, css, bar, extra) {
     let el = document.getElementById("corpsTheme");
     if (!el) { el = document.createElement("style"); el.id = "corpsTheme"; document.head.appendChild(el); }
     const root = document.documentElement;
-    if (!name) {
+    ["cad-corps-theme", "cad-corps-css", "cad-corps-bar", "cad-corps-custom"].forEach(k => { try { localStorage.removeItem(k); } catch (e) {} });
+    if (!slug) {
       el.textContent = "";
       root.removeAttribute("data-corps");
-      ["cad-corps-theme", "cad-corps-css", "cad-corps-bar"].forEach(k => { try { localStorage.removeItem(k); } catch (e) {} });
     } else {
-      const css = corpsThemeCSS(name), v = corpsThemeVars(name);
       el.textContent = css;
-      root.setAttribute("data-corps", slugOf(name));
+      root.setAttribute("data-corps", slug);
       try {
-        localStorage.setItem("cad-corps-theme", name);
+        localStorage.setItem("cad-corps-theme", extra && extra.name != null ? extra.name : slug);
         localStorage.setItem("cad-corps-css", css);
-        localStorage.setItem("cad-corps-bar", v.bar);
+        localStorage.setItem("cad-corps-bar", bar);
+        if (extra && extra.custom) localStorage.setItem("cad-corps-custom", JSON.stringify(extra.custom));
       } catch (e) {}
     }
     if (window.CadTheme && window.CadTheme.paintMeta) window.CadTheme.paintMeta();
   }
+  function applyCorpsTheme(name) {
+    if (!name) return writeTheme(null);
+    const v = corpsThemeVars(name);
+    writeTheme(slugOf(name), corpsThemeCSSFromVars(v), v.bar, { name });
+  }
+  // custom user-chosen primary (bar) + accent — "__custom__" is its stored name
+  function applyCustomTheme(barHex, accentHex) {
+    const v = themeVarsFromPair(barHex, accentHex);
+    writeTheme("custom", corpsThemeCSSFromVars(v), v.bar, { name: "__custom__", custom: [barHex, accentHex] });
+  }
   const currentCorpsTheme = () => { try { return localStorage.getItem("cad-corps-theme") || ""; } catch (e) { return ""; } };
-  window.CadCorps = { apply: applyCorpsTheme, current: currentCorpsTheme, vars: corpsThemeVars, accent: corpsAccent };
+  const currentCustom = () => { try { const c = JSON.parse(localStorage.getItem("cad-corps-custom") || "null"); return Array.isArray(c) && c.length === 2 ? c : null; } catch (e) { return null; } };
+  window.CadCorps = { apply: applyCorpsTheme, custom: applyCustomTheme, current: currentCorpsTheme, vars: corpsThemeVars, accent: corpsAccent };
   // whole-app text scaling — zoom on the root reflows like browser zoom, so
   // the mobile layout still adapts and nothing overflows sideways
   function applyFontSize(scale) {
@@ -767,7 +794,7 @@
         <table class="t standings"><thead><tr><th>#</th><th>Corps · last event</th><th class="num">Score</th><th class="num col-high">3-show avg</th><th class="num col-high">Season high</th><th class="num">vs prev</th><th class="col-trend">Trend</th></tr></thead><tbody>
         ${sorted.map(r => h`<tr${FAVS.has(r.corps) ? ' class="favrow"' : ""}>
           <td class="rank">${r.rank}</td>
-          <td>${corpsLink(r.corps)}<div class="lastev">${esc(fmtDateY(r.date))} · ${esc(r.event)}</div></td>
+          <td><span class="corpscell">${corpsBadge(r.corps, 22)}<span class="corpscell-body">${corpsLink(r.corps)}<div class="lastev">${esc(fmtDateY(r.date))} · ${esc(r.event)}</div></span></span></td>
           <td class="num score">${score3(r.score)}</td>
           <td class="num col-high" data-tip="Average of the last ${Math.min(3, r.trend.length)} shows — smooths out one judging panel">${score3(r.trend.slice(-3).reduce((a, t) => a + t[1], 0) / Math.min(3, r.trend.length))}</td>
           <td class="num col-high" data-tip="${esc(`${score3(r.high)} — ${r.high_event || ""} · ${fmtDateY(r.high_date) || ""}`)}">${score3(r.high)}</td>
@@ -2881,6 +2908,7 @@
     all = [...new Set(all)].sort((a, b) => a.localeCompare(b));
     const featured = THEME_FEATURED.filter(n => all.includes(n) || CORPS_THEME[n]);
     const fontSize = (() => { try { return localStorage.getItem("cad-fontsize") || "1"; } catch (e) { return "1"; } })();
+    const custInit = currentCustom() || ["#1d2d50", "#f0b429"]; // Cadence navy + gold to start
 
     const segBtn = (val, label) => `<button class="segbtn${themeMode === val ? " on" : ""}" data-theme-set="${val}">${label}</button>`;
     const fsBtn = (val, label) => `<button class="segbtn${fontSize === val ? " on" : ""}" data-fs-set="${val}">${label}</button>`;
@@ -2926,6 +2954,15 @@
           <input type="search" id="corpsSearch" class="ctrl" placeholder="Search all corps…" autocomplete="off" autocapitalize="off" spellcheck="false">
           <div class="corpslist" id="corpsList">${all.map(corpsRow).join("")}</div>
           <div class="corpslist-empty" id="corpsEmpty" hidden>No corps match “<span id="corpsEmptyQ"></span>”.</div>
+        </div>
+        <div class="custombuild">
+          <div class="custombuild-h">Or build your own <span class="kicker">just for fun</span></div>
+          <div class="customrow">
+            <label class="custompick"><input type="color" id="custBar" value="${custInit[0]}"><span>Primary</span></label>
+            <label class="custompick"><input type="color" id="custAcc" value="${custInit[1]}"><span>Accent</span></label>
+            <span class="corpsrow-sw custpreview" id="custPreview" style="--c1:${custInit[0]};--c2:${custInit[1]}"></span>
+            <button class="tab pr-lock" id="custApply" type="button">Use these</button>
+          </div>
         </div>
       </div>
 
@@ -2998,6 +3035,26 @@
         empty.hidden = shown > 0;
         const qs = document.getElementById("corpsEmptyQ");
         if (qs) qs.textContent = search.value.trim();
+      }
+    });
+    // custom primary + accent — just for fun
+    const custBar = document.getElementById("custBar");
+    const custAcc = document.getElementById("custAcc");
+    const custPrev = document.getElementById("custPreview");
+    const custApply = document.getElementById("custApply");
+    const paintCustPreview = () => {
+      if (custPrev && custBar && custAcc) { custPrev.style.setProperty("--c1", custBar.value); custPrev.style.setProperty("--c2", custAcc.value); }
+    };
+    if (custBar) custBar.addEventListener("input", paintCustPreview);
+    if (custAcc) custAcc.addEventListener("input", paintCustPreview);
+    if (custApply) custApply.addEventListener("click", () => {
+      applyCustomTheme(custBar.value, custAcc.value);
+      app.querySelectorAll("[data-corps-set]").forEach(x => x.classList.remove("on"));
+      const reset = app.querySelector(".setreset");
+      if (reset) {
+        reset.classList.add("armed"); reset.classList.remove("on");
+        const hint = reset.querySelector(".setreset-hint");
+        if (hint) hint.textContent = "Reset to default";
       }
     });
 
