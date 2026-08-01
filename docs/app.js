@@ -252,7 +252,14 @@
     if (!u) return false;
     return u.includes(".svg") || /logo|shield|insignia|crest|emblem|wordmark|badge|seal/.test(u);
   }
+  // Curated logo URLs that take precedence over the auto-scraped profile image
+  // (used when the profile captured a performance photo instead of the logo, or
+  // when the profile has no image). Same Wikimedia source the app already uses;
+  // lives in code so the data pipeline can't overwrite it.
+  const CORPS_LOGO = {
+  };
   const logoOf = name => {
+    if (CORPS_LOGO[name]) return CORPS_LOGO[name];
     const p = _logos && _logos[slugOf(name)];
     return p && p.img && isLogoUrl(p.img) ? p.img : null;
   };
@@ -2937,7 +2944,7 @@
     const segBtn = (val, label) => `<button class="segbtn${themeMode === val ? " on" : ""}" data-theme-set="${val}">${label}</button>`;
     const fsBtn = (val, label) => `<button class="segbtn${fontSize === val ? " on" : ""}" data-fs-set="${val}">${label}</button>`;
     const twoTone = n => { const v = corpsThemeVars(n); return `--c1:${v.bar};--c2:${v.accent}`; };
-    const chip = n => `<button class="corpschip${curCorps === n ? " on" : ""}" data-corps-set="${esc(n)}"><span class="corpschip-sw" style="${twoTone(n)}"></span>${esc(n)}</button>`;
+    const chip = n => `<button class="corpschip${curCorps === n ? " on" : ""}" data-corps-set="${esc(n)}">${corpsLogo(n, 18)}${esc(n)}</button>`;
     // logo (or color-swatch fallback) on the left; when a real logo shows, the
     // color swatch still appears on the right as the theme preview
     const corpsRow = n => `<button class="corpsrow${curCorps === n ? " on" : ""}" data-corps-set="${esc(n)}" data-name="${esc(n.toLowerCase())}">`
