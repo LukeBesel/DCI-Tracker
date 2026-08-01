@@ -611552,6 +611552,88 @@
   "source": "competitionsuite"
  },
  {
+  "url": "https://www.dci.org/scores/final-scores/2026-dci-eastern-classic-friday/",
+  "slug": "2026-dci-eastern-classic-friday",
+  "year": 2026,
+  "name": "DCI Eastern Classic – Friday",
+  "date_display": "July 31, 2026",
+  "location": "Allentown, PA",
+  "recap_url": "https://www.dci.org/scores/recap/2026-dci-eastern-classic-friday/",
+  "classes": [
+   {
+    "class": "World Class",
+    "results": [
+     {
+      "place": 1,
+      "corps": "Bluecoats",
+      "score": 96.825
+     },
+     {
+      "place": 2,
+      "corps": "Blue Devils",
+      "score": 95.45
+     },
+     {
+      "place": 3,
+      "corps": "Blue Stars",
+      "score": 92.025
+     },
+     {
+      "place": 4,
+      "corps": "Colts",
+      "score": 88.5
+     },
+     {
+      "place": 5,
+      "corps": "Troopers",
+      "score": 87.5
+     },
+     {
+      "place": 6,
+      "corps": "Spirit of Atlanta",
+      "score": 86.025
+     },
+     {
+      "place": 7,
+      "corps": "Blue Knights",
+      "score": 85.863
+     },
+     {
+      "place": 8,
+      "corps": "Music City",
+      "score": 81.475
+     },
+     {
+      "place": 9,
+      "corps": "Genesis",
+      "score": 76.275
+     }
+    ]
+   },
+   {
+    "class": "All Age Class",
+    "results": [
+     {
+      "place": 1,
+      "corps": "Reading Buccaneers",
+      "score": 92.825
+     },
+     {
+      "place": 2,
+      "corps": "Hawthorne Caballeros",
+      "score": 91.175
+     },
+     {
+      "place": 3,
+      "corps": "Bushwackers",
+      "score": 88.65
+     }
+    ]
+   }
+  ],
+  "source": "drum-corps.net"
+ },
+ {
   "url": "https://www.dci.org/scores/final-scores/2026-dci-michigan/",
   "slug": "2026-dci-michigan",
   "year": 2026,
