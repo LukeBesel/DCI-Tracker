@@ -158,21 +158,35 @@ def load_events():
                 if r.get("score"):
                     cells.append((r["corps"], r["score"]))
         return frozenset(cells)
+    # Two events with the same year, same date, and an identical scoreline are
+    # the same show — whether that's an archive double-listing OR the current
+    # season's mirrors naming one show differently (CompetitionSuite "DCI
+    # Eastern Classic" vs drum-corps.net "DCI Eastern Classic – Friday", both
+    # Bluecoats 96.825…). Different-dated shows that merely share a scoreline
+    # (prelims vs finals live on different dates/scores) are never merged.
     by_line = defaultdict(list)
     for ev in out:
-        if ev.get("source") == "dcx":
-            line = scoreline(ev)
-            if len(line) >= 3:
-                by_line[(ev["year"], line)].append(ev)
+        line = scoreline(ev)
+        if len(line) >= 3:
+            by_line[(ev["year"], line)].append(ev)
     drop_ids = set()
+    generic = re.compile(r"^unidentified show|show$", re.I)
     for evs in by_line.values():
         if len(evs) < 2:
             continue
         dates = {e.get("date") for e in evs}
         if len([d for d in dates if d]) > 1:
-            continue  # different dated shows that happen to share a scoreline
-        generic = re.compile(r"^unidentified show|show$", re.I)
-        evs.sort(key=lambda e: (e.get("date") is None, bool(generic.search(e.get("name") or ""))))
+            continue  # genuinely different dated shows that share a scoreline
+        # keep the richest, cleanest copy: a judge recap beats none, more
+        # results beats fewer, dated beats undated, a real name beats a generic
+        # or suffixed one ("… – Friday")
+        evs.sort(key=lambda e: (
+            not e.get("recap"),
+            -sum(len(c.get("results") or []) for c in e.get("classes") or []),
+            e.get("date") is None,
+            bool(generic.search(e.get("name") or "")),
+            len(e.get("name") or ""),
+        ))
         keep = evs[0]
         for e in evs[1:]:
             if not keep.get("location") and e.get("location"):
@@ -180,7 +194,7 @@ def load_events():
             drop_ids.add(id(e))
     if drop_ids:
         out = [e for e in out if id(e) not in drop_ids]
-        log(f"deduped {len(drop_ids)} duplicate archive listings")
+        log(f"deduped {len(drop_ids)} duplicate show listings")
 
     # The archive's year listings mix the senior (DCA) circuit into the junior
     # divisions. Corps that appear at DCA-named shows in a year are senior
