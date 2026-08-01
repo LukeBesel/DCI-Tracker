@@ -84,6 +84,97 @@
     for (let i = 0; i < n.length; i++) hsum = (hsum * 31 + n.charCodeAt(i)) >>> 0;
     return EXT_PALETTE[hsum % EXT_PALETTE.length];
   }
+
+  /* ===== corps color themes =====
+     Pick your corps in Settings and the whole app takes on its colors —
+     Phantom paints it red, the Cavaliers green, Blue Devils blue. From one
+     identity color per corps we derive a dark topbar (bar), a bright accent,
+     a translucent wash and a light link tint, then inject them as CSS-variable
+     overrides that still respect the current light/dark mode. The chart-legend
+     colors (corpsColor) stay separate — a few marquee corps carry a chart hue
+     that isn't their true identity color (Phantom is graphite for legibility),
+     so this map re-states the identity color for theming only. */
+  const CORPS_THEME = {
+    "Blue Devils": "#1e63c8", "Bluecoats": "#0f9bb0", "Boston Crusaders": "#c1272d",
+    "Carolina Crown": "#7a3ff2", "The Cadets": "#b3123c", "Phantom Regiment": "#d61f26",
+    "Santa Clara Vanguard": "#c8102e", "The Cavaliers": "#2f9e44", "Madison Scouts": "#2f9e44",
+    "Blue Knights": "#3457d5", "Blue Stars": "#1f6fd0", "Mandarins": "#e8590c",
+    "Colts": "#d12e2e", "Crossmen": "#d4a017", "Spirit of Atlanta": "#e03131",
+    "Troopers": "#c92a2a", "Pacific Crest": "#0ca678", "Genesis": "#0aa0a0",
+    "The Academy": "#c39a1e", "Music City": "#7048e8", "Jersey Surf": "#1098ad",
+    "Seattle Cascades": "#2f9e44", "Gold": "#c9a227", "Raiders": "#c92a2a",
+    "The Battalion": "#d97706", "Golden Empire": "#c9a227", "Guardians": "#2f9e44",
+  };
+  // marquee corps to surface as one-tap color chips (only those with data show)
+  const THEME_FEATURED = [
+    "Blue Devils", "Bluecoats", "Boston Crusaders", "Carolina Crown", "The Cavaliers",
+    "Phantom Regiment", "The Cadets", "Blue Knights", "Blue Stars", "Mandarins",
+    "Colts", "Crossmen", "Madison Scouts", "Santa Clara Vanguard",
+  ];
+  const _hx = s => {
+    s = String(s || "").replace("#", "");
+    if (s.length === 3) s = [...s].map(c => c + c).join("");
+    const n = parseInt(s, 16) || 0;
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  };
+  const _mix = (a, b, t) => a.map((c, i) => Math.round(c * (1 - t) + b[i] * t));
+  const _rgb = a => "#" + a.map(c => Math.max(0, Math.min(255, c)).toString(16).padStart(2, "0")).join("");
+  const _lum = a => { // WCAG relative luminance 0..1
+    const f = c => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+    return 0.2126 * f(a[0]) + 0.7152 * f(a[1]) + 0.0722 * f(a[2]);
+  };
+  const _onColor = a => { // black or white — whichever reads better on `a`
+    const L = _lum(a);
+    return (L + 0.05) / 0.05 >= 1.05 / (L + 0.05) ? "#15130f" : "#ffffff";
+  };
+  const corpsAccent = name => CORPS_THEME[name] || corpsColor(name);
+  function corpsThemeVars(name) {
+    const acc = _hx(corpsAccent(name));
+    return {
+      accent: _rgb(acc),
+      bar: _rgb(_mix(acc, [17, 20, 30], 0.66)),   // dark topbar, hue-tinted
+      ink: _rgb(_mix(acc, [10, 10, 10], 0.34)),   // darker accent for text on light
+      light: _rgb(_mix(acc, [255, 255, 255], 0.36)), // brighter link on dark bg
+      onAccent: _onColor(acc),                    // legible text on the bright accent
+      wash: `rgba(${acc[0]},${acc[1]},${acc[2]},0.15)`,
+    };
+  }
+  function corpsThemeCSS(name) {
+    const v = corpsThemeVars(name);
+    const base = `--navy:${v.bar};--gold:${v.accent};--accent:${v.accent};--accent-ink:${v.ink};--accent-wash:${v.wash};--on-accent:${v.onAccent};--link:${v.bar};--heading:${v.bar};`;
+    const dark = `--link:${v.light};--heading:#e8ecf5;`;
+    const light = `--link:${v.bar};--heading:${v.bar};`;
+    // Doubled [data-corps] lifts specificity above app.css's own theme rules so
+    // the override wins regardless of stylesheet order; paired with .viz-root so
+    // it reaches content inside <main> the same way the base theme does.
+    const S = "[data-corps][data-corps]";
+    return `:root${S},:root${S} .viz-root{${base}}`
+      + `@media (prefers-color-scheme:dark){:root${S}:not([data-theme="light"]),:root${S}:not([data-theme="light"]) .viz-root{${dark}}}`
+      + `:root${S}[data-theme="dark"],:root${S}[data-theme="dark"] .viz-root{${dark}}`
+      + `:root${S}[data-theme="light"],:root${S}[data-theme="light"] .viz-root{${light}}`;
+  }
+  function applyCorpsTheme(name) {
+    let el = document.getElementById("corpsTheme");
+    if (!el) { el = document.createElement("style"); el.id = "corpsTheme"; document.head.appendChild(el); }
+    const root = document.documentElement;
+    if (!name) {
+      el.textContent = "";
+      root.removeAttribute("data-corps");
+      ["cad-corps-theme", "cad-corps-css", "cad-corps-bar"].forEach(k => { try { localStorage.removeItem(k); } catch (e) {} });
+    } else {
+      const css = corpsThemeCSS(name), v = corpsThemeVars(name);
+      el.textContent = css;
+      root.setAttribute("data-corps", slugOf(name));
+      try {
+        localStorage.setItem("cad-corps-theme", name);
+        localStorage.setItem("cad-corps-css", css);
+        localStorage.setItem("cad-corps-bar", v.bar);
+      } catch (e) {}
+    }
+    if (window.CadTheme && window.CadTheme.paintMeta) window.CadTheme.paintMeta();
+  }
+  const currentCorpsTheme = () => { try { return localStorage.getItem("cad-corps-theme") || ""; } catch (e) { return ""; } };
+  window.CadCorps = { apply: applyCorpsTheme, current: currentCorpsTheme, vars: corpsThemeVars, accent: corpsAccent };
   const FAVS = (() => {
     let set;
     try { set = new Set(JSON.parse(localStorage.getItem("cad-favs") || "[]")); }
@@ -158,6 +249,22 @@
   // Render the prediction UI into a mount div: the scored result if the show
   // is in, otherwise the tap-to-rank card (or the locked pick). Self-contained
   // — manages its own re-renders and click handling.
+  // the graded result card (head + you-vs-real table), reused inline on the
+  // event card and on the My Calls page
+  function predResultHtml(order, actual) {
+    const s = scorePred(order, actual);
+    const apos = new Map(actual.map((c, i) => [c, i]));
+    const rows = order.map((corps, i) => {
+      const ap = apos.get(corps);
+      const d = ap == null ? null : Math.abs(ap - i);
+      const st = d === 0 ? "hit" : d === 1 ? "near" : "miss";
+      return `<tr class="pr-${st}"><td class="num">${i + 1}</td><td>${corpsLink(corps)}</td>`
+        + `<td class="num">${ap == null ? "—" : "#" + (ap + 1)}</td></tr>`;
+    }).join("");
+    return h`<div class="pr-head">🎯 Your call: <b>${s.pct}%</b> <span class="kicker">${s.exact}/${s.n} exact · ${s.pts}/${s.max} pts</span></div>
+      <table class="t pr-table"><thead><tr><th class="num">You</th><th>Corps</th><th class="num">Real</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+
   function mountPredict(container, ev, wcCorps, wcRank) {
     const key = pinKeyOf(ev);
     const actual = wcOrder(ev);
@@ -165,19 +272,7 @@
 
     if (actual.length) {                       // show is scored → grade the call
       if (!pred) { container.innerHTML = ""; return; }
-      const s = scorePred(pred.order, actual);
-      const apos = new Map(actual.map((c, i) => [c, i]));
-      const rows = pred.order.map((corps, i) => {
-        const ap = apos.get(corps);
-        const d = ap == null ? null : Math.abs(ap - i);
-        const st = d === 0 ? "hit" : d === 1 ? "near" : "miss";
-        return `<tr class="pr-${st}"><td class="num">${i + 1}</td><td>${corpsLink(corps)}</td>`
-          + `<td class="num">${ap == null ? "—" : "#" + (ap + 1)}</td></tr>`;
-      }).join("");
-      container.innerHTML = h`<div class="predict done">
-        <div class="pr-head">🎯 Your call: <b>${s.pct}%</b> <span class="kicker">${s.exact}/${s.n} exact · ${s.pts}/${s.max} pts</span></div>
-        <table class="t pr-table"><thead><tr><th class="num">You</th><th>Corps</th><th class="num">Real</th></tr></thead><tbody>${rows}</tbody></table>
-      </div>`;
+      container.innerHTML = `<div class="predict done">${predResultHtml(pred.order, actual)}</div>`;
       return;
     }
 
@@ -226,6 +321,94 @@
       draw();
     };
     draw();
+  }
+
+  // "My Calls" — every prediction you've made: graded ones (with the
+  // right/wrong breakdown) and pending ones awaiting results.
+  async function viewPredictions(_m, stale) {
+    setNav("events");
+    const all = PREDS.all();
+    const keys = Object.keys(all);
+    app.innerHTML = h`<div class="crumbs"><a href="#/events">Shows</a> / My Calls</div>
+      <h1 class="page">My Calls 🎯</h1>`;
+    if (!keys.length) {
+      app.innerHTML += `<div class="card"><div class="empty">You haven't called a show yet — open an upcoming show in <a href="#/events">Shows</a> and tap “Call the finish.”</div></div>`;
+      return;
+    }
+    // pull the seasons we need to grade against, plus upcoming for pending shows
+    const years = [...new Set(keys.map(k => (k.slice(0, 4))).filter(y => /^\d{4}$/.test(y)))];
+    const byKey = new Map();
+    for (const y of years) {
+      try {
+        const evs = await data(`seasons/${y}.json`);
+        if (stale()) return;
+        evs.forEach(ev => byKey.set(pinKeyOf(ev), ev));
+      } catch (e) { /* season not built */ }
+    }
+    try {
+      const up = await data("upcoming.json");
+      if (stale()) return;
+      up.forEach(u => {
+        const k = (u.date || "") + "|" + (u.name || "");
+        if (!byKey.has(k)) byKey.set(k, { name: u.name, date: u.date, location: u.location, future: true });
+      });
+    } catch (e) { /* no upcoming */ }
+
+    const graded = [], pending = [];
+    for (const k of keys) {
+      const pred = all[k];
+      const date = k.slice(0, 10);
+      const name = k.slice(k.indexOf("|") + 1);
+      const ev = byKey.get(k);
+      const actual = ev ? wcOrder(ev) : [];
+      if (actual.length) graded.push({ date, name, pred, actual, s: scorePred(pred.order, actual) });
+      else pending.push({ date, name, pred, ev });
+    }
+    graded.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+    pending.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+
+    const avg = graded.length ? Math.round(graded.reduce((s, g) => s + g.s.pct, 0) / graded.length) : 0;
+    const best = graded.length ? Math.max(...graded.map(g => g.s.pct)) : 0;
+    const exactTot = graded.reduce((s, g) => s + g.s.exact, 0);
+
+    const statCard = graded.length ? h`<div class="card prstats">
+      <div class="prstat"><div class="prstat-n">${graded.length}</div><div class="prstat-l">graded</div></div>
+      <div class="prstat"><div class="prstat-n">${avg}%</div><div class="prstat-l">avg</div></div>
+      <div class="prstat"><div class="prstat-n">${best}%</div><div class="prstat-l">best</div></div>
+      <div class="prstat"><div class="prstat-n">${exactTot}</div><div class="prstat-l">exact hits</div></div>
+    </div>` : "";
+
+    // most recent graded call opens expanded so you land on your latest result
+    const gradedHtml = graded.map((g, i) => h`
+      <div class="prcall${i === 0 ? " open" : ""}">
+        <button class="prcall-head" data-toggle="${i}">
+          <span class="prcall-date">${esc(fmtDateY(g.date) || g.date)}</span>
+          <span class="prcall-name">${esc(g.name)}</span>
+          <span class="prcall-pct">${g.s.pct}%</span>
+        </button>
+        <div class="prcall-body"${i === 0 ? "" : " hidden"}>${predResultHtml(g.pred.order, g.actual)}</div>
+      </div>`).join("");
+
+    const pendingHtml = pending.length ? h`
+      <h2 class="prsec">Awaiting results</h2>
+      ${pending.map(pn => h`<div class="prcall pending">
+        <div class="prcall-head static">
+          <span class="prcall-date">${esc(fmtDateY(pn.date) || pn.date)}</span>
+          <span class="prcall-name">${esc(pn.name)}</span>
+          <span class="prcall-pct muted">${pn.pred.order.length} ranked</span>
+        </div></div>`).join("")}` : "";
+
+    app.innerHTML += h`${statCard}
+      ${graded.length ? `<h2 class="prsec">Your calls</h2>${gradedHtml}` : ""}
+      ${pendingHtml}`;
+
+    app.querySelectorAll(".prcall-head[data-toggle]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const body = btn.nextElementSibling;
+        body.hidden = !body.hidden;
+        btn.parentElement.classList.toggle("open", !body.hidden);
+      });
+    });
   }
 
   function setNav(route) {
@@ -947,8 +1130,10 @@
       ${profHtml ? `<div style="margin-top:14px">${profHtml}</div>` : ""}`;
 
     // the year filter drives BOTH the chart and the log; one year shows the
-    // full season show-by-show, several show top score per year
-    const yearSet = new Set();
+    // full season show-by-show, several show top score per year. Default to
+    // the corps' most recent season (the current year for an active corps) so
+    // clicking in from the scoreboard lands on this season, not all-time.
+    const yearSet = new Set(years.length ? [String(years[years.length - 1])] : []);
     const msYears = multiSelect(document.getElementById("yearSel2"), {
       label: "All years", searchable: years.length > 15, bulk: true, bulkAll: false,
       presets: [{ label: "Past 5", values: () => years.slice(-5).map(String) }],
@@ -1030,6 +1215,11 @@
 
     // stat tiles double as drill-downs
     document.getElementById("tilePerfs").onclick = () => {
+      // "see every show" — clear the season filter so the whole career shows
+      yearSet.clear();
+      msYears.refresh();
+      renderChart();
+      renderPerfs();
       const btn = document.querySelector("#perfTable .expandwrap .tab");
       if (btn && document.querySelector("#perfRows tr.hid")) btn.click();
       document.getElementById("perfTitle").scrollIntoView({ block: "start", behavior: "smooth" });
@@ -1332,8 +1522,8 @@
       if (p && ord.length) graded.push(scorePred(p.order, ord).pct);
     });
     const recordStrip = graded.length
-      ? `<div class="pr-record">🎯 Your calls · ${graded.length} show${graded.length > 1 ? "s" : ""} · `
-        + `avg ${Math.round(graded.reduce((a, b) => a + b, 0) / graded.length)}% · best ${Math.max(...graded)}%</div>`
+      ? `<a class="pr-record" href="#/predictions">🎯 Your calls · ${graded.length} show${graded.length > 1 ? "s" : ""} · `
+        + `avg ${Math.round(graded.reduce((a, b) => a + b, 0) / graded.length)}% · best ${Math.max(...graded)}% <span class="pr-record-go">See all →</span></a>`
       : "";
 
     const cnt = document.getElementById("evCount");
@@ -2612,6 +2802,127 @@
 
   /* ============ SUGGESTIONS ============ */
   const SUGGEST_REPO = "LukeBesel/DCI-Tracker";
+  async function viewSettings(_m, stale) {
+    setNav("");
+    const themeMode = (window.CadTheme && window.CadTheme.mode()) || (localStorage.getItem("cad-theme") || "auto");
+    const curCorps = currentCorpsTheme();
+
+    // corps list from current-season standings — relevant and short
+    let all = [];
+    try {
+      const rk = await data("rankings.json");
+      if (stale()) return;
+      const st = rk.standings || {};
+      ["World Class", "Open Class", "All-Age"].forEach(c => (st[c] && st[c].rows || []).forEach(r => r.corps && all.push(r.corps)));
+    } catch (e) {}
+    all = [...new Set(all)];
+    if (curCorps && !all.includes(curCorps)) all.push(curCorps);
+    all.sort((a, b) => a.localeCompare(b));
+    const featured = THEME_FEATURED.filter(n => all.includes(n) || CORPS_THEME[n]);
+
+    const segBtn = (val, label) => `<button class="segbtn${themeMode === val ? " on" : ""}" data-theme-set="${val}">${label}</button>`;
+    const chip = n => `<button class="corpschip${curCorps === n ? " on" : ""}" data-corps-set="${esc(n)}" style="--sw:${corpsThemeVars(n).accent}"><span class="corpschip-sw"></span>${esc(n)}</button>`;
+    const scope = (window.CadPush && CadPush.scope()) || "all";
+    const predsOn = (() => { try { return (localStorage.getItem("cad-notify-preds") || "on") === "on"; } catch (e) { return true; } })();
+
+    app.innerHTML = h`
+      <h1 class="page">Settings</h1>
+
+      <div class="card setcard">
+        <h2>Appearance</h2>
+        <p class="setnote">Pick a light or dark look — or follow your device.</p>
+        <div class="seg" id="themeSeg">${segBtn("auto", "Auto")}${segBtn("light", "Light")}${segBtn("dark", "Dark")}</div>
+      </div>
+
+      <div class="card setcard">
+        <h2>Team colors</h2>
+        <p class="setnote">Paint Cadence in your corps' colors. Tap the same chip again to switch it off.</p>
+        <div class="chipwrap">
+          <button class="corpschip nochip${curCorps ? "" : " on"}" data-corps-set=""><span class="corpschip-sw" style="background:#f0b429"></span>Cadence gold</button>
+          ${featured.map(chip).join("")}
+        </div>
+        <label class="setrow setrow-sel">
+          <span>More corps</span>
+          <select class="ctrl" id="corpsMore">
+            <option value="">Pick a corps…</option>
+            ${all.map(n => `<option value="${esc(n)}"${curCorps === n ? " selected" : ""}>${esc(n)}</option>`).join("")}
+          </select>
+        </label>
+      </div>
+
+      <div class="card setcard">
+        <h2>Notifications</h2>
+        <p class="setnote">Get a ping the moment new scores drop.</p>
+        <div class="setrow">
+          <div><b>Score alerts</b><div class="setsub" id="pushStatus">Checking…</div></div>
+          <button class="toggle" id="pushToggle" aria-pressed="false" aria-label="Score alerts"></button>
+        </div>
+        <div class="setrow">
+          <div><b>Only my favorites</b><div class="setsub">Alert just for your ★ corps, where supported</div></div>
+          <button class="toggle${scope === "favs" ? " on" : ""}" id="scopeToggle" aria-pressed="${scope === "favs"}" aria-label="Favorites only"></button>
+        </div>
+        <div class="setrow">
+          <div><b>Prediction results</b><div class="setsub">Nudge me to check my Call the Finish score after a show posts</div></div>
+          <button class="toggle${predsOn ? " on" : ""}" id="predsToggle" aria-pressed="${predsOn}" aria-label="Prediction reminders"></button>
+        </div>
+      </div>
+
+      <p class="setfoot">Preferences are saved on this device. Created by Lucas Besel.</p>`;
+    if (stale()) return;
+
+    // appearance
+    app.querySelectorAll("[data-theme-set]").forEach(b => b.addEventListener("click", () => {
+      if (window.CadTheme) window.CadTheme.set(b.dataset.themeSet);
+      app.querySelectorAll("[data-theme-set]").forEach(x => x.classList.toggle("on", x === b));
+    }));
+
+    // team colors — live preview, no full re-render (keeps scroll position)
+    const moreSel = document.getElementById("corpsMore");
+    function pickCorps(name) {
+      applyCorpsTheme(name);
+      app.querySelectorAll("[data-corps-set]").forEach(x => x.classList.toggle("on", (x.dataset.corpsSet || "") === (name || "")));
+      if (moreSel) moreSel.value = name && all.includes(name) ? name : "";
+    }
+    app.querySelectorAll("[data-corps-set]").forEach(b => b.addEventListener("click", () => pickCorps(b.dataset.corpsSet || "")));
+    if (moreSel) moreSel.addEventListener("change", () => pickCorps(moreSel.value));
+
+    // notifications
+    const pushToggle = document.getElementById("pushToggle");
+    const pushStatus = document.getElementById("pushStatus");
+    async function paintPush() {
+      if (!window.CadPush) { pushStatus.textContent = "Not available"; pushToggle.disabled = true; return; }
+      const s = await CadPush.status();
+      if (s === "unsupported") { pushStatus.textContent = "Not supported in this browser"; pushToggle.disabled = true; pushToggle.classList.remove("on"); return; }
+      if (s === "ios-install") { pushStatus.textContent = "On iPhone, install the app first (Share → Add to Home Screen), then reopen Cadence"; pushToggle.disabled = true; pushToggle.classList.remove("on"); return; }
+      pushToggle.disabled = false;
+      pushToggle.classList.toggle("on", s === "on");
+      pushToggle.setAttribute("aria-pressed", s === "on");
+      pushStatus.textContent = s === "on" ? "On — you'll get a ping when scores drop" : "Off";
+    }
+    if (pushToggle) pushToggle.addEventListener("click", async () => {
+      if (!window.CadPush || pushToggle.disabled) return;
+      const s = await CadPush.status();
+      pushToggle.disabled = true;
+      pushStatus.textContent = "…";
+      if (s === "on") await CadPush.disable();
+      else { const r = await CadPush.enable(); if (r && !r.ok && r.reason) alert(r.reason); }
+      await paintPush();
+    });
+    const scopeToggle = document.getElementById("scopeToggle");
+    if (scopeToggle) scopeToggle.addEventListener("click", () => {
+      const next = scopeToggle.classList.toggle("on") ? "favs" : "all";
+      scopeToggle.setAttribute("aria-pressed", next === "favs");
+      if (window.CadPush) CadPush.setScope(next);
+    });
+    const predsToggle = document.getElementById("predsToggle");
+    if (predsToggle) predsToggle.addEventListener("click", () => {
+      const on = predsToggle.classList.toggle("on");
+      predsToggle.setAttribute("aria-pressed", on);
+      try { localStorage.setItem("cad-notify-preds", on ? "on" : "off"); } catch (e) {}
+    });
+    paintPush();
+  }
+
   async function viewSuggestions(_m, stale) {
     setNav("");
     app.innerHTML = `
@@ -2658,12 +2969,14 @@
     [/^#\/corps$/, (m, st) => viewCorpsPage(null, st)],
     [/^#\/corps\/([a-z0-9-]+)$/, (m, st) => viewCorpsPage(m[1], st)],
     [/^#\/events(?:\?(.*))?$/, (m, st) => viewEvents(m[1], st)],
+    [/^#\/predictions$/, viewPredictions],
     [/^#\/(?:seasons|champions)$/, viewSeasons],
     [/^#\/data$/, () => { location.replace("#/compare"); }],
     [/^#\/season\/(\d{4})$/, m => { location.replace(`#/events?y=${m[1]}`); }],
     [/^#\/event\/(\d{4})\/(\d+)$/, (m, st) => viewEvent(m[1], m[2], st)],
     [/^#\/captions(?:\?(.*))?$/, (m, st) => viewCaptions(m[1], st)],
     [/^#\/records$/, viewRecords],
+    [/^#\/settings$/, viewSettings],
     [/^#\/suggestions$/, viewSuggestions],
     [/^#\/database$/, viewDatabase],
     // legacy routes from earlier versions
@@ -2679,7 +2992,7 @@
      there. Tapping the tab you're already on returns to its front page. */
   const NAV_DEFAULT = { rankings: "#/", events: "#/events", corps: "#/corps", data: "#/compare" };
   function sectionOf(hash) {
-    if (/^#\/(events|event\/|season\/)/.test(hash)) return "events";
+    if (/^#\/(events|event\/|season\/|predictions)/.test(hash)) return "events";
     if (/^#\/corps/.test(hash)) return "corps";
     if (/^#\/(data|compare|captions|champions|seasons|records|database)/.test(hash)) return "data";
     if (hash === "#/" || hash === "" || hash === "#") return "rankings";
