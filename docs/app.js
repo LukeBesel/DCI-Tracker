@@ -242,11 +242,25 @@
     try { _logos = await data("profiles.json"); } catch (e) { _logos = {}; }
     return _logos;
   }
-  const logoOf = name => { const p = _logos && _logos[slugOf(name)]; return p && p.img ? p.img : null; };
+  // Some profile images are performance/parade photos, not logos — those look
+  // like random pictures at badge size, so only treat a URL as a logo when its
+  // filename actually reads like one (or it's an SVG, which logos almost always
+  // are). Everything else falls back to the color swatch.
+  function isLogoUrl(url) {
+    let u = String(url || "").toLowerCase();
+    try { u = decodeURIComponent(u); } catch (e) {}
+    if (!u) return false;
+    return u.includes(".svg") || /logo|shield|insignia|crest|emblem|wordmark|badge|seal/.test(u);
+  }
+  const logoOf = name => {
+    const p = _logos && _logos[slugOf(name)];
+    return p && p.img && isLogoUrl(p.img) ? p.img : null;
+  };
+  const corpsHasLogo = name => !!logoOf(name);
   function corpsLogo(name, size, url) {
     const s = size || 24;
     const v = corpsThemeVars(name);
-    const img = url || logoOf(name);
+    const img = (url && isLogoUrl(url) ? url : null) || logoOf(name);
     // if the image 404s or is blocked, it removes itself and the color swatch shows
     // profiles URLs are already percent-encoded — esc() (not encodeURI, which
     // would re-encode the % and 404 the image) just makes it attribute-safe
@@ -2914,6 +2928,8 @@
     Object.keys(CORPS_THEME).forEach(n => all.push(n));
     if (curCorps) all.push(curCorps);
     all = [...new Set(all)].sort((a, b) => a.localeCompare(b));
+    await ensureLogos(); // so the picker can show each corps' real logo
+    if (stale()) return;
     const featured = THEME_FEATURED.filter(n => all.includes(n) || CORPS_THEME[n]);
     const fontSize = (() => { try { return localStorage.getItem("cad-fontsize") || "1"; } catch (e) { return "1"; } })();
     const custInit = currentCustom() || ["#1d2d50", "#f0b429"]; // Cadence navy + gold to start
@@ -2922,8 +2938,11 @@
     const fsBtn = (val, label) => `<button class="segbtn${fontSize === val ? " on" : ""}" data-fs-set="${val}">${label}</button>`;
     const twoTone = n => { const v = corpsThemeVars(n); return `--c1:${v.bar};--c2:${v.accent}`; };
     const chip = n => `<button class="corpschip${curCorps === n ? " on" : ""}" data-corps-set="${esc(n)}"><span class="corpschip-sw" style="${twoTone(n)}"></span>${esc(n)}</button>`;
+    // logo (or color-swatch fallback) on the left; when a real logo shows, the
+    // color swatch still appears on the right as the theme preview
     const corpsRow = n => `<button class="corpsrow${curCorps === n ? " on" : ""}" data-corps-set="${esc(n)}" data-name="${esc(n.toLowerCase())}">`
-      + `<span class="corpsrow-sw" style="${twoTone(n)}"></span><span class="corpsrow-name">${esc(n)}</span></button>`;
+      + corpsLogo(n, 24) + `<span class="corpsrow-name">${esc(n)}</span>`
+      + (corpsHasLogo(n) ? `<span class="corpsrow-sw" style="${twoTone(n)}"></span>` : "") + `</button>`;
     const scope = (window.CadPush && CadPush.scope()) || "all";
     const predsOn = (() => { try { return (localStorage.getItem("cad-notify-preds") || "on") === "on"; } catch (e) { return true; } })();
     const selClasses = (window.CadPush && CadPush.classes) ? CadPush.classes() : null; // null = all
