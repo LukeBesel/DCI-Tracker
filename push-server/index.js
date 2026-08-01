@@ -12,10 +12,10 @@ import fs from "node:fs";
 import path from "node:path";
 import webpush from "web-push";
 
-const VERSION = 8; // bump on every behavior change — /status shows what's really deployed
+const VERSION = 9; // bump on every behavior change — /status shows what's really deployed
 const SITE = process.env.SITE_URL || "https://lukebesel.github.io/DCI-Tracker/";
 const PORT = process.env.PORT || 8787;
-const POLL_MS = +(process.env.POLL_SECONDS || 120) * 1000;
+const POLL_MS = +(process.env.POLL_SECONDS || 60) * 1000;
 const DATA_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH || "./data";
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
