@@ -213,6 +213,20 @@ def _date_display(iso: str) -> str:
     return f"{_MONTHS[mo]} {d}, {y}"
 
 
+def _ev_iso_date(ev: dict) -> str | None:
+    """ISO date for an existing event — from its `date`, else parsed from
+    `date_display`. Lets us tell same-name shows on different days apart so a
+    multi-day event (e.g. Eastern Classic Fri & Sat) doesn't collapse to one
+    URL key."""
+    d = ev.get("date")
+    if d:
+        return str(d)[:10]
+    m = re.match(r"([A-Za-z]+)\s+(\d+),\s*(\d{4})", ev.get("date_display") or "")
+    if m and m.group(1) in _MONTHS:
+        return f"{m.group(3)}-{_MONTHS.index(m.group(1)):02d}-{int(m.group(2)):02d}"
+    return None
+
+
 def _canonical_urls() -> dict[str, str]:
     """normalized event name -> dci.org final-scores URL, from the calendar,
     so a show CompetitionSuite has lines up with dci.org's own key (and
@@ -287,6 +301,14 @@ def main(year: int = 2026) -> int:
         url = canon.get(_norm(name)) or \
             f"https://www.dci.org/scores/final-scores/{year}-{slugify(name)}/"
         cur = by_url.get(url)
+        # Multi-day, same-name show (e.g. DCI Eastern Classic Fri & Sat): if the
+        # URL is already held by a DIFFERENT date, disambiguate with the date so
+        # the two days keep separate keys instead of clobbering each other.
+        if cur is not None:
+            cd = _ev_iso_date(cur)
+            if date and cd and cd != date:
+                url = url.rstrip("/") + f"-{date}/"
+                cur = by_url.get(url)
         # dci.org's OWN recap is the authoritative, final form — never touch it.
         # (A fallback-created event carries a "source" tag; a dci.org one does
         # not, so this only protects genuine dci.org scrapes.)
@@ -305,6 +327,7 @@ def main(year: int = 2026) -> int:
             # brand-new show no other source has yet — create it in full
             by_url[url] = {
                 "url": url, "slug": slug, "year": year, "name": name,
+                "date": date,
                 "date_display": _date_display(comp.get("competitionDate")),
                 "location": comp.get("location") or "",
                 "recap_url": f"https://www.dci.org/scores/recap/{slug}/",
