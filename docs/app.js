@@ -2949,7 +2949,7 @@
     if (stale()) return;
     const featured = THEME_FEATURED.filter(n => all.includes(n) || CORPS_THEME[n]);
     const fontSize = (() => { try { return localStorage.getItem("cad-fontsize") || "1"; } catch (e) { return "1"; } })();
-    const custInit = currentCustom() || ["#1d2d50", "#f0b429"]; // Cadence navy + gold to start
+    const custInit = currentCustom() || ["#0a3f6b", "#f0b429"]; // Cadence navy + gold to start
 
     const segBtn = (val, label) => `<button class="segbtn${themeMode === val ? " on" : ""}" data-theme-set="${val}">${label}</button>`;
     const fsBtn = (val, label) => `<button class="segbtn${fontSize === val ? " on" : ""}" data-fs-set="${val}">${label}</button>`;

@@ -6,7 +6,7 @@
 <title>Cadence — DCI Scores, Rankings & History</title>
 <meta name="description" content="Auto-updating DCI drum corps dashboard: current season rankings, multi-corps multi-year comparisons, every published score, caption recaps, corps histories and champions — straight from official DCI.org published scores.">
 <meta name="color-scheme" content="light">
-<meta name="theme-color" content="#1d2d50">
+<meta name="theme-color" content="#0a3f6b">
 <link rel="manifest" href="manifest.webmanifest?v=4">
 <link rel="apple-touch-icon" href="icons/icon-192.png?v=4">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -78,7 +78,7 @@ window.CadTheme = (function () {
     var m = document.querySelector('meta[name="theme-color"]');
     if (!m) return;
     var bar = localStorage.getItem("cad-corps-bar");
-    m.content = bar ? bar : (effective() === "dark" ? "#131c30" : "#1d2d50");
+    m.content = bar ? bar : (effective() === "dark" ? "#0a2537" : "#0a3f6b");
   }
   function set(next) {
     if (next === "auto") { delete root.dataset.theme; localStorage.removeItem("cad-theme"); }

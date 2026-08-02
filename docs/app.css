@@ -9,7 +9,7 @@
   --grid: #e4e9f1;
   --baseline: #c4cdda;
   --border: #dfe4ec;
-  --navy: #1d2d50;
+  --navy: #0a3f6b;
   --ch-grid: #e4e9f1;
   --ch-base: #c4cdda;
   --ch-label: #74808f;
@@ -30,8 +30,8 @@
   --accent: #d97706;
   --accent-ink: #a16207;
   --accent-wash: rgba(240,180,41,0.14);
-  --link: #1d2d50;
-  --heading: #1d2d50;
+  --link: #0a3f6b;
+  --heading: #0a3f6b;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 @media (prefers-color-scheme: dark) {
@@ -45,7 +45,7 @@
   --grid: #2e3c60;
   --baseline: #49597f;
   --border: #364568;
-  --navy: #182440;
+  --navy: #0a3253;
   --accent-wash: rgba(240,180,41,0.12);
   --ch-grid: #2e3c60;
   --ch-base: #49597f;
@@ -67,7 +67,7 @@
   --grid: #2e3c60;
   --baseline: #49597f;
   --border: #364568;
-  --navy: #182440;
+  --navy: #0a3253;
   --accent-wash: rgba(240,180,41,0.12);
   --ch-grid: #2e3c60;
   --ch-base: #49597f;
