@@ -2,6 +2,6 @@
  "https://www.dci.org/scores/final-scores/2026-big-sounds-in-motion/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-dci-annapolis/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-dci-eastern-classic-2/": "HTTP 200, body 182019B",
- "https://www.dci.org/scores/final-scores/2026-dci-pittsburgh/": "request error: RuntimeError: curl: curl: (28) Connection timed out after 15002 milliseconds",
+ "https://www.dci.org/scores/final-scores/2026-dci-pittsburgh/": "HTTP 200, body 181173B",
  "https://www.dci.org/scores/final-scores/2026-summer-music-games-in-cincinnati/": "HTTP 403, body 139B"
 }
