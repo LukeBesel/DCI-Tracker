@@ -592967,6 +592967,78 @@
   "source": "downbeatdesigns"
  },
  {
+  "url": "https://www.dci.org/scores/final-scores/2026-dci-eastern-classic-saturday/",
+  "slug": "2026-dci-eastern-classic-saturday",
+  "year": 2026,
+  "name": "DCI Eastern Classic – Saturday",
+  "date_display": "August 1, 2026",
+  "location": "Allentown, PA",
+  "recap_url": "https://www.dci.org/scores/recap/2026-dci-eastern-classic-saturday/",
+  "classes": [
+   {
+    "class": "World Class",
+    "results": [
+     {
+      "place": 1,
+      "corps": "Carolina Crown",
+      "score": 95.275
+     },
+     {
+      "place": 2,
+      "corps": "Boston Crusaders",
+      "score": 94.9
+     },
+     {
+      "place": 3,
+      "corps": "Santa Clara Vanguard",
+      "score": 93.763
+     },
+     {
+      "place": 4,
+      "corps": "Phantom Regiment",
+      "score": 92.275
+     },
+     {
+      "place": 5,
+      "corps": "The Cavaliers",
+      "score": 91.038
+     },
+     {
+      "place": 6,
+      "corps": "Pacific Crest",
+      "score": 86.0
+     },
+     {
+      "place": 7,
+      "corps": "Madison Scouts",
+      "score": 85.05
+     },
+     {
+      "place": 8,
+      "corps": "Crossmen",
+      "score": 82.538
+     },
+     {
+      "place": 9,
+      "corps": "The Academy",
+      "score": 82.125
+     },
+     {
+      "place": 10,
+      "corps": "Spartans",
+      "score": 78.65
+     },
+     {
+      "place": 11,
+      "corps": "Seattle Cascades",
+      "score": 78.275
+     }
+    ]
+   }
+  ],
+  "source": "drum-corps.net"
+ },
+ {
   "url": "https://www.dci.org/scores/final-scores/2026-dci-pittsburgh/",
   "slug": "2026-dci-pittsburgh",
   "year": 2026,
