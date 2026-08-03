@@ -49,6 +49,27 @@
   }
   function hideTip() { tooltip().hidden = true; }
 
+  // Touch + mouse scrubbing on a chart's transparent hover overlay. Capturing
+  // the pointer on press keeps the finger tied to the crosshair through the
+  // whole drag — so sliding across the chart reads the value at each x instead
+  // of the browser hijacking the gesture as a text selection / copy. The
+  // crosshair clears when the pointer lifts, cancels, or leaves. (The overlay's
+  // container also sets `touch-action: pan-y` so a horizontal drag scrubs while
+  // a vertical swipe still scrolls the page.)
+  function bindScrub(hover, cross, moveTo) {
+    const hide = () => { cross.setAttribute("opacity", 0); hideTip(); };
+    hover.addEventListener("pointerdown", evt => {
+      try { hover.setPointerCapture(evt.pointerId); } catch (e) {}
+      moveTo(evt);
+    });
+    hover.addEventListener("pointermove", moveTo);
+    hover.addEventListener("pointerup", hide);
+    hover.addEventListener("pointercancel", hide);
+    hover.addEventListener("pointerleave", hide);
+  }
+  // keep the tooltip clear of the fingertip on touch (mouse points precisely)
+  const tipY = evt => evt.pointerType === "touch" ? evt.clientY - 46 : evt.clientY;
+
   function esc(s) {
     const d = document.createElement("span");
     d.textContent = s == null ? "" : String(s);
@@ -133,7 +154,7 @@
       const px = (evt.clientX - r.left) / r.width * W;
       return Math.max(0, Math.min(nX - 1, Math.round((px - m.left) / (iw || 1) * (nX - 1))));
     }
-    hover.addEventListener("pointermove", evt => {
+    function moveTo(evt) {
       const i = toIdx(evt);
       cross.setAttribute("x1", X(i)); cross.setAttribute("x2", X(i));
       cross.setAttribute("opacity", 1);
@@ -143,9 +164,9 @@
           ? `<div class="tt-row"><span class="tt-key" style="background:${s.color}"></span><span class="tt-val">${esc(fmt(p.y))}</span> <span class="tt-name">${esc(s.name)}</span></div>`
           : "";
       }).join("");
-      showTip(`<div class="tt-title">${esc(opts.xLabels[i])}</div>${rows}`, evt.clientX, evt.clientY);
-    });
-    hover.addEventListener("pointerleave", () => { cross.setAttribute("opacity", 0); hideTip(); });
+      showTip(`<div class="tt-title">${esc(opts.xLabels[i])}</div>${rows}`, evt.clientX, tipY(evt));
+    }
+    bindScrub(hover, cross, moveTo);
 
     if (series.length >= 2) {
       const lg = document.createElement("div");
@@ -227,7 +248,7 @@
     const xsSet = [...new Set(allPts.map(p => p.x))].sort((a, b) => a - b);
     const cross = el("line", { y1: m.top, y2: m.top + ih, stroke: CH().cross, "stroke-width": 1, opacity: 0 }, svg);
     const hover = el("rect", { x: m.left, y: m.top, width: iw, height: ih, fill: "transparent" }, svg);
-    hover.addEventListener("pointermove", evt => {
+    function moveTo(evt) {
       const r = svg.getBoundingClientRect();
       const vx = xMin + ((evt.clientX - r.left) / r.width * W - m.left) / iw * (xMax - xMin);
       let best = xsSet[0];
@@ -238,9 +259,9 @@
         const p = s.points.find(q => q.x === best && q.y != null);
         return p ? `<div class="tt-row"><span class="tt-key" style="background:${s.color}"></span><span class="tt-val">${esc(yFmt(p.y))}</span> <span class="tt-name">${esc((numbered ? (si + 1) + " · " : "") + s.name)}</span></div>` : "";
       }).join("");
-      showTip(`<div class="tt-title">${esc(xFmt(best))}</div>${rows}`, evt.clientX, evt.clientY);
-    });
-    hover.addEventListener("pointerleave", () => { cross.setAttribute("opacity", 0); hideTip(); });
+      showTip(`<div class="tt-title">${esc(xFmt(best))}</div>${rows}`, evt.clientX, tipY(evt));
+    }
+    bindScrub(hover, cross, moveTo);
 
     if (series.length >= 2 && !opts.noLegend) {
       const lg = document.createElement("div");
