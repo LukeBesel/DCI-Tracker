@@ -7,8 +7,11 @@
   "scripts": {
     "start": "node index.js"
   },
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.115.0",
     "web-push": "^3.6.7"
   }
 }

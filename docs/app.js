@@ -3145,6 +3145,86 @@
     paintPush();
   }
 
+  // Ask Cadence — natural-language questions answered from the official scores.
+  // The thread persists across navigation within a session so follow-ups work.
+  let askThread = []; // [{ role: "user"|"assistant", content }]
+  async function viewAsk(_m, stale) {
+    setNav("");
+    let year = new Date().getUTCFullYear();
+    try {
+      const meta = await data("meta.json");
+      if (stale()) return;
+      year = Math.max(...meta.seasons.map(s => s.year));
+    } catch (e) {}
+    const SUGGEST = [
+      "Who's winning World Class this season?",
+      "Did Boston Crusaders pass the Bluecoats this year, and when?",
+      "Show me Carolina Crown's scores this season",
+      "Who won the most recent show?",
+    ];
+    const sendIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg>`;
+    app.innerHTML = h`
+      <h1 class="page">Ask Cadence <span class="kicker">· scores assistant</span></h1>
+      <p class="lede">Ask anything about the ${year} DCI season in plain English — head-to-heads, a corps' run of scores, who won a show. Every answer comes straight from the official scores.</p>
+      <div class="card askcard">
+        <div id="askLog" class="asklog" aria-live="polite"></div>
+        <div id="askChips" class="askchips"></div>
+        <form id="askForm" class="askform" autocomplete="off">
+          <input id="askInput" class="askinput" type="text" maxlength="500" placeholder="e.g. Did Pacific Crest pass Madison Scouts, and when?" aria-label="Ask a question about DCI scores" />
+          <button class="asksend" type="submit" aria-label="Ask">${sendIcon}</button>
+        </form>
+        <p class="asknote">Grounded in the published scores — but the assistant can still make mistakes, so double-check anything important against the scoreboard.</p>
+      </div>`;
+    const log = document.getElementById("askLog");
+    const chips = document.getElementById("askChips");
+    const form = document.getElementById("askForm");
+    const input = document.getElementById("askInput");
+    const send = form.querySelector(".asksend");
+
+    function bubble(role, html, cls) {
+      const div = document.createElement("div");
+      div.className = "askmsg " + role + (cls ? " " + cls : "");
+      div.innerHTML = html;
+      log.appendChild(div);
+      log.scrollTop = log.scrollHeight;
+      return div;
+    }
+    const asText = t => esc(t).replace(/\n/g, "<br>");
+    // repaint any prior thread from this session
+    askThread.forEach(m => bubble(m.role === "user" ? "user" : "bot", asText(m.content)));
+    if (!askThread.length)
+      chips.innerHTML = SUGGEST.map(s => `<button class="askchip" type="button">${esc(s)}</button>`).join("");
+
+    let busy = false;
+    async function submit(q) {
+      q = (q || "").trim();
+      if (!q || busy) return;
+      busy = true; send.disabled = true;
+      chips.innerHTML = "";
+      input.value = "";
+      bubble("user", asText(q));
+      askThread.push({ role: "user", content: q });
+      const typing = bubble("bot", '<span class="askdots"><i></i><i></i><i></i></span>');
+      try {
+        const r = await CadAsk.ask(q, { year, history: askThread.slice(0, -1).slice(-6) });
+        typing.remove();
+        bubble("bot", asText(r.answer));
+        askThread.push({ role: "assistant", content: r.answer });
+      } catch (e) {
+        typing.remove();
+        bubble("bot", asText(e.message || "Something went wrong — try again in a moment."), "err");
+      } finally {
+        busy = false; send.disabled = false; input.focus();
+      }
+    }
+    form.addEventListener("submit", e => { e.preventDefault(); submit(input.value); });
+    chips.addEventListener("click", e => {
+      const b = e.target.closest(".askchip");
+      if (b) submit(b.textContent);
+    });
+    input.focus();
+  }
+
   async function viewSuggestions(_m, stale) {
     setNav("");
     app.innerHTML = `
@@ -3199,6 +3279,7 @@
     [/^#\/captions(?:\?(.*))?$/, (m, st) => viewCaptions(m[1], st)],
     [/^#\/records$/, viewRecords],
     [/^#\/settings$/, viewSettings],
+    [/^#\/ask$/, viewAsk],
     [/^#\/suggestions$/, viewSuggestions],
     [/^#\/database$/, viewDatabase],
     // legacy routes from earlier versions
@@ -3224,6 +3305,8 @@
     const hash = location.hash || "#/";
     const sec = sectionOf(hash);
     if (sec) { try { sessionStorage.setItem("cad-last-" + sec, hash); } catch (e) {} }
+    const fab = document.getElementById("askFab");
+    if (fab) fab.hidden = /^#\/ask$/.test(hash); // hide the shortcut on its own page
     document.querySelectorAll("#nav a").forEach(a => {
       const r = a.dataset.route;
       a.setAttribute("href", r === sec ? NAV_DEFAULT[r]

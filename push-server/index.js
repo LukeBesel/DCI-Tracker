@@ -12,7 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import webpush from "web-push";
 
-const VERSION = 11; // bump on every behavior change — /status shows what's really deployed
+const VERSION = 12; // bump on every behavior change — /status shows what's really deployed
 const SITE = process.env.SITE_URL || "https://lukebesel.github.io/DCI-Tracker/";
 const PORT = process.env.PORT || 8787;
 const POLL_MS = +(process.env.POLL_SECONDS || 60) * 1000;
@@ -176,6 +176,109 @@ async function refreshShowFlag() {
 refreshShowFlag();
 setInterval(refreshShowFlag, 15 * 60 * 1000);
 
+// ---- ask: grounded LLM Q&A over the published scores ----
+// A fan can ask a plain-English question ("did Pacific Crest pass Madison
+// Scouts, and when?") and get an answer grounded ONLY in the official scores.
+// Guarded end to end: with no ANTHROPIC_API_KEY the endpoint reports "disabled"
+// and the push relay is completely unaffected. Model is swappable via ASK_MODEL
+// (defaults to Haiku — cheap and fast for grounded lookups over structured data).
+const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || "";
+const ASK_MODEL = process.env.ASK_MODEL || "claude-haiku-4-5";
+const ASK_MAX_TOKENS = +(process.env.ASK_MAX_TOKENS || 700);
+const ASK_DAILY_CAP = +(process.env.ASK_DAILY_CAP || 1500);        // global ceiling / day
+const ASK_BURST = +(process.env.ASK_BURST || 5);                  // per-IP questions before throttling
+const ASK_REFILL_MS = +(process.env.ASK_REFILL_SECONDS || 15) * 1000; // one back every N seconds
+const DEFAULT_YEAR = new Date().getUTCFullYear();
+let anthropic = null;
+if (ANTHROPIC_KEY) {
+  try {
+    const Anthropic = (await import("@anthropic-ai/sdk")).default;
+    anthropic = new Anthropic({ apiKey: ANTHROPIC_KEY });
+    console.log(`assistant enabled — model ${ASK_MODEL}`);
+  } catch (e) {
+    console.error("assistant init failed (is @anthropic-ai/sdk installed?):", e.message);
+  }
+} else {
+  console.log("assistant disabled — set ANTHROPIC_API_KEY to enable /ask");
+}
+let askStat = { answered: 0, blocked: 0, lastAsk: null, lastError: null };
+
+const fmtScore = s => (s == null || isNaN(s)) ? "—" : (+s).toFixed(3).replace(/\.?0+$/, "");
+
+// season detail — rebuilt at most every 10 min per year (new scores land there)
+const seasonCache = new Map(); // year -> { text, ts }
+async function seasonContext(year) {
+  const hit = seasonCache.get(year);
+  if (hit && Date.now() - hit.ts < 10 * 60 * 1000) return hit.text;
+  const evs = await fetchJson(`data/seasons/${year}.json`);
+  const out = [
+    `${year} DCI SEASON — official DCI.org scores (out of 100; a higher score places higher).`,
+    `Every ${year} show in date order, with each division's placements and scores.`,
+    "",
+  ];
+  for (const ev of [...evs].sort((a, b) => (a.date || "").localeCompare(b.date || ""))) {
+    out.push(`[${ev.date || "????-??-??"}] ${ev.name}${ev.location ? " — " + ev.location : ""}`);
+    for (const cls of ev.classes || []) {
+      const rows = (cls.results || []).map(r => `${r.place}. ${r.corps} ${fmtScore(r.score)}`).join("; ");
+      if (rows) out.push(`  ${cls.class}: ${rows}`);
+    }
+    out.push("");
+  }
+  const text = out.join("\n");
+  seasonCache.set(year, { text, ts: Date.now() });
+  return text;
+}
+
+// all-time champions — essentially static, cache an hour
+let champsText = null, champsTs = 0;
+async function championsContext() {
+  if (champsText && Date.now() - champsTs < 60 * 60 * 1000) return champsText;
+  const ch = await fetchJson("data/champions.json");
+  const out = ["DCI CHAMPIONS BY YEAR (the season's championship winner in each division):"];
+  for (const y of Object.keys(ch).sort()) {
+    const parts = [];
+    for (const [cls, v] of Object.entries(ch[y] || {}))
+      if (v && v.corps) parts.push(`${cls}: ${v.corps}${v.score != null ? ` (${fmtScore(v.score)})` : ""}`);
+    if (parts.length) out.push(`${y} — ${parts.join("; ")}`);
+  }
+  champsText = out.join("\n"); champsTs = Date.now();
+  return champsText;
+}
+
+function askSystem(year, today) {
+  return [
+    "You are Cadence's scores assistant. Cadence is a free app that tracks Drum Corps International (DCI) competition scores.",
+    `Answer the fan's question using ONLY the data below. Full show-by-show detail covers the ${year} season; the champions list covers every year.`,
+    "How to answer:",
+    "- Lead with the direct answer in one sentence, then a short supporting detail. Conversational, a few sentences at most. No markdown headings.",
+    "- Scores are out of 100 and a higher score places higher. World Class is the top division; Open Class and All-Age are separate divisions — keep them apart unless asked to compare.",
+    "- \"Did X pass Y?\" means Y was ahead at an earlier show and X moved ahead at a later one. Name the show and date where the lead flipped, and the margin.",
+    "- Always cite the show name and date for a result, and use the exact scores from the data — never invent, estimate, or round-guess a score.",
+    `- You only have full detail for the ${year} season plus all-time champions. If asked about a corps, show, or season that isn't in the data, say so briefly instead of guessing.`,
+    `Today's date is ${today}.`,
+  ].join("\n");
+}
+
+// cost guards: a per-IP token bucket + a global daily ceiling
+const askBuckets = new Map();
+function askAllow(ip) {
+  const now = Date.now();
+  if (askBuckets.size > 5000) for (const [k, v] of askBuckets) if (now - v.ts > 36e5) askBuckets.delete(k);
+  let b = askBuckets.get(ip);
+  if (!b) { b = { tokens: ASK_BURST, ts: now }; askBuckets.set(ip, b); }
+  b.tokens = Math.min(ASK_BURST, b.tokens + (now - b.ts) / ASK_REFILL_MS);
+  b.ts = now;
+  if (b.tokens < 1) return false;
+  b.tokens -= 1; return true;
+}
+let askDay = { day: "", n: 0 };
+function askUnderDailyCap() {
+  const d = new Date().toISOString().slice(0, 10);
+  if (askDay.day !== d) askDay = { day: d, n: 0 };
+  if (askDay.n >= ASK_DAILY_CAP) return false;
+  askDay.n++; return true;
+}
+
 // ---- tiny HTTP API ----
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -205,7 +308,8 @@ http.createServer(async (req, res) => {
   if (req.method === "GET" && url.pathname === "/status") {
     return send(res, 200, { ok: true, service: "cadence-push", version: VERSION,
       volume: !!process.env.RAILWAY_VOLUME_MOUNT_PATH, dataDir: DATA_DIR,
-      subscribers: subs.size, ...status });
+      subscribers: subs.size,
+      ask: { enabled: !!anthropic, model: ASK_MODEL, ...askStat }, ...status });
   }
   if (req.method === "GET" && url.pathname === "/vapid") {
     return send(res, 200, { key: keys.publicKey });
@@ -281,6 +385,47 @@ http.createServer(async (req, res) => {
       }
     }, delay);
     return send(res, 200, { ok: true, queued: true, delay });
+  }
+  if (req.method === "POST" && url.pathname === "/ask") {
+    if (!anthropic) return send(res, 503, { error: "The assistant isn't switched on yet." });
+    const q = (typeof json.q === "string" ? json.q : "").trim();
+    if (!q) return send(res, 400, { error: "Ask a question about DCI scores." });
+    if (q.length > 500) return send(res, 400, { error: "That question's a bit long — keep it under 500 characters." });
+    let year = parseInt(json.year, 10);
+    if (!(year >= 1972 && year <= DEFAULT_YEAR + 1)) year = DEFAULT_YEAR;
+    const ip = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim()
+      || req.socket.remoteAddress || "?";
+    if (!askAllow(ip)) { askStat.blocked++; return send(res, 429, { error: "One at a time! Give it a few seconds and ask again." }); }
+    if (!askUnderDailyCap()) { askStat.blocked++; return send(res, 429, { error: "The assistant has hit today's question limit — try again tomorrow." }); }
+    // short follow-up memory: the client replays the last few turns
+    const hist = Array.isArray(json.history)
+      ? json.history
+          .filter(m => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
+          .slice(-6).map(m => ({ role: m.role, content: m.content.slice(0, 1200) }))
+      : [];
+    const messages = [...hist, { role: "user", content: q }];
+    while (messages.length && messages[0].role !== "user") messages.shift();
+    try {
+      const [season, champs] = await Promise.all([seasonContext(year), championsContext()]);
+      const msg = await anthropic.messages.create({
+        model: ASK_MODEL,
+        max_tokens: ASK_MAX_TOKENS,
+        system: [
+          { type: "text", text: askSystem(year, new Date().toISOString().slice(0, 10)) },
+          { type: "text", text: champs },
+          // cache the biggest, most stable block so repeat questions are cheap
+          { type: "text", text: season, cache_control: { type: "ephemeral" } },
+        ],
+        messages,
+      });
+      const answer = (msg.content || []).filter(b => b.type === "text").map(b => b.text).join("").trim();
+      askStat.answered++;
+      askStat.lastAsk = new Date().toISOString();
+      return send(res, 200, { answer: answer || "I couldn't find an answer to that in the scores.", year, model: ASK_MODEL });
+    } catch (e) {
+      askStat.lastError = `${new Date().toISOString()} ${e.status || ""} ${e.message}`;
+      return send(res, 502, { error: "The assistant had trouble just now — try again in a moment." });
+    }
   }
   send(res, 404, { error: "not found" });
   } catch (e) {

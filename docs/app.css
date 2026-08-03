@@ -683,3 +683,81 @@ h1.page .corpslogo { vertical-align: -6px; margin-right: 11px; }
 .classchip:hover { border-color: var(--muted); }
 .classchip.on { border-color: var(--accent); background: var(--accent-wash); color: var(--accent-ink); }
 .prcall.pending { background: var(--accent-wash); }
+
+/* ── Ask Cadence — AI scores assistant ─────────────────────── */
+#askFab {
+  position: fixed; z-index: 110;
+  right: calc(18px + env(safe-area-inset-right));
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  width: 54px; height: 54px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--navy); color: #fff; border: 2px solid var(--gold);
+  box-shadow: 0 6px 20px rgba(22,35,61,0.34);
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+#askFab:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(22,35,61,0.42); }
+#askFab svg { width: 26px; height: 26px; }
+#askFab[hidden] { display: none; }
+
+.askcard { padding: 0; overflow: hidden; }
+.asklog {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 18px; min-height: 200px; max-height: min(56vh, 600px); overflow-y: auto;
+}
+.askmsg {
+  max-width: 88%; padding: 10px 13px; border-radius: 15px;
+  line-height: 1.5; font-size: 14.5px; overflow-wrap: anywhere;
+}
+.askmsg.user {
+  align-self: flex-end; background: var(--accent); color: var(--on-accent, #fff);
+  border-bottom-right-radius: 5px;
+}
+.askmsg.bot {
+  align-self: flex-start; background: var(--surface-2); color: var(--text-primary);
+  border: 1px solid var(--border); border-bottom-left-radius: 5px;
+}
+.askmsg.bot.err { color: #b42318; background: #fff3f1; border-color: #f3b0a8; }
+:root[data-theme="dark"] .askmsg.bot.err,
+.viz-root[data-theme="dark"] .askmsg.bot.err { color: #ffb4a8; background: rgba(180,35,24,0.18); border-color: rgba(180,35,24,0.5); }
+
+.askdots { display: inline-flex; gap: 4px; padding: 3px 2px; }
+.askdots i { width: 6px; height: 6px; border-radius: 50%; background: var(--muted);
+  animation: askblink 1s infinite ease-in-out; }
+.askdots i:nth-child(2) { animation-delay: .16s; }
+.askdots i:nth-child(3) { animation-delay: .32s; }
+@keyframes askblink { 0%,80%,100% { opacity: .3; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+
+.askchips { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 18px 2px; }
+.askchip {
+  font: inherit; font-size: 12.5px; padding: 7px 12px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface-1); color: var(--text-secondary);
+  cursor: pointer; text-align: left;
+}
+.askchip:hover { border-color: var(--accent); color: var(--text-primary); }
+
+.askform {
+  display: flex; gap: 8px; padding: 12px 18px;
+  border-top: 1px solid var(--border); background: var(--surface-1);
+}
+.askinput {
+  flex: 1; min-width: 0; padding: 11px 13px; border-radius: 12px;
+  border: 1px solid var(--border); background: var(--surface-2);
+  color: var(--text-primary); font: inherit; font-size: 15px;
+}
+.askinput::placeholder { color: var(--muted); }
+.askinput:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-wash); }
+.asksend {
+  flex: 0 0 auto; width: 46px; border-radius: 12px; border: none;
+  background: var(--accent); color: var(--on-accent, #fff);
+  display: grid; place-items: center; cursor: pointer;
+}
+.asksend:disabled { opacity: .5; cursor: default; }
+.asksend svg { width: 20px; height: 20px; }
+.asknote { color: var(--muted); font-size: 11.5px; margin: 0; padding: 2px 18px 14px; line-height: 1.5; }
+
+@media (max-width: 640px) {
+  /* lift the shortcut above the fixed bottom tab bar */
+  #askFab { bottom: calc(96px + env(safe-area-inset-bottom)); right: calc(14px + env(safe-area-inset-right));
+    width: 50px; height: 50px; }
+  .asklog { max-height: min(52vh, 520px); }
+}
