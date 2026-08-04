@@ -3225,6 +3225,23 @@
     input.focus();
   }
 
+  // notification deep-link resolver: #/go?y=&d=&e= -> the show's event page.
+  // Turns a show's name+date (all the relay knows) into its event index,
+  // falling back to that year's Shows list if the data hasn't caught up yet.
+  async function viewGo(qs) {
+    const p = new URLSearchParams(qs || "");
+    const y = p.get("y"), d = p.get("d"), e = p.get("e");
+    if (!y) { location.replace("#/"); return; }
+    try {
+      const events = await data(`seasons/${y}.json`);
+      let idx = -1;
+      if (e) idx = events.findIndex(ev => ev.date === d && ev.name === e);
+      if (idx < 0 && d) idx = events.findIndex(ev => ev.date === d);
+      if (idx >= 0) { location.replace(`#/event/${y}/${idx}`); return; }
+    } catch (err) {}
+    location.replace(`#/events?y=${y}`);
+  }
+
   async function viewSuggestions(_m, stale) {
     setNav("");
     app.innerHTML = `
@@ -3279,6 +3296,7 @@
     [/^#\/captions(?:\?(.*))?$/, (m, st) => viewCaptions(m[1], st)],
     [/^#\/records$/, viewRecords],
     [/^#\/settings$/, viewSettings],
+    [/^#\/go(?:\?(.*))?$/, m => viewGo(m[1])],
     [/^#\/ask$/, viewAsk],
     [/^#\/suggestions$/, viewSuggestions],
     [/^#\/database$/, viewDatabase],

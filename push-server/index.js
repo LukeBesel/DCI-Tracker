@@ -173,7 +173,20 @@ async function broadcast(events) {
       body = mine.slice(0, 3).map(r => `${r.corps} ${r.score.toFixed(3)}`).join(" · ")
         + (names.length ? ` — ${names[0]}` : "");
     }
-    const payload = JSON.stringify({ title, body, url: SITE, tag: "cadence-scores" });
+    // deep-link the alert to the scores it's about: one show -> that show's
+    // page; several shows -> the Shows list for the newest year. The app's
+    // #/go resolver turns the show's name+date into its event page.
+    let url = SITE;
+    if (myEvents.length === 1) {
+      const parts = myEvents[0][0].split("|");     // ek = "event|date"
+      const dt = parts.pop(), ev = parts.join("|"), yr = (dt || "").slice(0, 4);
+      if (yr) url = `${SITE}#/go?y=${yr}&d=${encodeURIComponent(dt)}&e=${encodeURIComponent(ev)}`;
+    } else {
+      const yr = myEvents.map(([k]) => (k.split("|").pop() || "").slice(0, 4))
+        .filter(Boolean).sort().pop();
+      if (yr) url = `${SITE}#/events?y=${yr}`;
+    }
+    const payload = JSON.stringify({ title, body, url, tag: "cadence-scores" });
     jobs.push(webpush.sendNotification(sub, payload).then(
       () => { status.sent++; },
       err => {

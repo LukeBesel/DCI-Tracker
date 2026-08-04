@@ -1,7 +1,7 @@
 /* DCI Tracker service worker — network-first with cache fallback.
    Fresh data always wins when online; the app shell and the last-seen data
    keep working offline. Nothing is ever served stale while connected. */
-const CACHE = "cadence-v3";
+const CACHE = "cadence-v4";
 const SHELL = ["./", "index.html", "app.css", "app.js", "charts.js", "manifest.webmanifest"];
 
 self.addEventListener("install", e => {
@@ -35,9 +35,14 @@ self.addEventListener("push", e => {
 });
 self.addEventListener("notificationclick", e => {
   e.notification.close();
+  const url = (e.notification.data || {}).url || "./";
   e.waitUntil(clients.matchAll({ type: "window", includeUncontrolled: true }).then(ws => {
-    for (const w of ws) if ("focus" in w) return w.focus();
-    return clients.openWindow((e.notification.data || {}).url || "./");
+    for (const w of ws) if ("focus" in w) {
+      // app already open: route it to the show, then bring it forward
+      try { w.postMessage({ type: "navigate", url }); } catch (err) {}
+      return w.focus();
+    }
+    return clients.openWindow(url); // cold start: opens straight to the deep link
   }));
 });
 

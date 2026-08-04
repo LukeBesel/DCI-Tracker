@@ -49,23 +49,47 @@
   }
   function hideTip() { tooltip().hidden = true; }
 
-  // Touch + mouse scrubbing on a chart's transparent hover overlay. Capturing
-  // the pointer on press keeps the finger tied to the crosshair through the
-  // whole drag — so sliding across the chart reads the value at each x instead
-  // of the browser hijacking the gesture as a text selection / copy. The
-  // crosshair clears when the pointer lifts, cancels, or leaves. (The overlay's
-  // container also sets `touch-action: pan-y` so a horizontal drag scrubs while
-  // a vertical swipe still scrolls the page.)
+  // Scrubbing on a chart's transparent hover overlay.
+  //   Mouse/pen: hover-drag reads the value at each x (a drag isn't a page
+  //   scroll on desktop, so pointer events are enough).
+  //   Touch: lock to the dominant axis on the first finger move — a mostly-
+  //   horizontal drag scrubs the crosshair (and we preventDefault so the page
+  //   doesn't also pan), while a mostly-vertical swipe is left alone so the
+  //   page scrolls normally. Raw touch events + preventDefault give reliable
+  //   direction control that touch-action alone doesn't on iOS.
   function bindScrub(hover, cross, moveTo) {
     const hide = () => { cross.setAttribute("opacity", 0); hideTip(); };
+    const notTouch = evt => evt.pointerType !== "touch";
     hover.addEventListener("pointerdown", evt => {
+      if (!notTouch(evt)) return;
       try { hover.setPointerCapture(evt.pointerId); } catch (e) {}
       moveTo(evt);
     });
-    hover.addEventListener("pointermove", moveTo);
-    hover.addEventListener("pointerup", hide);
-    hover.addEventListener("pointercancel", hide);
-    hover.addEventListener("pointerleave", hide);
+    hover.addEventListener("pointermove", evt => { if (notTouch(evt)) moveTo(evt); });
+    hover.addEventListener("pointerup", evt => { if (notTouch(evt)) hide(); });
+    hover.addEventListener("pointercancel", evt => { if (notTouch(evt)) hide(); });
+    hover.addEventListener("pointerleave", evt => { if (notTouch(evt)) hide(); });
+
+    let sx = 0, sy = 0, mode = 0; // 0 undecided · 1 scrub · -1 let page scroll
+    hover.addEventListener("touchstart", e => {
+      const t = e.touches[0]; if (!t) return;
+      sx = t.clientX; sy = t.clientY; mode = 0;
+    }, { passive: true });
+    hover.addEventListener("touchmove", e => {
+      const t = e.touches[0]; if (!t) return;
+      if (mode === 0) {
+        const dx = Math.abs(t.clientX - sx), dy = Math.abs(t.clientY - sy);
+        if (dx < 7 && dy < 7) return;              // wait until the intent is clear
+        mode = dx > dy ? 1 : -1;
+      }
+      if (mode === 1) {
+        e.preventDefault();                        // own the gesture — no page pan while scrubbing
+        moveTo({ clientX: t.clientX, clientY: t.clientY, pointerType: "touch" });
+      }
+    }, { passive: false });
+    const end = () => { if (mode === 1) hide(); mode = 0; };
+    hover.addEventListener("touchend", end);
+    hover.addEventListener("touchcancel", end);
   }
   // keep the tooltip clear of the fingertip on touch (mouse points precisely)
   const tipY = evt => evt.pointerType === "touch" ? evt.clientY - 46 : evt.clientY;
