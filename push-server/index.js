@@ -12,7 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import webpush from "web-push";
 
-const VERSION = 12; // bump on every behavior change — /status shows what's really deployed
+const VERSION = 13; // bump on every behavior change — /status shows what's really deployed
 const SITE = process.env.SITE_URL || "https://lukebesel.github.io/DCI-Tracker/";
 const PORT = process.env.PORT || 8787;
 const POLL_MS = +(process.env.POLL_SECONDS || 60) * 1000;
@@ -55,6 +55,33 @@ const saveState = () => {
   try { fs.writeFileSync(stateFile, JSON.stringify([...lastState])); }
   catch (e) { console.error("saveState failed:", e.message); }
 };
+
+// notified-events ledger — the anti-spam guard.
+// raw.githubusercontent serves inconsistent CDN edges for a couple minutes
+// after each push, so a poll can see a new show's scores appear, revert to the
+// prior edge, then reappear — and the naive "differs from last poll" check
+// fires a fresh alert on every flap. Keying "already alerted" on the show
+// itself (event|date), seeded from whatever's live at boot, makes alerts
+// idempotent: exactly one ping per genuinely-new show, and a revert to any
+// show we've already seen never fires again. Persisted so a restart mid-show
+// doesn't re-alert everything.
+const notifiedFile = path.join(DATA_DIR, "notified.json");
+let notified = new Set();
+try { notified = new Set(JSON.parse(fs.readFileSync(notifiedFile, "utf8"))); } catch {}
+const saveNotified = () => {
+  try { fs.writeFileSync(notifiedFile, JSON.stringify([...notified].slice(-4000))); }
+  catch (e) { console.error("saveNotified failed:", e.message); }
+};
+// event|date keys present in a snapshot (values are "date|event|score")
+function eventKeysOf(state) {
+  const keys = new Set();
+  if (state) for (const val of state.values()) {
+    const [date, event] = val.split("|");
+    if (event) keys.add(event + "|" + date);
+  }
+  return keys;
+}
+
 let status = { lastCheck: null, lastChange: null, lastError: null, sent: 0 };
 let relayBucket = 10, relayStamp = Date.now(); // token bucket for /fetch
 
@@ -85,6 +112,9 @@ async function check() {
     const rk = await fetchJson("data/rankings.json");
     status.lastCheck = new Date().toISOString();
     const state = snapshot(rk);
+    // seed the ledger once so nothing already live at boot ever alerts (from
+    // the last-seen baseline if we have one, else current data)
+    if (!notified.size) { notified = eventKeysOf(lastState || state); saveNotified(); }
     if (lastState) {
       // which events produced new scores since last look?
       const events = new Map(); // "event|date" -> [{corps, score, cls}]
@@ -95,11 +125,14 @@ async function check() {
         const corps = parts.slice(1).join("|");
         const [date, event, score] = val.split("|");
         const ek = event + "|" + date;
+        if (notified.has(ek)) continue;             // already alerted this show — ignore flaps/reverts
         if (!events.has(ek)) events.set(ek, []);
         events.get(ek).push({ corps, score: +score, cls });
       }
       if (events.size) {
         status.lastChange = new Date().toISOString();
+        for (const ek of events.keys()) notified.add(ek); // mark before send so a flap mid-broadcast can't re-fire
+        saveNotified();
         await broadcast(events);
       }
     }
@@ -308,7 +341,7 @@ http.createServer(async (req, res) => {
   if (req.method === "GET" && url.pathname === "/status") {
     return send(res, 200, { ok: true, service: "cadence-push", version: VERSION,
       volume: !!process.env.RAILWAY_VOLUME_MOUNT_PATH, dataDir: DATA_DIR,
-      subscribers: subs.size,
+      subscribers: subs.size, notifiedShows: notified.size,
       ask: { enabled: !!anthropic, model: ASK_MODEL, ...askStat }, ...status });
   }
   if (req.method === "GET" && url.pathname === "/vapid") {
