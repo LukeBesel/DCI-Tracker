@@ -335,10 +335,12 @@ a.tile:hover { text-decoration: none; }
 .tile .sub { color: var(--text-secondary); font-size: 12.5px; }
 
 /* charts */
-/* touch-action: pan-y lets a horizontal finger-drag scrub the chart (read the
-   score at each point) while a vertical swipe still scrolls the page — without
-   it the browser hijacks the drag as a scroll or text selection. */
-.chartwrap { position: relative; touch-action: pan-y; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+/* touch-action: none lets the chart own the finger-drag so it scrubs smoothly
+   (read the score at each point). With pan-y, mobile browsers — iOS Safari
+   especially — cancel the drag the moment the finger wobbles vertically, so the
+   line never tracks; the chart owning the gesture is the standard scrubber
+   pattern (drag scrubs; scroll the page from outside the chart). */
+.chartwrap { position: relative; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .chartwrap svg, .chartwrap svg text { -webkit-user-select: none; user-select: none; }
 .chartwrap svg { display: block; width: 100%; height: auto; }
 .legend { display: flex; gap: 14px; flex-wrap: wrap; margin: 8px 2px 0; font-size: 12.5px; color: var(--text-secondary); }
