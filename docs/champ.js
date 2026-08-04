@@ -12,6 +12,10 @@
   var TZ = "America/New_York";              // Indianapolis / Lucas Oil Stadium is Eastern
   var FINALS_TARGET = "2026-08-08T17:00:00-04:00"; // Finals countdown target (ET, EDT = -04:00)
   var DATE = { prelims: "2026-08-06", semis: "2026-08-07", finals: "2026-08-08" };
+  // one-day live preview: the countdown auto-pops + shows its reopen button only
+  // on this date, so the whole flow can be seen before Worlds week. Set to "" to
+  // disable the preview entirely (the real Aug 6–8 screens are unaffected).
+  var PREVIEW_DATE = "2026-08-04";
 
   var VENUE = "Lucas Oil Stadium";
   var DENY_LINES = [
@@ -23,6 +27,11 @@
     "You really thought that button would work?"
   ];
   var MISSIONS = {
+    pre: [
+      "Pick the corps you’re most excited to see.",
+      "Make sure your phone’s charged for the big weekend.",
+      "Share Cadence with someone headed to Worlds."
+    ],
     prelims: [
       "Take a picture outside Lucas Oil Stadium.",
       "Pick one corps you did not expect to love.",
@@ -44,7 +53,7 @@
 
   // per-mode view config
   var VIEW = {
-    pre:     { title: "FINALS COUNTDOWN",  note: "DCI Worlds is almost here.", countdown: true,  missions: null,      act: NORMAL_ACT, conf: { count: 150, duration: 3800, big: false } },
+    pre:     { title: "FINALS COUNTDOWN",  note: "DCI Worlds is almost here — get ready!", countdown: true,  missions: "pre",     act: NORMAL_ACT, conf: { count: 150, duration: 3800, big: false } },
     prelims: { title: "PRELIMS DAY",       note: "",                            countdown: true,  missions: "prelims", act: NORMAL_ACT, conf: { count: 160, duration: 3800, big: false } },
     semis:   { title: "SEMIFINALS DAY",    note: "",                            countdown: true,  missions: "semis",   act: NORMAL_ACT, conf: { count: 160, duration: 3800, big: false } },
     finals:  { title: "IT’S FINALS DAY!", note: "One final night. Cheer loud, enjoy every moment, and watch a champion be crowned.", countdown: false, missions: "finals", act: FINALS_ACT, conf: { count: 280, duration: 5000, big: true } }
@@ -540,12 +549,18 @@
   }
 
   // which temporary screen is active right now. Both windows are short-term and
-  // self-retiring: Championship Mode runs Aug 6–8, the Colin tribute runs from
-  // Finals night until COLIN_END — after that nothing shows again, ever.
+  // self-retiring: Championship Mode runs from the countdown days through Aug 8,
+  // the Colin tribute runs from Finals night until COLIN_END — after that nothing
+  // shows again, ever. The "pre" countdown is live now so the auto-popup + reopen
+  // button can be seen (and tested) in the run-up to Worlds week.
   function phase() {
     var now = Date.now();
     if (now >= Date.parse(COLIN_AFTER) && now < Date.parse(COLIN_END)) return "colin";
-    if (now < Date.parse(COLIN_AFTER) && isEventDay(modeForDate(todayET()))) return "champ";
+    if (now < Date.parse(COLIN_AFTER)) {
+      var m = modeForDate(todayET());
+      if (isEventDay(m)) return "champ";                        // Aug 6–8, the real screens
+      if (m === "pre" && todayET() === PREVIEW_DATE) return "champ"; // one-day countdown preview
+    }
     return "none";
   }
 
