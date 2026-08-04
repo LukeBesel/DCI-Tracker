@@ -16,6 +16,10 @@
   // on this date, so the whole flow can be seen before Worlds week. Set to "" to
   // disable the preview entirely (the real Aug 6–8 screens are unaffected).
   var PREVIEW_DATE = "2026-08-04";
+  // short-lived preview of the end-of-season tribute LAYOUT (nameless, sample
+  // numbers) so it can be eyeballed now. It auto-pops until this instant, then
+  // vanishes. Set to "" to turn off. Deliberately generic so it reveals nothing.
+  var PREVIEW_MOCK_UNTIL = "2026-08-04T22:15:00Z";
 
   var VENUE = "Lucas Oil Stadium";
   var DENY_LINES = [
@@ -493,18 +497,22 @@
       "One unforgettable summer. We’re so proud of you, Colin. 🎺❤️";
     return { tiles: tiles, line: line };
   }
+  // Representative but nameless: the SAME tile labels as the real tribute so the
+  // layout previews truthfully, with sample (random) numbers and no identity.
   function mockColin() {
     var rnd = function (a, b) { return Math.floor(a + Math.random() * (b - a)); };
     return {
       tiles: [
-        ["Steps taken", rnd(6000, 14000).toLocaleString()],
-        ["Snacks eaten", String(rnd(6, 26))],
-        ["Songs heard", String(rnd(20, 120))],
-        ["Naps", String(rnd(0, 5))],
-        ["Miles walked", "≈ " + rnd(2, 9)],
-        ["High score", (80 + Math.random() * 18).toFixed(2)]
+        ["Shows performed", String(rnd(14, 22))],
+        ["Days on the road", String(rnd(30, 50))],
+        ["Miles traveled", "≈ " + rnd(6000, 9000).toLocaleString()],
+        ["Points gained", "+" + (12 + Math.random() * 14).toFixed(1)],
+        ["Highest score", (88 + Math.random() * 9).toFixed(3)],
+        ["Best finish", ordinal(rnd(1, 6))],
+        ["Cities visited", String(rnd(12, 20))],
+        ["States crossed", String(rnd(8, 14))]
       ],
-      line: "If you can read this, the tribute screen works end-to-end. 🎉 (placeholder data)"
+      line: "Miles of memories and a whole lot of heart — one unforgettable summer on the road. 🎺 (preview with sample numbers)"
     };
   }
   function openColin(opts) {
@@ -518,9 +526,9 @@
     var headCls = opts.mock ? "cm-head" : "cm-head red";
     overlay.innerHTML = '<div class="cm-backdrop"></div><div class="cm-card"><div class="' + headCls + '">' +
       '<button class="cm-x" type="button" aria-label="Close">×</button>' +
-      '<div class="cm-eyebrow">' + (opts.mock ? "Preview · placeholder" : "2026 DCI World Championships") + "</div>" +
-      '<h2 class="cm-title" id="cm-h">' + esc(opts.mock ? "Congratulations, Test Run!" : "Congratulations " + COLIN.name) + "</h2>" +
-      '<p class="cm-note">' + esc(opts.mock ? "A random placeholder so you can preview the layout." : COLIN.corps) + "</p>" +
+      '<div class="cm-eyebrow">' + (opts.mock ? "2026 Season · Preview" : "2026 DCI World Championships") + "</div>" +
+      '<h2 class="cm-title" id="cm-h">' + esc(opts.mock ? "What a Season!" : "Congratulations " + COLIN.name) + "</h2>" +
+      '<p class="cm-note">' + esc(opts.mock ? "A look at the end-of-season screen — sample numbers." : COLIN.corps) + "</p>" +
       '</div><div class="cm-body"><div class="cm-cline" style="padding:14px 0">Loading…</div></div></div>';
     document.body.appendChild(overlay);
     overlay.querySelector(".cm-x").addEventListener("click", close);
@@ -564,6 +572,11 @@
     return "none";
   }
 
+  // short-lived preview of the end-of-season tribute LAYOUT (nameless placeholder)
+  function mockPreviewActive() {
+    return !!PREVIEW_MOCK_UNTIL && Date.now() < Date.parse(PREVIEW_MOCK_UNTIL);
+  }
+
   // ---- open ------------------------------------------------------------------
   function markSeenToday() { lset("cad-cm-seen-" + todayET(), "1"); }
 
@@ -590,6 +603,13 @@
 
   // ---- auto-show + "show again" ----------------------------------------------
   function maybeAutoShow() {
+    // top priority: the short-lived tribute-layout preview (auto-pops until it expires)
+    if (mockPreviewActive()) {
+      try { if (sessionStorage.getItem("cad-cm-session")) return; } catch (e) {}
+      try { sessionStorage.setItem("cad-cm-session", "1"); } catch (e) {}
+      openColin({ mock: true });
+      return;
+    }
     var ph = phase();
     if (ph === "none") return;
     try { if (sessionStorage.getItem("cad-cm-session")) return; } catch (e) {} // once per session
@@ -614,25 +634,27 @@
   var TROPHY_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M17 5h3v2a3 3 0 0 1-3 3.5M7 5H4v2a3 3 0 0 0 3 3.5"/></svg>';
   var HEART_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M12 21s-7.5-4.9-10-9.2C.6 9 1.6 5.6 4.6 4.7 6.7 4 8.8 4.9 12 8c3.2-3.1 5.3-4 7.4-3.3 3 0.9 4 4.3 2.6 7.1C19.5 16.1 12 21 12 21z"/></svg>';
   function injectTopButton() {
+    var mock = mockPreviewActive();
     var ph = phase();
     // shown while a temporary screen is live; also whenever dev-preview is on so
     // the developer can see/test the button before the trip
-    if (ph === "none" && lget("cad-cm-dev") !== "1") return;
+    if (!mock && ph === "none" && lget("cad-cm-dev") !== "1") return;
     var bar = document.querySelector("header.topbar");
     if (!bar || document.getElementById("cm-topbtn")) return;
     injectStyles();
-    var isColin = ph === "colin";
+    var isColin = !mock && ph === "colin";
     var btn = document.createElement("button");
     btn.id = "cm-topbtn";
     btn.type = "button";
-    btn.title = isColin ? "Congratulations Colin Besel" : "DCI Championship Mode";
-    btn.setAttribute("aria-label", isColin ? "Open the Colin Besel tribute" : "Open Championship Mode");
-    btn.innerHTML = isColin ? HEART_SVG : TROPHY_SVG;
+    btn.title = mock ? "Preview: end-of-season screen" : isColin ? "Congratulations Colin Besel" : "DCI Championship Mode";
+    btn.setAttribute("aria-label", mock ? "Open the season preview" : isColin ? "Open the Colin Besel tribute" : "Open Championship Mode");
+    btn.innerHTML = isColin ? HEART_SVG : TROPHY_SVG; // mock uses the neutral trophy
     var gear = document.getElementById("settingsBtn");
     if (gear) bar.insertBefore(btn, gear); else bar.appendChild(btn);
     btn.addEventListener("click", function () {
       try { sessionStorage.setItem("cad-cm-session", "1"); } catch (e) {}
-      if (phase() === "colin") openColin({ mock: false });
+      if (mockPreviewActive()) openColin({ mock: true });
+      else if (phase() === "colin") openColin({ mock: false });
       else open(modeForDate(todayET()));
     });
   }
