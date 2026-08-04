@@ -19,7 +19,7 @@
   // short-lived preview of the end-of-season tribute LAYOUT (nameless, sample
   // numbers) so it can be eyeballed now. It auto-pops until this instant, then
   // vanishes. Set to "" to turn off. Deliberately generic so it reveals nothing.
-  var PREVIEW_MOCK_UNTIL = "2026-08-04T22:15:00Z";
+  var PREVIEW_MOCK_UNTIL = "2026-08-05T00:40:00Z";
 
   var VENUE = "Lucas Oil Stadium";
   var DENY_LINES = [
@@ -603,10 +603,9 @@
 
   // ---- auto-show + "show again" ----------------------------------------------
   function maybeAutoShow() {
-    // top priority: the short-lived tribute-layout preview (auto-pops until it expires)
+    // top priority: the short-lived tribute-layout preview. Re-shows on every
+    // fresh page load until it expires (no session guard) so it's easy to catch.
     if (mockPreviewActive()) {
-      try { if (sessionStorage.getItem("cad-cm-session")) return; } catch (e) {}
-      try { sessionStorage.setItem("cad-cm-session", "1"); } catch (e) {}
       openColin({ mock: true });
       return;
     }
