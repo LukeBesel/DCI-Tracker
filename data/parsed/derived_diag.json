@@ -3,7 +3,7 @@
  "https://www.dci.org/scores/final-scores/2026-dci-annapolis/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-dci-kentucky/": "HTTP 200, body 184615B",
  "https://www.dci.org/scores/final-scores/2026-dci-open-class-world-championship-finals/": "HTTP 403, body 139B",
- "https://www.dci.org/scores/final-scores/2026-dci-open-class-world-championship-prelims/": "HTTP 403, body 139B",
- "https://www.dci.org/scores/final-scores/2026-innovations-in-brass/": "HTTP 403, body 139B",
+ "https://www.dci.org/scores/final-scores/2026-dci-open-class-world-championship-prelims/": "HTTP 200, body 184690B",
+ "https://www.dci.org/scores/final-scores/2026-innovations-in-brass/": "HTTP 200, body 184867B",
  "https://www.dci.org/scores/final-scores/2026-summer-music-games-in-cincinnati/": "HTTP 403, body 139B"
 }
