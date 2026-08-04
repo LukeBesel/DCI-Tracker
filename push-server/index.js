@@ -12,7 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import webpush from "web-push";
 
-const VERSION = 13; // bump on every behavior change — /status shows what's really deployed
+const VERSION = 14; // bump on every behavior change — /status shows what's really deployed
 const SITE = process.env.SITE_URL || "https://lukebesel.github.io/DCI-Tracker/";
 const PORT = process.env.PORT || 8787;
 const POLL_MS = +(process.env.POLL_SECONDS || 60) * 1000;
@@ -85,14 +85,16 @@ function eventKeysOf(state) {
 let status = { lastCheck: null, lastChange: null, lastError: null, sent: 0 };
 let relayBucket = 10, relayStamp = Date.now(); // token bucket for /fetch
 
-// read score data from raw.githubusercontent, not the Pages CDN: raw reflects
-// a new-scores commit the instant the pipeline pushes it (GitHub purges raw's
-// cache on push), so alerts fire ~1-2 min sooner than waiting for Pages to
-// finish deploying. Falls back to SITE if RAW_URL is cleared.
-const RAW = process.env.RAW_URL || "https://raw.githubusercontent.com/LukeBesel/DCI-Tracker/main/docs/";
+// Read scores from the SAME place the app does — the published GitHub Pages
+// site — so an alert can only fire once the new scores are actually live in
+// the app (and the deep-linked show page has them). We previously read
+// raw.githubusercontent for a ~1-2 min head start, but that fired alerts
+// before the app had caught up, so a tapped alert showed stale scores.
+// Correctness beats the head start. SITE ends in "/"; Pages serves docs/ as root.
+const DATA_BASE = process.env.DATA_URL || SITE;
 async function fetchJson(p) {
   // unique query per poll so nothing serves a stale body
-  const r = await fetch(`${RAW}${p}?cb=${Date.now()}`, { headers: { "cache-control": "no-cache" } });
+  const r = await fetch(`${DATA_BASE}${p}?cb=${Date.now()}`, { headers: { "cache-control": "no-cache" } });
   if (!r.ok) throw new Error(p + " " + r.status);
   return r.json();
 }
@@ -354,7 +356,7 @@ http.createServer(async (req, res) => {
   if (req.method === "GET" && url.pathname === "/status") {
     return send(res, 200, { ok: true, service: "cadence-push", version: VERSION,
       volume: !!process.env.RAILWAY_VOLUME_MOUNT_PATH, dataDir: DATA_DIR,
-      subscribers: subs.size, notifiedShows: notified.size,
+      subscribers: subs.size, notifiedShows: notified.size, source: DATA_BASE,
       ask: { enabled: !!anthropic, model: ASK_MODEL, ...askStat }, ...status });
   }
   if (req.method === "GET" && url.pathname === "/vapid") {
