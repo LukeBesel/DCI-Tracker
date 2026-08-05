@@ -19,7 +19,7 @@
   // short-lived preview of the end-of-season tribute LAYOUT (nameless, sample
   // numbers) so it can be eyeballed now. It auto-pops until this instant, then
   // vanishes. Set to "" to turn off. Deliberately generic so it reveals nothing.
-  var PREVIEW_MOCK_UNTIL = "2026-08-05T00:40:00Z";
+  var PREVIEW_MOCK_UNTIL = "2026-08-05T02:00:00Z";
 
   var VENUE = "Lucas Oil Stadium";
   var DENY_LINES = [
