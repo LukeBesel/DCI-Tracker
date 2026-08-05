@@ -924,7 +924,16 @@
       corpsSel = corpsSel.filter(s => bySlug.has(s));
       yearsSel = yearsSel.filter(y => allYears.includes(y));
     }
-    // corps start empty on purpose — you pick who to compare — but the
+    // nothing chosen yet? open to a favorited corps if you have one, so the hub
+    // lands on someone you care about instead of an empty compare
+    if (!explicit && !corpsSel.length) {
+      const byName = new Map(idx.map(c => [c.name, c]));
+      for (const n of FAVS.list()) {
+        const c = byName.get(n);
+        if (c) { corpsSel = [c.slug]; if (clsFilter && corpsClass(c) !== clsFilter) clsFilter = corpsClass(c); break; }
+      }
+    }
+    // corps otherwise start empty on purpose — you pick who to compare — but the
     // current season rides pre-selected so one corps pick draws a line
     // (a shared URL or the session's last selection still restores itself)
     if (!yearsSel.length && allYears.length) yearsSel = [Math.max(...allYears)];
@@ -1107,8 +1116,11 @@
       ? savedCls
       : (classList.includes("World Class") ? "World Class" : "");
 
-    // only a deep link picks a corps — otherwise the page asks for one
-    const current0 = slug && bySlug.has(slug) ? slug : null;
+    // a deep link picks the corps; otherwise open to a favorited corps if you
+    // have one (falling back to the picker prompt when you don't)
+    const byName = new Map(idx.map(c => [c.name, c]));
+    const favSlug = (() => { for (const n of FAVS.list()) { const c = byName.get(n); if (c) return c.slug; } return null; })();
+    const current0 = slug && bySlug.has(slug) ? slug : favSlug;
     let current = current0;
     // the deep-linked corps drives the type filter, not vice versa
     if (current) {
