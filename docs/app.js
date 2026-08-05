@@ -548,7 +548,9 @@
     const rows = [...tbody.rows];
     if (rows.length <= n + 3) return;
     let open = false;
-    const applyRows = () => rows.slice(n).forEach(r => r.classList.toggle("hid", !open));
+    // when collapsed, keep any starred favorite visible in its real position so
+    // it's still easy to find (other overflow rows hide as usual)
+    const applyRows = () => rows.slice(n).forEach(r => r.classList.toggle("hid", !open && !r.classList.contains("favrow")));
     const wrap = document.createElement("div");
     wrap.className = "expandwrap";
     const btn = document.createElement("button");
@@ -825,10 +827,11 @@
     drawTrend();
 
     function renderStandings() {
-      const sorted = block.rows.slice().sort((a, b) =>
-        (FAVS.has(b.corps) ? 1 : 0) - (FAVS.has(a.corps) ? 1 : 0) || a.rank - b.rank);
+      // keep true ranking order — favorites are starred/highlighted in place,
+      // not pulled to the top
+      const sorted = block.rows.slice().sort((a, b) => a.rank - b.rank);
       document.getElementById("standTitle").innerHTML =
-        `${esc(cls)} Standings <span class="sub">each corps' most recent score · favorites rise to the top</span>`;
+        `${esc(cls)} Standings <span class="sub">each corps' most recent score · your favorites are starred</span>`;
       document.getElementById("standings").innerHTML = `
         <table class="t standings"><thead><tr><th>#</th><th>Corps · last event</th><th class="num">Score</th><th class="num col-high">3-show avg</th><th class="num col-high">Season high</th><th class="num">vs prev</th><th class="col-trend">Trend</th></tr></thead><tbody>
         ${sorted.map(r => h`<tr${FAVS.has(r.corps) ? ' class="favrow"' : ""}>
