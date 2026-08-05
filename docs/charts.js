@@ -14,6 +14,31 @@
   const NS = "http://www.w3.org/2000/svg";
   const PALETTE = ["#e8590c", "#1971c2", "#2f9e44", "#6741d9", "#c2255c", "#0c8599", "#a61e4d", "#495057"];
 
+  // Some corps identities are very dark (Phantom graphite, Blue Devils navy,
+  // Boston crimson) and all but vanish on the dark chart surface. In dark mode,
+  // lift a too-dark line color just enough to clear a legible-contrast floor —
+  // the minimum whitening keeps as much of the hue as possible. Light mode and
+  // already-bright colors pass through untouched. Applied once at series setup so
+  // the line, end marker, tooltip swatch and legend all use the same color.
+  const _cDark = () => {
+    const t = document.documentElement.dataset.theme;
+    if (t === "dark") return true;
+    if (t === "light") return false;
+    try { return matchMedia("(prefers-color-scheme: dark)").matches; } catch (e) { return false; }
+  };
+  const _cHx = s => { s = String(s || "").replace("#", ""); if (s.length === 3) s = [...s].map(c => c + c).join(""); const n = parseInt(s, 16) || 0; return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+  const _cRgb = a => "#" + a.map(c => Math.max(0, Math.min(255, Math.round(c))).toString(16).padStart(2, "0")).join("");
+  const _cMix = (a, b, t) => a.map((c, i) => c * (1 - t) + b[i] * t);
+  const _cLum = a => { const f = c => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }; return 0.2126 * f(a[0]) + 0.7152 * f(a[1]) + 0.0722 * f(a[2]); };
+  function lineColor(hex) {
+    if (!hex || !_cDark()) return hex;
+    const c = _cHx(hex);
+    if (_cLum(c) >= 0.32) return hex; // bright enough already
+    let t = 0, out = c;
+    while (_cLum(out) < 0.32 && t < 0.85) { t += 0.1; out = _cMix(c, [255, 255, 255], t); }
+    return _cRgb(out);
+  }
+
   function el(name, attrs, parent) {
     const n = document.createElementNS(NS, name);
     for (const k in attrs) n.setAttribute(k, attrs[k]);
@@ -123,7 +148,7 @@
     const W = fitWidth(container), H = opts.height || 320;
     const m = { top: 14, right: 24, bottom: 26, left: 46 };
     const iw = W - m.left - m.right, ih = H - m.top - m.bottom;
-    const series = opts.series.map((s, i) => ({ ...s, color: s.color || PALETTE[i % 8] }));
+    const series = opts.series.map((s, i) => ({ ...s, color: lineColor(s.color || PALETTE[i % 8]) }));
     const nX = opts.xLabels.length;
     const allY = series.flatMap(s => s.points.map(p => p.y)).filter(v => v != null);
     if (!allY.length || nX < 1) { container.innerHTML = '<div class="empty">No data yet.</div>'; return; }
@@ -215,7 +240,7 @@
     const W = fitWidth(container), H = opts.height || 320;
     const m = { top: 14, right: 30, bottom: 26, left: 46 };
     const iw = W - m.left - m.right, ih = H - m.top - m.bottom;
-    const series = opts.series.map((s, i) => ({ ...s, color: s.color || PALETTE[i % 8] }));
+    const series = opts.series.map((s, i) => ({ ...s, color: lineColor(s.color || PALETTE[i % 8]) }));
     const allPts = series.flatMap(s => s.points.filter(p => p.y != null));
     if (!allPts.length) { container.innerHTML = '<div class="empty">No data yet.</div>'; return; }
     let xMin = Math.min(...allPts.map(p => p.x)), xMax = Math.max(...allPts.map(p => p.x));
