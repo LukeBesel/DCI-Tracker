@@ -4024,113 +4024,6 @@
   "_seen": "2026-08-05"
  },
  {
-  "url": "https://www.dci.org/events/2026-nightbeat/",
-  "name": "NightBEAT",
-  "location": "Winston-Salem, NC",
-  "date_display": "July 26, 2026",
-  "date": "2026-07-26",
-  "lineup": [
-   "North Carolina A&T Cold Steel Drumline",
-   "Atlanta CV",
-   "Heat Wave",
-   "Music City",
-   "Spartans",
-   "The Academy",
-   "Spirit of Atlanta",
-   "Troopers",
-   "Blue Knights",
-   "Colts",
-   "Blue Stars",
-   "Bluecoats",
-   "Blue Devils",
-   "Carolina Crown"
-  ],
-  "schedule": [
-   [
-    "3:30 PM",
-    "Gates Open"
-   ],
-   [
-    "5:00 PM",
-    "Welcome"
-   ],
-   [
-    "5:05 PM",
-    "National Anthem"
-   ],
-   [
-    "5:15 PM",
-    "North Carolina A&T Cold Steel Drumline"
-   ],
-   [
-    "5:35 PM",
-    "Atlanta CV"
-   ],
-   [
-    "5:53 PM",
-    "Heat Wave"
-   ],
-   [
-    "6:11 PM",
-    "Music City"
-   ],
-   [
-    "6:29 PM",
-    "Spartans"
-   ],
-   [
-    "6:47 PM",
-    "The Academy"
-   ],
-   [
-    "7:05 PM",
-    "Spirit of Atlanta"
-   ],
-   [
-    "7:23 PM",
-    "Intermission"
-   ],
-   [
-    "8:15 PM",
-    "Troopers"
-   ],
-   [
-    "8:33 PM",
-    "Blue Knights"
-   ],
-   [
-    "8:51 PM",
-    "Colts"
-   ],
-   [
-    "9:09 PM",
-    "Blue Stars"
-   ],
-   [
-    "9:27 PM",
-    "Bluecoats"
-   ],
-   [
-    "9:45 PM",
-    "Blue Devils"
-   ],
-   [
-    "10:03 PM",
-    "Carolina Crown"
-   ],
-   [
-    "10:21 PM",
-    "Encore - Carolina Crown"
-   ],
-   [
-    "10:36 PM",
-    "Scores Announced"
-   ]
-  ],
-  "bag_policy": "Allegacy Federal Credit Union Stadium has a clear bag policy that will be in effect for this event. More detailed information regarding bags and stadium policies can be found here . All bags are subject to search by event staff and security. For security and efficiency, all attendees are encouraged to keep all items to a minimum.",
-  "_seen": "2026-08-05"
- },
- {
   "url": "https://www.dci.org/events/2026-summer-music-games-in-cincinnati/",
   "name": "Summer Music Games in Cincinnati",
   "location": "Mason, OH",
@@ -5411,7 +5304,19 @@
   "date_display": "August 6, 2026",
   "date": "2026-08-06",
   "lineup": [
-   "Competition Resumes",
+   "Mercedes Marching Band",
+   "Heat Wave",
+   "Eclipse",
+   "Les Stentors",
+   "7th Regiment",
+   "Raiders",
+   "Colt Cadets",
+   "Columbians",
+   "River City Rhythm",
+   "Memphis Blues",
+   "Gold",
+   "The Battalion",
+   "Blue Devils B",
    "Genesis",
    "Seattle Cascades",
    "Spartans",
@@ -5432,20 +5337,7 @@
    "Boston Crusaders",
    "Carolina Crown",
    "Blue Devils",
-   "Bluecoats",
-   "7th Regiment",
-   "Blue Devils B",
-   "Colt Cadets",
-   "Columbians",
-   "Eclipse",
-   "Gold",
-   "Heat Wave",
-   "Les Stentors",
-   "Memphis Blues",
-   "Mercedes Marching Band",
-   "Raiders",
-   "River City Rhythm",
-   "The Battalion"
+   "Bluecoats"
   ],
   "schedule": [
    [
@@ -5457,12 +5349,60 @@
     "Welcome & National Anthem"
    ],
    [
+    "12:10 PM",
+    "Mercedes Marching Band"
+   ],
+   [
+    "12:27 PM",
+    "Heat Wave"
+   ],
+   [
+    "12:44 PM",
+    "Eclipse"
+   ],
+   [
+    "1:01 PM",
+    "Les Stentors"
+   ],
+   [
+    "1:18 PM",
+    "7th Regiment"
+   ],
+   [
+    "1:35 PM",
+    "Raiders"
+   ],
+   [
+    "1:52 PM",
+    "Colt Cadets"
+   ],
+   [
+    "2:09 PM",
+    "Columbians"
+   ],
+   [
     "2:26 PM",
     "Intermission"
    ],
    [
-    "2:43 PM",
-    "Competition Resumes"
+    "2:48 PM",
+    "River City Rhythm"
+   ],
+   [
+    "3:05 PM",
+    "Memphis Blues"
+   ],
+   [
+    "3:22 PM",
+    "Gold"
+   ],
+   [
+    "3:39 PM",
+    "The Battalion"
+   ],
+   [
+    "3:56 PM",
+    "Blue Devils B"
    ],
    [
     "4:13 PM",
@@ -5559,60 +5499,9 @@
    [
     "11:22 PM",
     "Scores Announced"
-   ],
-   [
-    "",
-    "7th Regiment"
-   ],
-   [
-    "",
-    "Blue Devils B"
-   ],
-   [
-    "",
-    "Colt Cadets"
-   ],
-   [
-    "",
-    "Columbians"
-   ],
-   [
-    "",
-    "Eclipse"
-   ],
-   [
-    "",
-    "Gold"
-   ],
-   [
-    "",
-    "Heat Wave"
-   ],
-   [
-    "",
-    "Les Stentors"
-   ],
-   [
-    "",
-    "Memphis Blues"
-   ],
-   [
-    "",
-    "Mercedes Marching Band"
-   ],
-   [
-    "",
-    "Raiders"
-   ],
-   [
-    "",
-    "River City Rhythm"
-   ],
-   [
-    "",
-    "The Battalion"
    ]
   ],
+  "bag_policy": "Lucas Oil Stadium will have a clear bag policy in effect for this event, restricting the size and style of bags that will be permitted within the venue. Patrons are allowed to carry one clear plastic, vinyl, or PVC bag that does not exceed the dimensions 12’’ by 6’’ by 12’’ or a one-gallon size clear plastic freezer bag. Fans may also carry in a small clutch bag or purse approximately the size of a hand.",
   "_seen": "2026-08-05"
  },
  {
@@ -5726,6 +5615,7 @@
     "DCI World Championships Semifinals Begins"
    ]
   ],
+  "bag_policy": "Lucas Oil Stadium will have a clear bag policy in effect for this event, restricting the size and style of bags that will be permitted within the venue. Patrons are allowed to carry one clear plastic, vinyl, or PVC bag that does not exceed the dimensions 12’’ by 6’’ by 12’’ or a one-gallon size clear plastic freezer bag. Fans may also carry in a small clutch bag or purse approximately the size of a hand.",
   "_seen": "2026-08-05"
  },
  {
@@ -5778,6 +5668,7 @@
     "Phantom Regiment Alumni Corps"
    ]
   ],
+  "bag_policy": "Lucas Oil Stadium will have a clear bag policy in effect for this event, restricting the size and style of bags that will be permitted within the venue. Patrons are allowed to carry one clear plastic, vinyl, or PVC bag that does not exceed the dimensions 12’’ by 6’’ by 12’’ or a one-gallon size clear plastic freezer bag. Fans may also carry in a small clutch bag or purse approximately the size of a hand.",
   "_seen": "2026-08-05"
  },
  {
@@ -5832,6 +5723,7 @@
     "Awards Ceremony"
    ]
   ],
+  "bag_policy": "Lucas Oil Stadium will have a clear bag policy in effect for this event, restricting the size and style of bags that will be permitted within the venue. Patrons are allowed to carry one clear plastic, vinyl, or PVC bag that does not exceed the dimensions 12’’ by 6’’ by 12’’ or a one-gallon size clear plastic freezer bag. Fans may also carry in a small clutch bag or purse approximately the size of a hand.",
   "_seen": "2026-08-05"
  },
  {
@@ -5884,6 +5776,7 @@
     "Awards Ceremony"
    ]
   ],
+  "bag_policy": "Lucas Oil Stadium will have a clear bag policy in effect for this event, restricting the size and style of bags that will be permitted within the venue. Patrons are allowed to carry one clear plastic, vinyl, or PVC bag that does not exceed the dimensions 12’’ by 6’’ by 12’’ or a one-gallon size clear plastic freezer bag. Fans may also carry in a small clutch bag or purse approximately the size of a hand.",
   "_seen": "2026-08-05"
  },
  {
