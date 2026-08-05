@@ -220,7 +220,7 @@
       "@keyframes cm-pop2{from{opacity:0;transform:scale(.8);}to{opacity:1;transform:none;}}",
       "@keyframes cm-bounce{0%{transform:translateY(-14px) scale(.6);opacity:0;}60%{transform:translateY(4px) scale(1.12);opacity:1;}100%{transform:none;}}",
       // top-bar reopen button (beside the settings gear, Aug 6–8 only)
-      "#cm-topbtn{display:inline-flex;align-items:center;justify-content:center;background:var(--gold);color:#16233d;cursor:pointer;border:0;border-radius:10px;padding:6px;line-height:0;order:2;}",
+      "#cm-topbtn{display:inline-flex;align-items:center;justify-content:center;background:var(--gold);color:#16233d;cursor:pointer;border:0;border-radius:10px;padding:6px;line-height:0;}",
       "#cm-topbtn:hover{filter:brightness(1.06);}",
       "#cm-topbtn svg{width:20px;height:20px;display:block;}",
       // dev preview launcher

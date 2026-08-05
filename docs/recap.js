@@ -197,9 +197,26 @@
       ".rc-cn{flex:1;color:var(--text-primary);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}",
       ".rc-sc{flex:0 0 auto;font-weight:800;font-variant-numeric:tabular-nums;color:var(--text-primary);}",
       ".rc-dot{flex:0 0 auto;width:9px;height:9px;border-radius:50%;}",
-      ".rc-btn{display:block;width:100%;border:0;border-radius:999px;padding:13px 18px;font:inherit;font-size:15px;font-weight:800;cursor:pointer;background:var(--gold);color:#16233d;margin-top:14px;}",
+      ".rc-btn{display:block;width:100%;border:0;border-radius:999px;padding:13px 18px;font:inherit;font-size:15px;font-weight:800;cursor:pointer;background:var(--gold);color:#16233d;margin-top:16px;}",
       ".rc-btn:hover{filter:brightness(1.04);}",
+      ".rc-btn.rc-ghost{background:var(--surface-2);color:var(--text-primary);border:1px solid var(--border);}",
+      ".rc-btn.rc-ghost:hover{filter:none;border-color:var(--muted);}",
       ".rc-morelink{font-size:12.5px;color:var(--link);text-decoration:none;display:inline-block;margin:6px 2px 0;}",
+      // narrative lead + top-3 podium
+      ".rc-lead{font-size:14.5px;line-height:1.5;color:var(--text-primary);margin:2px 2px 4px;}",
+      ".rc-lead b{font-weight:800;}",
+      ".rc-podium{display:flex;flex-direction:column;gap:8px;margin:2px 0 2px;}",
+      ".rc-pod{display:flex;align-items:center;gap:12px;padding:11px 13px;border-radius:13px;background:var(--surface-2);border:1px solid var(--border);border-left:5px solid var(--rc-accent,var(--gold));}",
+      ".rc-pod.first{padding:15px 14px;box-shadow:0 3px 14px rgba(8,20,38,.1);}",
+      ".rc-medal{font-size:22px;line-height:1;flex:0 0 auto;}",
+      ".rc-pod.first .rc-medal{font-size:30px;}",
+      ".rc-pod-main{flex:1;min-width:0;}",
+      ".rc-pod-corps{font-weight:800;font-size:14.5px;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}",
+      ".rc-pod.first .rc-pod-corps{font-size:18px;}",
+      ".rc-pod-ev{font-size:11.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px;}",
+      ".rc-pod-score{flex:0 0 auto;font-weight:900;font-variant-numeric:tabular-nums;font-size:18px;color:var(--text-primary);}",
+      ".rc-pod.first .rc-pod-score{font-size:25px;}",
+      ".rc-medcol{flex:0 0 22px;text-align:center;font-variant-numeric:tabular-nums;}",
       // browser
       ".rc-tools{display:flex;gap:8px;padding:12px 18px;border-bottom:1px solid var(--border);background:var(--surface-1);flex-wrap:wrap;}",
       ".rc-tools input,.rc-tools select{font:inherit;font-size:13px;padding:8px 10px;border-radius:9px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-primary);}",
@@ -214,7 +231,7 @@
       ".rc-empty{color:var(--muted);text-align:center;padding:30px 16px;font-size:14px;}",
       ".rc-back{background:none;border:0;color:var(--gold);font:inherit;font-size:13px;font-weight:800;cursor:pointer;padding:0;margin-bottom:2px;display:inline-flex;align-items:center;gap:4px;}",
       // top-bar button
-      "#rc-topbtn{display:inline-flex;align-items:center;justify-content:center;background:var(--surface-2);color:var(--text-primary);cursor:pointer;border:1px solid var(--border);border-radius:10px;padding:6px;line-height:0;order:1;}",
+      "#rc-topbtn{display:inline-flex;align-items:center;justify-content:center;background:var(--surface-2);color:var(--text-primary);cursor:pointer;border:1px solid var(--border);border-radius:10px;padding:6px;line-height:0;}",
       "#rc-topbtn:hover{border-color:var(--muted);}",
       "#rc-topbtn svg{width:20px;height:20px;display:block;}"
     ].join("\n");
@@ -259,10 +276,38 @@
   }
 
   // ---- render: recap detail --------------------------------------------------
+  var MEDALS = ["🥇", "🥈", "🥉"];
+  // the day's three highest scores across every show/class — the hero podium
+  function topOfDay(recap) {
+    var rows = [];
+    recap.shows.forEach(function (s) { s.classes.forEach(function (c) { c.results.forEach(function (r) { rows.push({ corps: r.corps, score: r.score, event: s.name }); }); }); });
+    rows.sort(function (a, b) { return b.score - a.score; });
+    return rows.slice(0, 3);
+  }
+  function podiumHtml(recap) {
+    var top = topOfDay(recap);
+    if (!top.length) return "";
+    var multi = recap.shows.length > 1;
+    return '<div class="rc-podium">' + top.map(function (r, i) {
+      return '<div class="rc-pod' + (i === 0 ? " first" : "") + '" style="--rc-accent:' + dot(r.corps) + '">' +
+        '<div class="rc-medal">' + MEDALS[i] + "</div>" +
+        '<div class="rc-pod-main"><div class="rc-pod-corps">' + esc(r.corps) + "</div>" +
+        (multi ? '<div class="rc-pod-ev">' + esc(r.event) + "</div>" : "") + "</div>" +
+        '<div class="rc-pod-score">' + fmt(r.score) + "</div></div>";
+    }).join("") + "</div>";
+  }
+  // a one-line story of the day, built from the headline facts
+  function leadLine(recap) {
+    var f = recap.facts, t = f.topScore; if (!t) return "";
+    var when = recap.shows.length > 1 ? "the day" : "the night";
+    var s = "<b>" + esc(t.corps) + "</b> took " + when + " with a <b>" + fmt(t.score) + "</b>";
+    if (f.closest && f.closest.a === t.corps) s += ", edging <b>" + esc(f.closest.b) + "</b> by " + fmt(f.closest.gap);
+    else if ((f.movers || [])[0] && f.movers[0].delta > 0.4 && f.movers[0].corps !== t.corps) s += "; <b>" + esc(f.movers[0].corps) + "</b> jumped " + signed(f.movers[0].delta);
+    s += ".";
+    return '<p class="rc-lead">' + s + "</p>";
+  }
   function factsHtml(f) {
     var out = [];
-    if (f.topScore) out.push(fact("🏆", "Top score of the day",
-      "<b>" + esc(f.topScore.corps) + "</b> — <span class='rc-num'>" + fmt(f.topScore.score) + "</span> at " + esc(f.topScore.event)));
     (f.passed || []).forEach(function (p) {
       out.push(fact("↗️", "Moved ahead", "<b>" + esc(p.a) + "</b> passed <b>" + esc(p.b) + "</b> <span class='rc-ftk' style='display:inline'>· " + esc(p.cls) + "</span>"));
     });
@@ -273,7 +318,7 @@
       f.highs.map(function (h) { return "<b>" + esc(h.corps) + "</b> " + "<span class='rc-num'>" + fmt(h.score) + "</span>"; }).join(" · ")));
     if (f.closest) out.push(fact("🤏", "Closest finish",
       "<b>" + esc(f.closest.a) + "</b> over <b>" + esc(f.closest.b) + "</b> by <span class='rc-num'>" + fmt(f.closest.gap) + "</span>"));
-    return out.length ? '<div class="rc-facts">' + out.join("") + "</div>" : '<p class="rc-empty">Not enough prior scores yet for fun facts — check the results below.</p>';
+    return out.length ? '<div class="rc-facts">' + out.join("") + "</div>" : "";
   }
   function fact(ico, key, txt) {
     return '<div class="rc-fact"><div class="rc-fico">' + ico + '</div><div><div class="rc-ftk">' + esc(key) + '</div><div class="rc-ft">' + txt + "</div></div></div>";
@@ -282,7 +327,8 @@
     return shows.map(function (s) {
       var cls = s.classes.map(function (c) {
         var rows = c.results.slice(0, 12).map(function (r) {
-          return '<div class="rc-row"><span class="rc-pl">' + (r.place || "") + '</span>' +
+          var pl = r.place >= 1 && r.place <= 3 ? '<span class="rc-medcol">' + MEDALS[r.place - 1] + "</span>" : '<span class="rc-pl">' + (r.place || "") + "</span>";
+          return '<div class="rc-row">' + pl +
             '<span class="rc-dot" style="background:' + dot(r.corps) + '"></span>' +
             '<span class="rc-cn">' + esc(r.corps) + '</span><span class="rc-sc">' + fmt(r.score) + "</span></div>";
         }).join("");
@@ -295,18 +341,21 @@
   }
   function openRecap(recap, opts) {
     opts = opts || {};
+    var facts = factsHtml(recap.facts);
     var card = shell(
       '<div class="rc-head"><button class="rc-x" type="button" aria-label="Close">×</button>' +
       '<div class="rc-eyebrow">Daily Recap</div>' +
       '<h2 class="rc-title" id="rc-h">' + esc(recap.pretty) + "</h2>" +
       '<div class="rc-sub">' + recap.shows.length + " show" + (recap.shows.length === 1 ? "" : "s") + " · " + recap.corpsCount + " corps</div></div>" +
       '<div class="rc-body">' +
-        '<div class="rc-sech">Fun facts</div>' + factsHtml(recap.facts) +
-        '<div class="rc-sech">Results</div>' + showsHtml(recap.shows) +
-        (opts.browseBtn ? '<button class="rc-btn" id="rc-browse" type="button">Browse all recaps →</button>' : "") +
+        leadLine(recap) +
+        '<div class="rc-sech">Top of the day</div>' + podiumHtml(recap) +
+        (facts ? '<div class="rc-sech">Fun facts</div>' + facts : "") +
+        '<div class="rc-sech">Full results</div>' + showsHtml(recap.shows) +
+        '<button class="rc-btn rc-ghost" id="rc-browse" type="button">← All recaps</button>' +
       "</div>");
     card.querySelector(".rc-x").addEventListener("click", close);
-    var bb = card.querySelector("#rc-browse"); if (bb) bb.addEventListener("click", function () { openBrowser(); });
+    card.querySelector("#rc-browse").addEventListener("click", function () { openBrowser(); });
     var x = card.querySelector(".rc-x"); if (x) setTimeout(function () { try { x.focus(); } catch (e) {} }, 30);
   }
 
