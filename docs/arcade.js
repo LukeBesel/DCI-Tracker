@@ -227,25 +227,26 @@
     { c: "#1971c2", f: 262 }, { c: "#2f9e44", f: 294 }, { c: "#f0b429", f: 330 },
     { c: "#d2222d", f: 392 }, { c: "#7048e8", f: 440 }, { c: "#0c8599", f: 523 }
   ];
-  function padsForRound(r) { return Math.min(PADS.length, 4 + Math.floor((r - 1) / 4)); }
+  var SIMON_PADS = PADS.length; // always play with all six colors
   var simon = {
-    seq: [], step: 0, accepting: false, round: 0, count: 0,
+    seq: [], step: 0, accepting: false, round: 0, lives: 3,
     start: function () {
-      ctx(); // unlock audio on this tap
-      this.seq = []; this.round = 0; this.accepting = false; this.count = 0;
+      run++; clearTimers(); ctx(); // fresh run, unlock audio on this tap
+      this.seq = []; this.round = 0; this.accepting = false; this.lives = 3;
       setHead("Copy the Cadence", "");
       body().innerHTML =
-        '<div class="ar-hud"><div class="ar-score">Round <span id="ar-rnd">0</span></div><div class="ar-status" id="ar-st">Get ready…</div></div>' +
+        '<div class="ar-hud"><div class="ar-score">Round <span id="ar-rnd">0</span></div><div class="ar-lives" id="ar-lv"></div></div>' +
+        '<div class="ar-status" id="ar-st" style="text-align:center;margin:2px 0 12px">Get ready…</div>' +
         '<div class="ar-pads" id="ar-pads"></div>' +
-        '<p class="ar-hint">Watch the lit pattern (with sound), then tap it back.</p>';
+        '<p class="ar-hint">Watch the lit pattern (with sound), then tap it back. Three lives — a slip just replays the pattern.</p>';
+      this.renderPads();
+      this.lifeHud();
       this.next();
     },
-    renderPads: function (n) {
-      if (n === this.count) return;
-      this.count = n;
+    renderPads: function () {
       var pads = overlay.querySelector("#ar-pads");
-      pads.style.gridTemplateColumns = n <= 4 ? "1fr 1fr" : "1fr 1fr 1fr";
-      pads.innerHTML = PADS.slice(0, n).map(function (p, i) {
+      pads.style.gridTemplateColumns = "1fr 1fr 1fr";
+      pads.innerHTML = PADS.map(function (p, i) {
         return '<button class="ar-pad" data-i="' + i + '" type="button" aria-label="pad ' + (i + 1) + '" style="background:' + p.c + ';color:' + p.c + '"></button>';
       }).join("");
       var self = this;
@@ -256,14 +257,13 @@
     lite: function (i, on) { var pad = overlay && overlay.querySelector('.ar-pad[data-i="' + i + '"]'); if (pad) pad.classList.toggle("lit", !!on); },
     setStatus: function (txt) { var s = overlay && overlay.querySelector("#ar-st"); if (s) s.textContent = txt; },
     setRound: function () { var r = overlay && overlay.querySelector("#ar-rnd"); if (r) r.textContent = this.round; },
+    lifeHud: function () { var lv = overlay && overlay.querySelector("#ar-lv"); if (lv) lv.textContent = "❤️".repeat(Math.max(0, this.lives)) + "🖤".repeat(Math.max(0, 3 - this.lives)); },
     next: function () {
-      this.round++; this.setRound(); this.step = 0; this.accepting = false;
-      var n = padsForRound(this.round), grew = n > this.count && this.count > 0, self = this;
-      this.renderPads(n);
-      this.seq.push(Math.floor(Math.random() * n));
-      if (grew) { this.setStatus("New color! 🎨"); after(850, function () { self.play(); }); }
-      else this.play();
+      this.round++; this.setRound();
+      this.seq.push(Math.floor(Math.random() * SIMON_PADS));
+      this.replay();
     },
+    replay: function () { this.step = 0; this.accepting = false; this.play(); },
     play: function () {
       var self = this, my = run, i = 0;
       this.setStatus("Watch…");
@@ -279,16 +279,22 @@
       if (!this.accepting) return;
       var self = this;
       this.lite(i, true); tone(PADS[i].f); after(150, function () { self.lite(i, false); });
-      if (i !== this.seq[this.step]) return this.over();
+      if (i !== this.seq[this.step]) {            // wrong pad — costs a life
+        this.accepting = false; womp(); this.lives--; this.lifeHud();
+        if (this.lives <= 0) { after(550, function () { self.over(); }); return; }
+        this.setStatus("Oops — watch again");
+        after(850, function () { self.replay(); }); // same pattern, another shot
+        return;
+      }
       this.step++;
-      if (this.step >= this.seq.length) {
+      if (this.step >= this.seq.length) {         // round complete
         this.accepting = false; this.setStatus("Nice! ✓"); snare();
         after(650, function () { self.next(); });
       }
     },
     over: function () {
-      this.accepting = false; womp();
-      var reached = this.seq.length - 1; // completed rounds
+      this.accepting = false;
+      var reached = this.round - 1;               // rounds fully completed
       var isBest = saveBest("cad-ar-best-simon", reached);
       setHead("Copy the Cadence", "");
       body().innerHTML =
@@ -301,7 +307,7 @@
       backBtn();
     },
     // tiny hook for testing the sequence deterministically
-    _peek: function () { return { seq: this.seq.slice(), accepting: this.accepting }; }
+    _peek: function () { return { seq: this.seq.slice(), accepting: this.accepting, lives: this.lives }; }
   };
   function simonBlurb(r) { return r >= 14 ? "Photographic. 🧠🥇" : r >= 9 ? "Sharp ears!" : r >= 5 ? "Nice memory — keep going." : r >= 2 ? "Warming up…" : "Give it another shot."; }
 
