@@ -3429,9 +3429,34 @@
     let stamp = null;
     let toast = null;
     let showActive = false;
+    // Signature of the actual scores we last saw. The build timestamp bumps on
+    // every rebuild (re-scrapes, unrelated data commits), so it can't tell "new
+    // scores" from "just refreshed". This does: it's the set of every corps'
+    // latest score/date/event across all classes — the same fields the relay
+    // uses to decide a show is genuinely new.
+    let scoresSig = null;
+    function signatureOf(rk) {
+      if (!rk || !rk.standings) return "";
+      const parts = [];
+      for (const cls of Object.keys(rk.standings).sort()) {
+        const rows = (rk.standings[cls].rows || []).slice()
+          .sort((a, b) => (a.corps < b.corps ? -1 : a.corps > b.corps ? 1 : 0));
+        for (const r of rows) parts.push(cls + "|" + r.corps + "|" + r.score + "|" + r.date + "|" + r.event);
+      }
+      return parts.join(";");
+    }
     // seed the rankings cache so the scoreboard paints the fresh scores the
     // instant we swap, even before Pages has them
     const seedRankings = rk => { if (rk && rk.standings) cache.set("rankings.json", Promise.resolve(rk)); };
+    function flashNote(html) {
+      const flash = document.createElement("div");
+      flash.id = "liveToast";
+      flash.style.pointerEvents = "none";
+      flash.innerHTML = html;
+      document.body.appendChild(flash);
+      setTimeout(() => flash.remove(), 2500);
+    }
+    // new scores while the user is mid-read: offer a tap instead of yanking
     function offer(newStamp, seed) {
       if (toast) return;
       toast = document.createElement("button");
@@ -3448,6 +3473,7 @@
       };
       document.body.appendChild(toast);
     }
+    // new scores and it's safe to swap right now (on focus): repaint + announce
     function applyNow(newStamp, seed) {
       cache.clear();
       seedRankings(seed);
@@ -3455,13 +3481,17 @@
       paintUpdated(newStamp);
       if (toast) { toast.remove(); toast = null; }
       route();
-      // a quiet flash so the swap doesn't go unnoticed
-      const flash = document.createElement("div");
-      flash.id = "liveToast";
-      flash.style.pointerEvents = "none";
-      flash.innerHTML = "✓ <b>Scores updated</b>";
-      document.body.appendChild(flash);
-      setTimeout(() => flash.remove(), 2500);
+      flashNote("✓ <b>Scores updated</b>");
+    }
+    // the data rebuilt but no scores actually changed: keep everything fresh and
+    // give the little "refreshed" nod — WITHOUT claiming new scores or yanking
+    // the page with a re-render.
+    function refreshedQuietly(newStamp, seed) {
+      cache.clear();
+      seedRankings(seed);
+      stamp = newStamp;
+      paintUpdated(newStamp);
+      flashNote("✓ <b>Refreshed</b>");
     }
     // freshest stamp available right now: raw on show days (with Pages
     // fallback), Pages otherwise. `?t=` busts any browser/proxy cache.
@@ -3482,18 +3512,25 @@
       try {
         const m = await freshMeta();
         if (!m) return;
-        if (stamp && m.updated !== stamp) {
-          // from raw, also pull raw's rankings so the scoreboard shows straight
-          // away instead of waiting for the Pages deploy to catch up
-          let seed = null;
-          if (m.raw) {
-            try { seed = await (await fetch(RAW + "rankings.json?t=" + Date.now(), { cache: "no-store" })).json(); } catch (e) {}
-          }
-          // returning to the app: swap in fresh scores immediately;
-          // mid-read: offer a tap so the page isn't yanked away
-          if (auto) applyNow(m.updated, seed);
-          else offer(m.updated, seed);
-        } else stamp = m.updated;
+        if (!stamp) { stamp = m.updated; return; }   // first sight: just baseline
+        if (m.updated === stamp) return;              // nothing rebuilt since last look
+
+        // the build stamp moved — pull the fresh scores (raw on show days so the
+        // board can lead the Pages deploy) and check whether the SCORES actually
+        // changed. A rebuild on its own (re-scrape, unrelated commit) isn't news.
+        let seed = null;
+        if (m.raw) { try { seed = await (await fetch(RAW + "rankings.json?t=" + Date.now(), { cache: "no-store" })).json(); } catch (e) {} }
+        if (!seed) { try { seed = await (await fetch("data/rankings.json?t=" + Date.now(), { cache: "no-cache" })).json(); } catch (e) {} }
+        const newSig = signatureOf(seed);
+        const changed = !!newSig && scoresSig != null && newSig !== scoresSig;
+        if (newSig) scoresSig = newSig;
+
+        if (changed) {
+          if (auto) applyNow(m.updated, seed); // returning to the app: swap now
+          else offer(m.updated, seed);         // mid-read: offer a tap
+        } else {
+          refreshedQuietly(m.updated, seed);   // refreshed, but no new scores
+        }
       } catch (e) { /* offline — try again next tick */ }
     }
     // Poll fast on show days (a show today or last night, for late West-Coast
@@ -3508,6 +3545,9 @@
         showActive = (up || []).some(e => days.has(e.date));
       } catch (e) { /* keep prior flag */ }
     }
+    // baseline the score signature from the first data we load, so the first
+    // genuine change afterward reads as "new scores" (not a plain refresh)
+    data("rankings.json").then(rk => { if (scoresSig == null) scoresSig = signatureOf(rk); }).catch(() => {});
     check(false); // one immediate check while we learn whether a show is on
     // start the adaptive loop only after the show-flag is known, so a show day
     // gets the 30s cadence (and the raw fast-path) from the very first tick
