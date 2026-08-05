@@ -12,7 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import webpush from "web-push";
 
-const VERSION = 14; // bump on every behavior change — /status shows what's really deployed
+const VERSION = 15; // bump on every behavior change — /status shows what's really deployed
 const SITE = process.env.SITE_URL || "https://lukebesel.github.io/DCI-Tracker/";
 const PORT = process.env.PORT || 8787;
 const POLL_MS = +(process.env.POLL_SECONDS || 60) * 1000;
@@ -150,57 +150,44 @@ async function broadcast(events) {
   for (const { sub, favs, favsOnly, classes } of subs.values()) {
     // class filter: null/absent = every class; an array = only those picked
     const clsSet = Array.isArray(classes) ? new Set(classes) : null;
-    const myEvents = [];
+    const favList = favs || [];
+    const favSet = new Set(favList);
+    // ONE alert PER SHOW, each deep-linked to that show's own page — so tapping
+    // any notification always opens that show's score breakdown, never the list.
     for (const [ek, rows] of events) {
       const fr = clsSet ? rows.filter(r => clsSet.has(r.cls)) : rows;
-      if (fr.length) myEvents.push([ek, fr]);
+      if (!fr.length) continue;                                   // none of the classes they follow
+      if (favsOnly && !fr.some(r => favSet.has(r.corps))) continue; // no followed corps in this show
+
+      const parts = ek.split("|");                                // ek = "event|date"
+      const dt = parts.pop(), name = parts.join("|"), yr = (dt || "").slice(0, 4);
+      const sorted = [...fr].sort((a, b) => b.score - a.score);
+      // favorites first: if one of the subscriber's corps scored here, lead with it
+      const mine = favList.map(f => fr.find(r => r.corps === f)).filter(Boolean);
+      const body = (mine.length ? mine : sorted).slice(0, 3)
+        .map(r => `${r.corps} ${r.score.toFixed(3)}`).join(" · ");
+
+      // #/go turns the show's name+date into its exact event page (the app
+      // matches name AND date, so two shows on one day still resolve precisely).
+      const url = yr
+        ? `${SITE}#/go?y=${yr}&d=${encodeURIComponent(dt)}&e=${encodeURIComponent(name)}`
+        : SITE;
+      // tag keyed to the show so each show is its own tappable alert, and a
+      // re-post for the same show replaces (and re-chimes) its earlier one
+      const payload = JSON.stringify({ title: `🥁 Scores in: ${name}`, body, url, tag: "cadence-scores:" + name });
+      jobs.push(webpush.sendNotification(sub, payload).then(
+        () => { status.sent++; },
+        err => {
+          status.lastPushError = `${new Date().toISOString()} ${err.statusCode || ""} ${err.message}`;
+          if ([401, 403, 404, 410].includes(err.statusCode)) {
+            subs.delete(sub.endpoint); // gone, or bound to a rotated key
+          }
+        }));
     }
-    if (!myEvents.length) continue; // nothing in the classes they follow
-    const myRows = myEvents.flatMap(([, rows]) => rows);
-    // favorites-only: skip unless one of their corps is in this batch
-    if (favsOnly) {
-      const favSet = new Set(favs || []);
-      if (!myRows.some(r => favSet.has(r.corps))) continue;
-    }
-    const names = myEvents.map(([k]) => k.split("|")[0]);
-    const title = names.length === 1 ? `🥁 Scores in: ${names[0]}` : `🥁 New scores: ${names.length} shows`;
-    const leads = myEvents.map(([, rows]) => {
-      const s = [...rows].sort((a, b) => b.score - a.score);
-      return `${s[0].corps} ${s[0].score.toFixed(3)}${s[1] ? `, ${s[1].corps} ${s[1].score.toFixed(3)}` : ""}`;
-    });
-    // favorites first: if one of the subscriber's corps scored, lead with it
-    let body = leads.slice(0, 3).join(" · ");
-    const mine = (favs || []).map(f => myRows.find(r => r.corps === f)).filter(Boolean);
-    if (mine.length) {
-      body = mine.slice(0, 3).map(r => `${r.corps} ${r.score.toFixed(3)}`).join(" · ")
-        + (names.length ? ` — ${names[0]}` : "");
-    }
-    // deep-link the alert to the scores it's about: one show -> that show's
-    // page; several shows -> the Shows list for the newest year. The app's
-    // #/go resolver turns the show's name+date into its event page.
-    let url = SITE;
-    if (myEvents.length === 1) {
-      const parts = myEvents[0][0].split("|");     // ek = "event|date"
-      const dt = parts.pop(), ev = parts.join("|"), yr = (dt || "").slice(0, 4);
-      if (yr) url = `${SITE}#/go?y=${yr}&d=${encodeURIComponent(dt)}&e=${encodeURIComponent(ev)}`;
-    } else {
-      const yr = myEvents.map(([k]) => (k.split("|").pop() || "").slice(0, 4))
-        .filter(Boolean).sort().pop();
-      if (yr) url = `${SITE}#/events?y=${yr}`;
-    }
-    const payload = JSON.stringify({ title, body, url, tag: "cadence-scores" });
-    jobs.push(webpush.sendNotification(sub, payload).then(
-      () => { status.sent++; },
-      err => {
-        status.lastPushError = `${new Date().toISOString()} ${err.statusCode || ""} ${err.message}`;
-        if ([401, 403, 404, 410].includes(err.statusCode)) {
-          subs.delete(sub.endpoint); // gone, or bound to a rotated key
-        }
-      }));
   }
   await Promise.allSettled(jobs);
   saveSubs();
-  console.log(`pushed to ${jobs.length} subscribers`);
+  console.log(`pushed ${jobs.length} notifications`);
 }
 
 // Adaptive cadence: poll hard on show days (a show today or last night, for
