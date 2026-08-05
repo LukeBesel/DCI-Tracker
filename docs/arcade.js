@@ -122,6 +122,8 @@
 
   function open() {
     injectStyles();
+    ctx(); // unlock Web Audio on the opening tap (a user gesture) so the
+           // memory game's auto-played pattern is actually audible
     if (overlay) close();
     overlay = document.createElement("div");
     overlay.className = "ar-overlay";
@@ -218,35 +220,53 @@
   };
   function beatBlurb(s) { return s >= 25 ? "Drum major material. 🥇" : s >= 15 ? "Locked in — clean hands!" : s >= 8 ? "Solid rep. Keep marking time." : s >= 3 ? "Not bad — run it back." : "Everybody starts at the beginning."; }
 
-  // ---- Game 2: Copy the Cadence (Simon) --------------------------------------
-  var PADS = [{ c: "#f0b429", f: 392 }, { c: "#1971c2", f: 262 }, { c: "#2f9e44", f: 330 }, { c: "#d2222d", f: 523 }];
+  // ---- Game 2: Copy the Cadence (Simon, with growing color levels) -----------
+  // Six colors, each with its own note (a rising scale). Start with 4 pads; a
+  // new color unlocks every 4 rounds, up to all 6 — so the board grows as you go.
+  var PADS = [
+    { c: "#1971c2", f: 262 }, { c: "#2f9e44", f: 294 }, { c: "#f0b429", f: 330 },
+    { c: "#d2222d", f: 392 }, { c: "#7048e8", f: 440 }, { c: "#0c8599", f: 523 }
+  ];
+  function padsForRound(r) { return Math.min(PADS.length, 4 + Math.floor((r - 1) / 4)); }
   var simon = {
-    seq: [], step: 0, accepting: false, round: 0,
+    seq: [], step: 0, accepting: false, round: 0, count: 0,
     start: function () {
-      this.seq = []; this.round = 0; this.accepting = false;
+      ctx(); // unlock audio on this tap
+      this.seq = []; this.round = 0; this.accepting = false; this.count = 0;
       setHead("Copy the Cadence", "");
       body().innerHTML =
-        '<div class="ar-hud"><div class="ar-score">Round <span id="ar-rnd">0</span></div><div class="ar-status" id="ar-st">Watch…</div></div>' +
-        '<div class="ar-pads" id="ar-pads">' + PADS.map(function (p, i) {
-          return '<button class="ar-pad" data-i="' + i + '" type="button" aria-label="pad ' + (i + 1) + '" style="background:' + p.c + ';color:' + p.c + '"></button>';
-        }).join("") + "</div>" +
-        '<p class="ar-hint">Watch the pattern, then tap it back.</p>';
+        '<div class="ar-hud"><div class="ar-score">Round <span id="ar-rnd">0</span></div><div class="ar-status" id="ar-st">Get ready…</div></div>' +
+        '<div class="ar-pads" id="ar-pads"></div>' +
+        '<p class="ar-hint">Watch the lit pattern (with sound), then tap it back.</p>';
+      this.next();
+    },
+    renderPads: function (n) {
+      if (n === this.count) return;
+      this.count = n;
+      var pads = overlay.querySelector("#ar-pads");
+      pads.style.gridTemplateColumns = n <= 4 ? "1fr 1fr" : "1fr 1fr 1fr";
+      pads.innerHTML = PADS.slice(0, n).map(function (p, i) {
+        return '<button class="ar-pad" data-i="' + i + '" type="button" aria-label="pad ' + (i + 1) + '" style="background:' + p.c + ';color:' + p.c + '"></button>';
+      }).join("");
       var self = this;
-      Array.prototype.forEach.call(body().querySelectorAll(".ar-pad"), function (pad) {
+      Array.prototype.forEach.call(pads.querySelectorAll(".ar-pad"), function (pad) {
         pad.addEventListener("click", function () { self.tap(+pad.dataset.i); });
       });
-      this.next();
     },
     lite: function (i, on) { var pad = overlay && overlay.querySelector('.ar-pad[data-i="' + i + '"]'); if (pad) pad.classList.toggle("lit", !!on); },
     setStatus: function (txt) { var s = overlay && overlay.querySelector("#ar-st"); if (s) s.textContent = txt; },
     setRound: function () { var r = overlay && overlay.querySelector("#ar-rnd"); if (r) r.textContent = this.round; },
     next: function () {
-      this.round++; this.setRound(); this.step = 0; this.accepting = false; this.setStatus("Watch…");
-      this.seq.push(Math.floor(Math.random() * 4));
-      this.play();
+      this.round++; this.setRound(); this.step = 0; this.accepting = false;
+      var n = padsForRound(this.round), grew = n > this.count && this.count > 0, self = this;
+      this.renderPads(n);
+      this.seq.push(Math.floor(Math.random() * n));
+      if (grew) { this.setStatus("New color! 🎨"); after(850, function () { self.play(); }); }
+      else this.play();
     },
     play: function () {
       var self = this, my = run, i = 0;
+      this.setStatus("Watch…");
       (function playNext() {
         if (my !== run) return;
         if (i >= self.seq.length) { self.accepting = true; self.setStatus("Your turn"); return; }
