@@ -5309,6 +5309,18 @@
   "date": "2026-08-04",
   "lineup": [
    "Mercedes Marching Band",
+   "Heat Wave",
+   "Eclipse",
+   "Les Stentors",
+   "7th Regiment",
+   "Raiders",
+   "Colt Cadets",
+   "Columbians",
+   "River City Rhythm",
+   "Memphis Blues",
+   "Blue Devils B",
+   "Gold",
+   "The Battalion",
    "Retreat"
   ],
   "schedule": [
@@ -5321,15 +5333,63 @@
     "Welcome"
    ],
    [
-    "TBD",
-    "Intermission"
-   ],
-   [
-    "TBD",
+    "6:10 PM",
     "Mercedes Marching Band"
    ],
    [
-    "TBD",
+    "6:27 PM",
+    "Heat Wave"
+   ],
+   [
+    "6:44 PM",
+    "Eclipse"
+   ],
+   [
+    "7:01 PM",
+    "Les Stentors"
+   ],
+   [
+    "7:18 PM",
+    "7th Regiment"
+   ],
+   [
+    "7:35 PM",
+    "Raiders"
+   ],
+   [
+    "7:52 PM",
+    "Intermission"
+   ],
+   [
+    "8:09 PM",
+    "Colt Cadets"
+   ],
+   [
+    "8:26 PM",
+    "Columbians"
+   ],
+   [
+    "8:43 PM",
+    "River City Rhythm"
+   ],
+   [
+    "9:00 PM",
+    "Memphis Blues"
+   ],
+   [
+    "9:17 PM",
+    "Blue Devils B"
+   ],
+   [
+    "9:34 PM",
+    "Gold"
+   ],
+   [
+    "9:51 PM",
+    "The Battalion"
+   ],
+   [
+    "10:16 PM",
     "Retreat"
    ]
   ],
@@ -5562,24 +5622,23 @@
   "date_display": "August 7, 2026",
   "date": "2026-08-07",
   "lineup": [
-   "Competition Resumes",
-   "Loge and Terrace Levels Open",
-   "Reserved Seating Takes Effect",
-   "DCI World Championships Semifinals Begins",
-   "Atlanta CV",
-   "Bushwackers",
-   "Cincinnati Tradition",
+   "MBI",
+   "Sunrisers",
    "Columbus Saints",
+   "Northern Lights",
    "Fusion Core",
    "Govenaires",
-   "Hawthorne Caballeros",
-   "Hurricanes",
-   "MBI",
-   "Northern Lights",
-   "Reading Buccaneers",
    "Rogues Hollow Regiment",
-   "Sunrisers",
-   "White Sabers"
+   "White Sabers",
+   "Hurricanes",
+   "Cincinnati Tradition",
+   "Hawthorne Caballeros",
+   "Atlanta CV",
+   "Loge and Terrace Levels Open",
+   "Bushwackers",
+   "Reading Buccaneers",
+   "Reserved Seating Takes Effect",
+   "DCI World Championships Semifinals Begins"
   ],
   "schedule": [
    [
@@ -5591,16 +5650,68 @@
     "Welcome & National Anthem"
    ],
    [
+    "8:30 AM",
+    "MBI"
+   ],
+   [
+    "8:47 AM",
+    "Sunrisers"
+   ],
+   [
+    "9:04 AM",
+    "Columbus Saints"
+   ],
+   [
+    "9:21 AM",
+    "Northern Lights"
+   ],
+   [
+    "9:38 AM",
+    "Fusion Core"
+   ],
+   [
+    "9:55 AM",
+    "Govenaires"
+   ],
+   [
+    "10:12 AM",
+    "Rogues Hollow Regiment"
+   ],
+   [
     "10:29 AM",
     "Intermission"
    ],
    [
-    "10:44 AM",
-    "Competition Resumes"
+    "10:49 AM",
+    "White Sabers"
+   ],
+   [
+    "11:06 AM",
+    "Hurricanes"
+   ],
+   [
+    "11:23 AM",
+    "Cincinnati Tradition"
+   ],
+   [
+    "11:40 AM",
+    "Hawthorne Caballeros"
+   ],
+   [
+    "11:57 AM",
+    "Atlanta CV"
    ],
    [
     "12:00 PM",
     "Loge and Terrace Levels Open"
+   ],
+   [
+    "12:14 PM",
+    "Bushwackers"
+   ],
+   [
+    "12:31 PM",
+    "Reading Buccaneers"
    ],
    [
     "12:55 PM",
@@ -5613,62 +5724,6 @@
    [
     "1:30 PM",
     "DCI World Championships Semifinals Begins"
-   ],
-   [
-    "",
-    "Atlanta CV"
-   ],
-   [
-    "",
-    "Bushwackers"
-   ],
-   [
-    "",
-    "Cincinnati Tradition"
-   ],
-   [
-    "",
-    "Columbus Saints"
-   ],
-   [
-    "",
-    "Fusion Core"
-   ],
-   [
-    "",
-    "Govenaires"
-   ],
-   [
-    "",
-    "Hawthorne Caballeros"
-   ],
-   [
-    "",
-    "Hurricanes"
-   ],
-   [
-    "",
-    "MBI"
-   ],
-   [
-    "",
-    "Northern Lights"
-   ],
-   [
-    "",
-    "Reading Buccaneers"
-   ],
-   [
-    "",
-    "Rogues Hollow Regiment"
-   ],
-   [
-    "",
-    "Sunrisers"
-   ],
-   [
-    "",
-    "White Sabers"
    ]
   ],
   "_seen": "2026-08-05"
@@ -5955,7 +6010,7 @@
     "Awards Ends"
    ]
   ],
-  "bag_policy": "Clear Bag Policy will be in effect. Outside food and Drink will NOT be permitted inside the stadium, including food and drink purchased at the festival. ACTIVIIES, EXHIBITS, & VENDORS Food Trucks Coco Bongos - Enjoy Tropical, non-alcoholic, frozen drinks in festive cups. Choose from 3 flavors: Bahama Mama, Pina Colada, and Outrageous Orange.",
+  "bag_policy": "Clear Bag Policy will be in effect. Outside food and Drink will NOT be permitted inside the stadium, including food and drink purchased at the festival. ACTIVITIES, EXHIBITS, & VENDORS Food Trucks Coco Bongos - Enjoy Tropical, non-alcoholic, frozen drinks in festive cups. Choose from 3 flavors: Bahama Mama, Pina Colada, and Outrageous Orange.",
   "_seen": "2026-08-05"
  }
 ]
