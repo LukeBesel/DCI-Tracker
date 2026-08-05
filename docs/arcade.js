@@ -1,8 +1,9 @@
-/* Cadence — hidden "Keep the Beat" mini-game (a little easter egg).
-   Tap the Cadence logo three times fast to open it. Tap when the sweeping bar
-   is inside the gold zone; every hit speeds things up and moves the zone. Three
-   misses and it's over. Self-contained, synthesized drum hits via Web Audio,
-   reuses the app's CSS variables. Namespaced (.ar-* / cad-ar-* / window.CadArcade). */
+/* Cadence — hidden mini-game arcade (a little easter egg).
+   Double-tap the Cadence logo to open it, then pick a game:
+     • Keep the Beat — tap when the sweeping marker is in the gold zone.
+     • Copy the Cadence — repeat the drumline pattern; it grows each round.
+   Self-contained, synthesized drum hits via Web Audio, reuses the app's CSS
+   variables. Namespaced (.ar-* / cad-ar-* / window.CadArcade). */
 (function () {
   "use strict";
   function lget(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
@@ -33,6 +34,14 @@
     var g = a.createGain(); g.gain.setValueAtTime(0.28, a.currentTime); g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + 0.24);
     o.connect(g); g.connect(a.destination); o.start(); o.stop(a.currentTime + 0.26);
   }
+  function tone(freq) {
+    var a = ctx(); if (!a) return;
+    var o = a.createOscillator(); o.type = "triangle"; o.frequency.value = freq;
+    var g = a.createGain(); g.gain.setValueAtTime(0.0001, a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.32, a.currentTime + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + 0.34);
+    o.connect(g); g.connect(a.destination); o.start(); o.stop(a.currentTime + 0.36);
+  }
 
   // ---- styles ----------------------------------------------------------------
   function injectStyles() {
@@ -45,153 +54,238 @@
       ".ar-x{position:absolute;top:10px;right:10px;width:34px;height:34px;border:0;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;font-size:20px;line-height:1;cursor:pointer;display:grid;place-items:center;}",
       ".ar-x:hover{background:rgba(255,255,255,.26);}",
       ".ar-eyebrow{font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--gold);}",
-      ".ar-title{font-size:26px;font-weight:900;letter-spacing:-.5px;margin:5px 0 0;color:#fff;}",
-      ".ar-hud{display:flex;justify-content:space-between;align-items:center;padding:12px 20px 0;font-variant-numeric:tabular-nums;}",
+      ".ar-title{font-size:25px;font-weight:900;letter-spacing:-.5px;margin:5px 0 0;color:#fff;}",
+      ".ar-sub{font-size:12.5px;color:rgba(255,255,255,.8);margin-top:3px;}",
+      ".ar-body{padding:16px 20px 20px;}",
+      // menu
+      ".ar-menu{display:flex;flex-direction:column;gap:10px;}",
+      ".ar-game{display:flex;align-items:center;gap:14px;text-align:left;width:100%;font:inherit;background:var(--surface-2);border:1px solid var(--border);border-radius:14px;padding:14px;cursor:pointer;color:var(--text-primary);}",
+      ".ar-game:hover{border-color:var(--muted);}",
+      ".ar-gico{font-size:30px;line-height:1;flex:0 0 auto;}",
+      ".ar-gname{font-size:16px;font-weight:800;}",
+      ".ar-gdesc{font-size:12.5px;color:var(--muted);margin-top:2px;line-height:1.35;}",
+      ".ar-gbest{margin-left:auto;font-size:11px;font-weight:800;color:var(--gold);text-transform:uppercase;letter-spacing:.4px;flex:0 0 auto;white-space:nowrap;}",
+      // shared HUD
+      ".ar-hud{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-variant-numeric:tabular-nums;}",
       ".ar-score{font-size:15px;font-weight:800;color:var(--text-primary);}",
       ".ar-score span{color:var(--muted);font-weight:700;}",
       ".ar-lives{font-size:16px;letter-spacing:2px;}",
-      ".ar-body{padding:16px 20px 20px;}",
+      ".ar-status{font-size:14px;font-weight:800;color:var(--text-primary);}",
+      // Keep the Beat
       ".ar-track{position:relative;height:52px;border-radius:14px;background:var(--surface-2);border:1px solid var(--border);overflow:hidden;cursor:pointer;touch-action:manipulation;}",
       ".ar-zone{position:absolute;top:0;bottom:0;background:linear-gradient(180deg,rgba(240,180,41,.5),rgba(240,180,41,.28));border-left:2px solid var(--gold);border-right:2px solid var(--gold);transition:left .12s ease,width .12s ease;}",
       ".ar-marker{position:absolute;top:-2px;bottom:-2px;width:4px;border-radius:3px;background:#fff;box-shadow:0 0 10px rgba(255,255,255,.8);transform:translateX(-50%);}",
-      ".ar-hint{text-align:center;font-size:13px;color:var(--muted);margin:12px 2px 0;line-height:1.4;}",
       ".ar-flash{position:absolute;inset:0;pointer-events:none;opacity:0;}",
       ".ar-flash.hit{background:rgba(47,158,68,.28);animation:ar-fl .25s ease;}",
       ".ar-flash.miss{background:rgba(224,49,49,.3);animation:ar-fl .3s ease;}",
       "@keyframes ar-fl{from{opacity:1}to{opacity:0}}",
+      // Copy the Cadence pads
+      ".ar-pads{display:grid;grid-template-columns:1fr 1fr;gap:10px;}",
+      ".ar-pad{aspect-ratio:1/1;border:0;border-radius:16px;cursor:pointer;opacity:.42;color:#fff;transition:opacity .09s,transform .06s;touch-action:manipulation;}",
+      ".ar-pad.lit{opacity:1;transform:scale(1.03);box-shadow:0 0 26px currentColor;}",
+      ".ar-pad:active{transform:scale(.97);}",
+      // buttons + result
       ".ar-btn{display:block;width:100%;margin-top:14px;border:0;border-radius:999px;padding:15px;font:inherit;font-size:17px;font-weight:900;letter-spacing:.5px;cursor:pointer;background:var(--gold);color:#16233d;}",
       ".ar-btn:active{transform:translateY(1px);}",
       ".ar-btn.ghost{background:var(--surface-2);color:var(--text-primary);border:1px solid var(--border);font-size:14px;font-weight:800;letter-spacing:0;padding:11px;margin-top:8px;}",
+      ".ar-hint{text-align:center;font-size:13px;color:var(--muted);margin:12px 2px 0;line-height:1.4;}",
       ".ar-big{text-align:center;padding:6px 0 2px;}",
       ".ar-big b{display:block;font-size:40px;font-weight:900;color:var(--text-primary);font-variant-numeric:tabular-nums;line-height:1;}",
       ".ar-big span{display:block;font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-top:6px;}",
-      "@media (prefers-reduced-motion: reduce){.ar-flash.hit,.ar-flash.miss{animation:none;}}"
+      "@media (prefers-reduced-motion: reduce){.ar-flash.hit,.ar-flash.miss,.ar-pad{animation:none;transition:none;}}"
     ].join("\n");
     var st = document.createElement("style"); st.id = "ar-style"; st.textContent = css; document.head.appendChild(st);
   }
 
-  // ---- game ------------------------------------------------------------------
-  var overlay = null, raf = null, onKey = null;
-  var pos, dir, speed, zoneC, zoneW, score, lives, playing, last;
-
+  // ---- overlay plumbing ------------------------------------------------------
+  var overlay = null, raf = null, onKey = null, run = 0, timers = [];
+  function after(ms, fn) { var id = setTimeout(fn, ms); timers.push(id); return id; }
+  function clearTimers() { timers.forEach(clearTimeout); timers = []; if (raf) { cancelAnimationFrame(raf); raf = null; } }
   function close() {
-    if (raf) { cancelAnimationFrame(raf); raf = null; }
+    run++; clearTimers();
     if (onKey) { document.removeEventListener("keydown", onKey, true); onKey = null; }
     if (overlay) { overlay.remove(); overlay = null; }
-    playing = false;
   }
-  function best() { return +(lget("cad-ar-best") || 0); }
+  function head(title, sub) {
+    return '<div class="ar-head"><button class="ar-x" type="button" aria-label="Close">×</button>' +
+      '<div class="ar-eyebrow">Cadence Arcade</div><div class="ar-title">' + title + "</div>" +
+      (sub ? '<div class="ar-sub">' + sub + "</div>" : "") + "</div>";
+  }
+  function setHead(title, sub) {
+    if (!overlay) return;
+    overlay.querySelector(".ar-title").textContent = title;
+    var s = overlay.querySelector(".ar-sub"); if (s) s.textContent = sub || "";
+  }
+  function body() { return overlay.querySelector("#ar-body"); }
+  function best(k) { return +(lget(k) || 0); }
+  function saveBest(k, v) { if (v > best(k)) { lset(k, String(v)); return true; } return false; }
 
   function open() {
     injectStyles();
     if (overlay) close();
     overlay = document.createElement("div");
     overlay.className = "ar-overlay";
-    overlay.setAttribute("role", "dialog"); overlay.setAttribute("aria-modal", "true"); overlay.setAttribute("aria-label", "Keep the Beat mini-game");
-    overlay.innerHTML =
-      '<div class="ar-backdrop"></div><div class="ar-card">' +
-      '<div class="ar-head"><button class="ar-x" type="button" aria-label="Close">×</button>' +
-      '<div class="ar-eyebrow">Cadence Arcade</div><div class="ar-title">Keep the Beat</div></div>' +
-      '<div class="ar-hud"><div class="ar-score">Score <span id="ar-scv">0</span></div><div class="ar-lives" id="ar-lv" aria-label="lives"></div></div>' +
-      '<div class="ar-body" id="ar-body"></div></div>';
+    overlay.setAttribute("role", "dialog"); overlay.setAttribute("aria-modal", "true"); overlay.setAttribute("aria-label", "Cadence Arcade");
+    overlay.innerHTML = '<div class="ar-backdrop"></div><div class="ar-card">' + head("Cadence Arcade", "Pick a game") + '<div class="ar-body" id="ar-body"></div></div>';
     document.body.appendChild(overlay);
     overlay.querySelector(".ar-backdrop").addEventListener("click", close);
     overlay.querySelector(".ar-x").addEventListener("click", close);
     onKey = function (e) {
       if (e.key === "Escape") { e.preventDefault(); close(); return; }
-      if ((e.key === " " || e.code === "Space") && playing) { e.preventDefault(); tap(); }
+      if ((e.key === " " || e.code === "Space") && beat.on) { e.preventDefault(); beat.tap(); }
     };
     document.addEventListener("keydown", onKey, true);
-    startScreen();
+    menu();
   }
 
-  function startScreen() {
-    var body = overlay.querySelector("#ar-body");
-    body.innerHTML =
-      '<div class="ar-big"><b>🥁</b><span>Best ' + best() + "</span></div>" +
-      '<p class="ar-hint">Tap when the white marker is inside the <b style="color:var(--gold)">gold zone</b>. Every hit gets faster.</p>' +
-      '<button class="ar-btn" id="ar-start" type="button">START</button>';
-    overlay.querySelector("#ar-lv").textContent = "";
-    overlay.querySelector("#ar-scv").textContent = "0";
-    body.querySelector("#ar-start").addEventListener("click", play);
-  }
-
-  function play() {
-    pos = 0; dir = 1; speed = 0.55; zoneC = 0.5; zoneW = 0.2; score = 0; lives = 3; playing = true; last = null;
-    var body = overlay.querySelector("#ar-body");
-    body.innerHTML =
-      '<div class="ar-track" id="ar-track"><div class="ar-zone" id="ar-zone"></div><div class="ar-marker" id="ar-marker"></div><div class="ar-flash" id="ar-flash"></div></div>' +
-      '<button class="ar-btn" id="ar-tap" type="button">TAP</button>' +
-      '<p class="ar-hint">Space or tap the bar works too.</p>';
-    body.querySelector("#ar-tap").addEventListener("click", tap);
-    body.querySelector("#ar-track").addEventListener("click", tap);
-    paintHud(); paintZone(); loop();
-  }
-  function paintHud() {
-    var lv = overlay.querySelector("#ar-lv"), sc = overlay.querySelector("#ar-scv");
-    if (lv) lv.textContent = "❤️".repeat(lives) + "🖤".repeat(3 - lives);
-    if (sc) sc.textContent = score;
-  }
-  function paintZone() {
-    var z = overlay.querySelector("#ar-zone"); if (!z) return;
-    z.style.left = ((zoneC - zoneW / 2) * 100) + "%";
-    z.style.width = (zoneW * 100) + "%";
-  }
-  function loop() {
-    raf = requestAnimationFrame(function step(t) {
-      if (!playing) return;
-      if (last == null) last = t;
-      var dt = Math.min(0.05, (t - last) / 1000); last = t;
-      pos += dir * speed * dt;
-      if (pos >= 1) { pos = 1; dir = -1; } else if (pos <= 0) { pos = 0; dir = 1; }
-      var m = overlay.querySelector("#ar-marker"); if (m) m.style.left = (pos * 100) + "%";
-      raf = requestAnimationFrame(step);
+  function menu() {
+    run++; clearTimers(); beat.on = false;
+    setHead("Cadence Arcade", "Pick a game");
+    var b1 = best("cad-ar-best"), b2 = best("cad-ar-best-simon");
+    body().innerHTML =
+      '<div class="ar-menu">' +
+      '<button class="ar-game" data-g="beat" type="button"><div class="ar-gico">🥁</div>' +
+      '<div><div class="ar-gname">Keep the Beat</div><div class="ar-gdesc">Tap when the marker is in the gold zone.</div></div>' +
+      (b1 ? '<div class="ar-gbest">Best ' + b1 + "</div>" : "") + "</button>" +
+      '<button class="ar-game" data-g="simon" type="button"><div class="ar-gico">🎯</div>' +
+      '<div><div class="ar-gname">Copy the Cadence</div><div class="ar-gdesc">Repeat the drumline pattern — it grows each round.</div></div>' +
+      (b2 ? '<div class="ar-gbest">Best ' + b2 + "</div>" : "") + "</button>" +
+      "</div>";
+    Array.prototype.forEach.call(body().querySelectorAll(".ar-game"), function (g) {
+      g.addEventListener("click", function () { g.dataset.g === "simon" ? simon.start() : beat.start(); });
     });
   }
-  function flash(kind) {
-    var f = overlay.querySelector("#ar-flash"); if (!f) return;
-    f.className = "ar-flash"; void f.offsetWidth; f.className = "ar-flash " + kind;
+  function backBtn() {
+    var el = body().querySelector("#ar-menu"); if (el) el.addEventListener("click", menu);
   }
-  function tap() {
-    if (!playing) return;
-    if (Math.abs(pos - zoneC) <= zoneW / 2) {
-      score++; snare(); flash("hit");
-      speed = Math.min(2.4, speed + 0.11);
-      zoneW = Math.max(0.07, zoneW * 0.93);
-      zoneC = 0.18 + rand() * 0.64; // hop the zone so you can't camp
-      paintZone(); paintHud();
-    } else {
-      lives--; womp(); flash("miss"); paintHud();
-      if (lives <= 0) return gameOver();
+
+  // ---- Game 1: Keep the Beat -------------------------------------------------
+  var beat = {
+    on: false, pos: 0, dir: 1, speed: 0, zoneC: 0.5, zoneW: 0.2, score: 0, lives: 3, last: null,
+    start: function () {
+      var b = this; b.on = true; b.pos = 0; b.dir = 1; b.speed = 0.55; b.zoneC = 0.5; b.zoneW = 0.2; b.score = 0; b.lives = 3; b.last = null;
+      setHead("Keep the Beat", "");
+      body().innerHTML =
+        '<div class="ar-hud"><div class="ar-score">Score <span id="ar-scv">0</span></div><div class="ar-lives" id="ar-lv"></div></div>' +
+        '<div class="ar-track" id="ar-track"><div class="ar-zone" id="ar-zone"></div><div class="ar-marker" id="ar-marker"></div><div class="ar-flash" id="ar-flash"></div></div>' +
+        '<button class="ar-btn" id="ar-tap" type="button">TAP</button>' +
+        '<p class="ar-hint">Space or tapping the bar works too.</p>';
+      body().querySelector("#ar-tap").addEventListener("click", function () { b.tap(); });
+      body().querySelector("#ar-track").addEventListener("click", function () { b.tap(); });
+      b.hud(); b.zone(); b.loop();
+    },
+    hud: function () { var lv = overlay.querySelector("#ar-lv"), sc = overlay.querySelector("#ar-scv"); if (lv) lv.textContent = "❤️".repeat(this.lives) + "🖤".repeat(3 - this.lives); if (sc) sc.textContent = this.score; },
+    zone: function () { var z = overlay.querySelector("#ar-zone"); if (z) { z.style.left = ((this.zoneC - this.zoneW / 2) * 100) + "%"; z.style.width = (this.zoneW * 100) + "%"; } },
+    loop: function () {
+      var b = this, my = run;
+      raf = requestAnimationFrame(function step(t) {
+        if (!b.on || my !== run) return;
+        if (b.last == null) b.last = t;
+        var dt = Math.min(0.05, (t - b.last) / 1000); b.last = t;
+        b.pos += b.dir * b.speed * dt;
+        if (b.pos >= 1) { b.pos = 1; b.dir = -1; } else if (b.pos <= 0) { b.pos = 0; b.dir = 1; }
+        var m = overlay.querySelector("#ar-marker"); if (m) m.style.left = (b.pos * 100) + "%";
+        raf = requestAnimationFrame(step);
+      });
+    },
+    flash: function (k) { var f = overlay.querySelector("#ar-flash"); if (!f) return; f.className = "ar-flash"; void f.offsetWidth; f.className = "ar-flash " + k; },
+    tap: function () {
+      if (!this.on) return;
+      if (Math.abs(this.pos - this.zoneC) <= this.zoneW / 2) {
+        this.score++; snare(); this.flash("hit");
+        this.speed = Math.min(2.4, this.speed + 0.11);
+        this.zoneW = Math.max(0.07, this.zoneW * 0.93);
+        this.zoneC = 0.18 + Math.random() * 0.64;
+        this.zone(); this.hud();
+      } else {
+        this.lives--; womp(); this.flash("miss"); this.hud();
+        if (this.lives <= 0) this.over();
+      }
+    },
+    over: function () {
+      this.on = false; if (raf) { cancelAnimationFrame(raf); raf = null; }
+      var isBest = saveBest("cad-ar-best", this.score), s = this.score;
+      setHead("Keep the Beat", "");
+      body().innerHTML =
+        '<div class="ar-big"><b>' + s + "</b><span>" + (isBest ? "New best! 🎉" : "Best " + best("cad-ar-best")) + "</span></div>" +
+        '<p class="ar-hint">' + beatBlurb(s) + "</p>" +
+        '<button class="ar-btn" id="ar-again" type="button">PLAY AGAIN</button>' +
+        '<button class="ar-btn ghost" id="ar-menu" type="button">← Games</button>';
+      var self = this;
+      body().querySelector("#ar-again").addEventListener("click", function () { self.start(); });
+      backBtn();
     }
-  }
-  // no Math.random ban here (browser), but keep it simple + seeded-ish by score
-  function rand() { return Math.random(); }
+  };
+  function beatBlurb(s) { return s >= 25 ? "Drum major material. 🥇" : s >= 15 ? "Locked in — clean hands!" : s >= 8 ? "Solid rep. Keep marking time." : s >= 3 ? "Not bad — run it back." : "Everybody starts at the beginning."; }
 
-  function gameOver() {
-    playing = false;
-    if (raf) { cancelAnimationFrame(raf); raf = null; }
-    var isBest = score > best();
-    if (isBest) lset("cad-ar-best", String(score));
-    if (score >= 12 && window.CadChamp == null) {} // reserved: could celebrate
-    var body = overlay.querySelector("#ar-body");
-    body.innerHTML =
-      '<div class="ar-big"><b>' + score + "</b><span>" + (isBest ? "New best! 🎉" : "Best " + best()) + "</span></div>" +
-      '<p class="ar-hint">' + blurb(score) + "</p>" +
-      '<button class="ar-btn" id="ar-again" type="button">PLAY AGAIN</button>' +
-      '<button class="ar-btn ghost" id="ar-close" type="button">Done</button>';
-    body.querySelector("#ar-again").addEventListener("click", play);
-    body.querySelector("#ar-close").addEventListener("click", close);
-  }
-  function blurb(s) {
-    if (s >= 25) return "Drum major material. 🥇";
-    if (s >= 15) return "Locked in — clean hands!";
-    if (s >= 8) return "Solid rep. Keep marking time.";
-    if (s >= 3) return "Not bad — run it back.";
-    return "Everybody starts at the beginning.";
-  }
+  // ---- Game 2: Copy the Cadence (Simon) --------------------------------------
+  var PADS = [{ c: "#f0b429", f: 392 }, { c: "#1971c2", f: 262 }, { c: "#2f9e44", f: 330 }, { c: "#d2222d", f: 523 }];
+  var simon = {
+    seq: [], step: 0, accepting: false, round: 0,
+    start: function () {
+      this.seq = []; this.round = 0; this.accepting = false;
+      setHead("Copy the Cadence", "");
+      body().innerHTML =
+        '<div class="ar-hud"><div class="ar-score">Round <span id="ar-rnd">0</span></div><div class="ar-status" id="ar-st">Watch…</div></div>' +
+        '<div class="ar-pads" id="ar-pads">' + PADS.map(function (p, i) {
+          return '<button class="ar-pad" data-i="' + i + '" type="button" aria-label="pad ' + (i + 1) + '" style="background:' + p.c + ';color:' + p.c + '"></button>';
+        }).join("") + "</div>" +
+        '<p class="ar-hint">Watch the pattern, then tap it back.</p>';
+      var self = this;
+      Array.prototype.forEach.call(body().querySelectorAll(".ar-pad"), function (pad) {
+        pad.addEventListener("click", function () { self.tap(+pad.dataset.i); });
+      });
+      this.next();
+    },
+    lite: function (i, on) { var pad = overlay && overlay.querySelector('.ar-pad[data-i="' + i + '"]'); if (pad) pad.classList.toggle("lit", !!on); },
+    setStatus: function (txt) { var s = overlay && overlay.querySelector("#ar-st"); if (s) s.textContent = txt; },
+    setRound: function () { var r = overlay && overlay.querySelector("#ar-rnd"); if (r) r.textContent = this.round; },
+    next: function () {
+      this.round++; this.setRound(); this.step = 0; this.accepting = false; this.setStatus("Watch…");
+      this.seq.push(Math.floor(Math.random() * 4));
+      this.play();
+    },
+    play: function () {
+      var self = this, my = run, i = 0;
+      (function playNext() {
+        if (my !== run) return;
+        if (i >= self.seq.length) { self.accepting = true; self.setStatus("Your turn"); return; }
+        var idx = self.seq[i++];
+        self.lite(idx, true); tone(PADS[idx].f);
+        after(440, function () { self.lite(idx, false); after(200, playNext); });
+      })();
+    },
+    tap: function (i) {
+      if (!this.accepting) return;
+      var self = this;
+      this.lite(i, true); tone(PADS[i].f); after(150, function () { self.lite(i, false); });
+      if (i !== this.seq[this.step]) return this.over();
+      this.step++;
+      if (this.step >= this.seq.length) {
+        this.accepting = false; this.setStatus("Nice! ✓"); snare();
+        after(650, function () { self.next(); });
+      }
+    },
+    over: function () {
+      this.accepting = false; womp();
+      var reached = this.seq.length - 1; // completed rounds
+      var isBest = saveBest("cad-ar-best-simon", reached);
+      setHead("Copy the Cadence", "");
+      body().innerHTML =
+        '<div class="ar-big"><b>' + reached + "</b><span>" + (isBest ? "New best! 🎉" : "Best " + best("cad-ar-best-simon")) + "</span></div>" +
+        '<p class="ar-hint">' + simonBlurb(reached) + "</p>" +
+        '<button class="ar-btn" id="ar-again" type="button">PLAY AGAIN</button>' +
+        '<button class="ar-btn ghost" id="ar-menu" type="button">← Games</button>';
+      var self = this;
+      body().querySelector("#ar-again").addEventListener("click", function () { self.start(); });
+      backBtn();
+    },
+    // tiny hook for testing the sequence deterministically
+    _peek: function () { return { seq: this.seq.slice(), accepting: this.accepting }; }
+  };
+  function simonBlurb(r) { return r >= 14 ? "Photographic. 🧠🥇" : r >= 9 ? "Sharp ears!" : r >= 5 ? "Nice memory — keep going." : r >= 2 ? "Warming up…" : "Give it another shot."; }
 
-  // ---- trigger: tap the logo three times fast --------------------------------
+  // ---- trigger: double-tap the logo ------------------------------------------
   function init() {
     var brand = document.querySelector("header.topbar .brand") || document.querySelector(".brand");
     if (!brand) return;
@@ -199,12 +293,12 @@
     brand.addEventListener("click", function () {
       var now = (window.performance && performance.now) ? performance.now() : +new Date();
       taps.push(now);
-      taps = taps.filter(function (t) { return now - t < 1200; });
-      if (taps.length >= 3) { taps = []; try { open(); } catch (e) {} }
+      taps = taps.filter(function (t) { return now - t < 450; }); // a quick double-tap
+      if (taps.length >= 2) { taps = []; try { open(); } catch (e) {} }
     });
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
 
-  window.CadArcade = { open: open, close: close };
+  window.CadArcade = { open: open, close: close, _simon: simon };
 })();
