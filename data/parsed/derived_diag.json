@@ -1,8 +1,8 @@
 {
  "https://www.dci.org/scores/final-scores/2026-big-sounds-in-motion/": "HTTP 403, body 139B",
  "https://www.dci.org/scores/final-scores/2026-dci-annapolis/": "HTTP 403, body 139B",
- "https://www.dci.org/scores/final-scores/2026-dci-kentucky/": "HTTP 403, body 139B",
+ "https://www.dci.org/scores/final-scores/2026-dci-kentucky/": "HTTP 200, body 183164B",
  "https://www.dci.org/scores/final-scores/2026-dci-open-class-world-championship-finals/": "HTTP 200, body 185698B",
  "https://www.dci.org/scores/final-scores/2026-dci-open-class-world-championship-prelims/": "HTTP 200, body 183239B",
- "https://www.dci.org/scores/final-scores/2026-innovations-in-brass/": "HTTP 200, body 183416B"
+ "https://www.dci.org/scores/final-scores/2026-innovations-in-brass/": "HTTP 403, body 139B"
 }
