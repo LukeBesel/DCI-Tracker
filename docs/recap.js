@@ -227,11 +227,19 @@
       ".rc-day .rc-dd{flex:1;min-width:0;}",
       ".rc-day .rc-dt{font-size:14px;font-weight:800;}",
       ".rc-day .rc-dm{font-size:12px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}",
-      ".rc-day .rc-dc{flex:0 0 auto;font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;}",
+      ".rc-day .rc-dc{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;}",
+      ".rc-dtags{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex:0 0 auto;}",
+      ".rc-sechcls{color:var(--gold);}",
+      // class badge — color-codes each day (World Class = gold) and marks the tier
+      ".rc-clspill{font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;padding:3px 7px;border-radius:6px;white-space:nowrap;}",
+      ".rc-clspill.wc{background:rgba(240,180,41,.18);color:#f0b429;border:1px solid rgba(240,180,41,.45);}",
+      ".rc-clspill.oc{background:rgba(25,113,194,.16);color:#4dabf7;border:1px solid rgba(25,113,194,.4);}",
+      ".rc-clspill.aa{background:rgba(12,133,153,.16);color:#22b8cf;border:1px solid rgba(12,133,153,.4);}",
+      ".rc-clspill.other{background:var(--surface-2);color:var(--muted);border:1px solid var(--border);}",
       ".rc-empty{color:var(--muted);text-align:center;padding:30px 16px;font-size:14px;}",
       ".rc-back{background:none;border:0;color:var(--gold);font:inherit;font-size:13px;font-weight:800;cursor:pointer;padding:0;margin-bottom:2px;display:inline-flex;align-items:center;gap:4px;}",
       // top-bar button
-      "#rc-topbtn{display:inline-flex;align-items:center;justify-content:center;background:var(--surface-2);color:var(--text-primary);cursor:pointer;border:1px solid var(--border);border-radius:10px;padding:6px;line-height:0;}",
+      "#rc-topbtn{display:inline-flex;align-items:center;justify-content:center;background:var(--surface-2);color:var(--text-primary);cursor:pointer;border:1px solid var(--border);border-radius:10px;padding:6px;line-height:0;order:2;}",
       "#rc-topbtn:hover{border-color:var(--muted);}",
       "#rc-topbtn svg{width:20px;height:20px;display:block;}"
     ].join("\n");
@@ -277,32 +285,43 @@
 
   // ---- render: recap detail --------------------------------------------------
   var MEDALS = ["🥇", "🥈", "🥉"];
-  // the day's three highest scores across every show/class — the hero podium
+  var CLASS_ORDER = ["World Class", "Open Class", "All-Age", "International"];
+  function classRank(c) { var i = CLASS_ORDER.indexOf(c); return i < 0 ? 99 : i; }
+  // the podium must NOT mix classes — World Class and All-Age are separate
+  // competitions on different scales. Take the day's marquee class (the
+  // highest-tier one present) and rank the top 3 within it.
   function topOfDay(recap) {
-    var rows = [];
-    recap.shows.forEach(function (s) { s.classes.forEach(function (c) { c.results.forEach(function (r) { rows.push({ corps: r.corps, score: r.score, event: s.name }); }); }); });
-    rows.sort(function (a, b) { return b.score - a.score; });
-    return rows.slice(0, 3);
+    var byCls = {};
+    recap.shows.forEach(function (s) { s.classes.forEach(function (c) { c.results.forEach(function (r) {
+      (byCls[c.cls] = byCls[c.cls] || []).push({ corps: r.corps, score: r.score, event: s.name });
+    }); }); });
+    var classes = Object.keys(byCls);
+    if (!classes.length) return { cls: "", rows: [] };
+    classes.sort(function (a, b) { return classRank(a) - classRank(b) || (a < b ? -1 : 1); });
+    var cls = classes[0];
+    return { cls: cls, rows: byCls[cls].slice().sort(function (a, b) { return b.score - a.score; }).slice(0, 3) };
   }
-  function podiumHtml(recap) {
+  function podiumSection(recap) {
     var top = topOfDay(recap);
-    if (!top.length) return "";
+    if (!top.rows.length) return "";
     var multi = recap.shows.length > 1;
-    return '<div class="rc-podium">' + top.map(function (r, i) {
+    var pods = top.rows.map(function (r, i) {
       return '<div class="rc-pod' + (i === 0 ? " first" : "") + '" style="--rc-accent:' + dot(r.corps) + '">' +
         '<div class="rc-medal">' + MEDALS[i] + "</div>" +
         '<div class="rc-pod-main"><div class="rc-pod-corps">' + esc(r.corps) + "</div>" +
         (multi ? '<div class="rc-pod-ev">' + esc(r.event) + "</div>" : "") + "</div>" +
         '<div class="rc-pod-score">' + fmt(r.score) + "</div></div>";
-    }).join("") + "</div>";
+    }).join("");
+    return '<div class="rc-sech">Top of the day' + (top.cls ? ' · <span class="rc-sechcls">' + esc(top.cls) + "</span>" : "") + "</div>" +
+      '<div class="rc-podium">' + pods + "</div>";
   }
-  // a one-line story of the day, built from the headline facts
+  // a one-line story of the day, anchored on the marquee class's winner
   function leadLine(recap) {
-    var f = recap.facts, t = f.topScore; if (!t) return "";
-    var when = recap.shows.length > 1 ? "the day" : "the night";
-    var s = "<b>" + esc(t.corps) + "</b> took " + when + " with a <b>" + fmt(t.score) + "</b>";
-    if (f.closest && f.closest.a === t.corps) s += ", edging <b>" + esc(f.closest.b) + "</b> by " + fmt(f.closest.gap);
-    else if ((f.movers || [])[0] && f.movers[0].delta > 0.4 && f.movers[0].corps !== t.corps) s += "; <b>" + esc(f.movers[0].corps) + "</b> jumped " + signed(f.movers[0].delta);
+    var top = topOfDay(recap), w = top.rows[0]; if (!w) return "";
+    var f = recap.facts, when = recap.shows.length > 1 ? "the day" : "the night";
+    var s = "<b>" + esc(w.corps) + "</b> took " + when + " with a <b>" + fmt(w.score) + "</b>";
+    if (f.closest && f.closest.a === w.corps) s += ", edging <b>" + esc(f.closest.b) + "</b> by " + fmt(f.closest.gap);
+    else if (top.rows[1]) s += ", " + fmt(w.score - top.rows[1].score) + " ahead of <b>" + esc(top.rows[1].corps) + "</b>";
     s += ".";
     return '<p class="rc-lead">' + s + "</p>";
   }
@@ -349,7 +368,7 @@
       '<div class="rc-sub">' + recap.shows.length + " show" + (recap.shows.length === 1 ? "" : "s") + " · " + recap.corpsCount + " corps</div></div>" +
       '<div class="rc-body">' +
         leadLine(recap) +
-        '<div class="rc-sech">Top of the day</div>' + podiumHtml(recap) +
+        podiumSection(recap) +
         (facts ? '<div class="rc-sech">Fun facts</div>' + facts : "") +
         '<div class="rc-sech">Full results</div>' + showsHtml(recap.shows) +
         '<button class="rc-btn rc-ghost" id="rc-browse" type="button">← All recaps</button>' +
@@ -360,53 +379,79 @@
   }
 
   // ---- render: browser -------------------------------------------------------
-  var browseState = { year: null, q: "" };
+  var browseState = { year: null, q: "", cls: "" };
+  function pillFor(cls) {
+    if (/world/i.test(cls)) return { k: "wc", label: "World" };
+    if (/open/i.test(cls)) return { k: "oc", label: "Open" };
+    if (/all.?age/i.test(cls)) return { k: "aa", label: "All-Age" };
+    if (/inter/i.test(cls)) return { k: "other", label: "Intl" };
+    return { k: "other", label: cls };
+  }
   function openBrowser() {
     var card = shell(
       '<div class="rc-head"><button class="rc-x" type="button" aria-label="Close">×</button>' +
       '<div class="rc-eyebrow">Cadence</div><h2 class="rc-title">Daily Recaps</h2>' +
       '<div class="rc-sub">Every show day, every season</div></div>' +
       '<div class="rc-tools"><select id="rc-year" aria-label="Season"></select>' +
-      '<input id="rc-q" type="search" placeholder="Search corps, show, place…" autocomplete="off"></div>' +
+      '<select id="rc-cls" aria-label="Class"><option value="">All classes</option><option>World Class</option><option>Open Class</option><option>All-Age</option><option>International</option></select>' +
+      '<input id="rc-q" type="search" placeholder="Search corps or show…" autocomplete="off"></div>' +
       '<div class="rc-list" id="rc-list"><p class="rc-empty">Loading…</p></div>');
     card.querySelector(".rc-x").addEventListener("click", close);
-    var sel = card.querySelector("#rc-year"), q = card.querySelector("#rc-q"), list = card.querySelector("#rc-list");
+    var sel = card.querySelector("#rc-year"), clsSel = card.querySelector("#rc-cls"), q = card.querySelector("#rc-q"), list = card.querySelector("#rc-list");
     q.value = browseState.q || "";
+    clsSel.value = browseState.cls || "";
     loadYears().then(function (years) {
       if (!years.length) { list.innerHTML = '<p class="rc-empty">Couldn’t load seasons.</p>'; return; }
       if (!browseState.year || years.indexOf(browseState.year) < 0) browseState.year = years[0];
       sel.innerHTML = years.map(function (y) { return '<option value="' + y + '"' + (y === browseState.year ? " selected" : "") + ">" + y + "</option>"; }).join("");
       renderList(list, q.value);
       sel.addEventListener("change", function () { browseState.year = +sel.value; renderList(list, q.value); });
+      clsSel.addEventListener("change", function () { browseState.cls = clsSel.value; renderList(list, q.value); });
       var t; q.addEventListener("input", function () { clearTimeout(t); browseState.q = q.value; t = setTimeout(function () { renderList(list, q.value); }, 160); });
     });
   }
   function renderList(list, query) {
     list.innerHTML = '<p class="rc-empty">Loading…</p>';
-    var year = browseState.year;
+    var year = browseState.year, clsFilter = browseState.cls || "";
     loadYear(year).then(function (evs) {
       if (!evs) { list.innerHTML = '<p class="rc-empty">No data for ' + year + ".</p>"; return; }
       var days = scoredShowDays(evs).slice().reverse(); // newest first
       var qq = (query || "").trim().toLowerCase();
-      // index text per day for search
-      var byDay = {};
+      // per-day: search text, class set, per-class top score, and show count
+      var info = {};
+      days.forEach(function (d) { info[d] = { text: "", classes: {}, top: {}, shows: 0 }; });
       evs.forEach(function (e) {
-        if (!e.date) return;
-        var t = (e.name || "") + " " + (e.location || "") + " ";
-        (e.classes || []).forEach(function (c) { (c.results || []).forEach(function (r) { t += r.corps + " "; }); });
-        byDay[e.date] = (byDay[e.date] || "") + t.toLowerCase();
+        if (!e.date || !info[e.date]) return;
+        var nfo = info[e.date], scored = false, t = (e.name || "") + " " + (e.location || "") + " ";
+        (e.classes || []).forEach(function (c) {
+          if (!(c.results || []).length) return;
+          var cn = c["class"];
+          nfo.classes[cn] = 1;
+          (c.results || []).forEach(function (r) {
+            t += r.corps + " ";
+            if (r.score != null) { scored = true; if (!nfo.top[cn] || r.score > nfo.top[cn].score) nfo.top[cn] = { corps: r.corps, score: r.score }; }
+          });
+        });
+        if (scored) nfo.shows++;
+        nfo.text += t.toLowerCase();
       });
-      var rows = days.filter(function (d) { return !qq || (byDay[d] || "").indexOf(qq) >= 0; }).map(function (d) {
-        var evsD = evs.filter(function (e) { return e.date === d && (e.classes || []).some(function (c) { return (c.results || []).length; }); });
-        var top = null;
-        evsD.forEach(function (e) { (e.classes || []).forEach(function (c) { (c.results || []).forEach(function (r) { if (r.score != null && (!top || r.score > top.score)) top = { corps: r.corps, score: r.score }; }); }); });
-        var names = evsD.map(function (e) { return e.name; }).join(" · ");
+      var rows = days.filter(function (d) {
+        if (qq && info[d].text.indexOf(qq) < 0) return false;
+        if (clsFilter && !info[d].classes[clsFilter]) return false;
+        return true;
+      }).map(function (d) {
+        var nfo = info[d];
+        var present = Object.keys(nfo.classes).sort(function (a, b) { return classRank(a) - classRank(b); });
+        var marquee = present[0], top = marquee ? nfo.top[marquee] : null;
+        var names = evs.filter(function (e) { return e.date === d && (e.classes || []).some(function (c) { return (c.results || []).length; }); }).map(function (e) { return e.name; }).join(" · ");
+        var pill = marquee ? pillFor(marquee) : null;
+        var pillHtml = pill ? '<span class="rc-clspill ' + pill.k + '">' + esc(pill.label) + "</span>" : "";
         return '<button class="rc-day" data-d="' + d + '" type="button"><div class="rc-dd">' +
           '<div class="rc-dt">' + esc(shortDate(d)) + "</div>" +
           '<div class="rc-dm">' + esc(names) + (top ? " — " + esc(top.corps) + " " + fmt(top.score) : "") + "</div></div>" +
-          '<div class="rc-dc">' + evsD.length + " show" + (evsD.length === 1 ? "" : "s") + "</div></button>";
+          '<div class="rc-dtags">' + pillHtml + '<span class="rc-dc">' + nfo.shows + " show" + (nfo.shows === 1 ? "" : "s") + "</span></div></button>";
       }).join("");
-      list.innerHTML = rows || '<p class="rc-empty">No show days match “' + esc(query) + "”.</p>";
+      list.innerHTML = rows || '<p class="rc-empty">No show days match.</p>';
       Array.prototype.forEach.call(list.querySelectorAll(".rc-day"), function (b) {
         b.addEventListener("click", function () { openRecap(recapForDate(evs, b.dataset.d), { back: true }); });
       });
