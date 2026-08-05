@@ -1215,11 +1215,11 @@
     const bestPerf = scored.length ? scored.reduce((m, p) => p.s > m.s ? p : m, scored[0]) : null;
     const pt = document.getElementById("corpsPageTitle");
     if (pt) {
-      // favorite toggle lives here now (removed from the standings table so
-      // the date + event have room). Favorited corps still rise to the top
-      // of the scoreboard standings and are highlighted there.
+      // favorite toggle lives here now (removed from the standings table so the
+      // date + event have room). Favorites are starred/highlighted in place —
+      // they keep their real rank on the scoreboard, not pulled to the top.
       const favLabel = () => FAVS.has(detail.name)
-        ? "★ Favorited — rises to the top of standings"
+        ? "★ Favorited"
         : "☆ Add to favorites";
       pt.innerHTML = `${corpsLogo(detail.name, 34, prof && prof.img)}${esc(detail.name)} <button id="corpFav" class="favtoggle${FAVS.has(detail.name) ? " on" : ""}">${favLabel()}</button>`;
       const fb = document.getElementById("corpFav");
