@@ -12,10 +12,6 @@
   var TZ = "America/New_York";              // Indianapolis / Lucas Oil Stadium is Eastern
   var FINALS_TARGET = "2026-08-08T17:00:00-04:00"; // Finals countdown target (ET, EDT = -04:00)
   var DATE = { prelims: "2026-08-06", semis: "2026-08-07", finals: "2026-08-08" };
-  // one-day live preview of the countdown (auto-pop + reopen button). Testing is
-  // done, so it's OFF ("") — nothing auto-shows before the 6th. Set to a date
-  // like "2026-08-05" to bring the countdown preview back for that day.
-  var PREVIEW_DATE = "";
   // short-lived preview of the end-of-season tribute LAYOUT (nameless, sample
   // numbers) so it can be eyeballed now. It auto-pops until this instant, then
   // vanishes. Set to "" to turn off. Deliberately generic so it reveals nothing.
@@ -153,17 +149,28 @@
       ".cm-card{position:relative;z-index:3;width:100%;max-width:440px;max-height:92vh;overflow-y:auto;background:var(--surface-1);color:var(--text-primary);border:1px solid var(--border);border-radius:20px;box-shadow:0 24px 70px rgba(8,20,38,.5);animation:cm-pop .34s cubic-bezier(.2,.9,.3,1.2) both;-webkit-overflow-scrolling:touch;}",
       "@keyframes cm-pop{from{opacity:0;transform:translateY(14px) scale(.96);}to{opacity:1;transform:none;}}",
       ".cm-head{position:relative;background:var(--navy);color:#fff;padding:22px 20px 18px;text-align:center;}",
+      // Championship-screen header: drifting 'stadium spotlight' aurora + a fine
+      // grain, layered behind the content (scoped to .cm-stage so Colin's red
+      // tribute header is untouched).
+      ".cm-stage{overflow:hidden;background:radial-gradient(120% 90% at 50% -10%, #12508a 0%, var(--navy) 55%);}",
+      ".cm-stage>*{position:relative;z-index:1;}",
+      ".cm-stage::before{content:'';position:absolute;inset:-45% -15% -20%;z-index:0;pointer-events:none;background:radial-gradient(closest-side,rgba(240,180,41,.42),transparent 70%),radial-gradient(closest-side,rgba(41,140,220,.5),transparent 72%),radial-gradient(closest-side,rgba(240,180,41,.28),transparent 70%);background-repeat:no-repeat;background-size:58% 118%,52% 120%,42% 100%;background-position:12% -8%,86% 24%,60% 90%;filter:blur(8px);opacity:.75;animation:cm-aurora 9s ease-in-out infinite alternate;}",
+      "@keyframes cm-aurora{from{background-position:8% -12%,90% 16%,55% 96%;}to{background-position:30% 8%,64% 42%,68% 78%;}}",
       ".cm-x{position:absolute;top:10px;right:10px;width:34px;height:34px;border:0;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;font-size:20px;line-height:1;cursor:pointer;display:grid;place-items:center;}",
       ".cm-x:hover{background:rgba(255,255,255,.26);}",
       ".cm-eyebrow{font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--gold);}",
       ".cm-title{font-size:29px;line-height:1.05;font-weight:900;letter-spacing:-.5px;margin:7px 6px 0;color:#fff;}",
       ".cm-note{font-size:13.5px;line-height:1.4;color:rgba(255,255,255,.82);margin:8px auto 0;max-width:34ch;}",
-      ".cm-cd{display:flex;justify-content:center;gap:8px;margin:16px 0 4px;}",
-      ".cm-cd .u{min-width:60px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:9px 6px;}",
-      ".cm-cd .n{font-size:26px;font-weight:900;font-variant-numeric:tabular-nums;color:#fff;line-height:1;}",
-      ".cm-cd .l{font-size:9.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--gold);margin-top:5px;}",
-      ".cm-venue{margin-top:12px;font-size:13px;font-weight:700;color:#fff;}",
-      ".cm-venue .pin{color:var(--gold);}",
+      ".cm-cd{display:flex;justify-content:center;gap:8px;margin:18px 0 6px;}",
+      ".cm-cd .u{position:relative;overflow:hidden;min-width:62px;background:linear-gradient(180deg,rgba(255,255,255,.17),rgba(255,255,255,.05));border:1px solid rgba(255,255,255,.2);border-radius:14px;padding:12px 6px 9px;box-shadow:0 6px 18px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.16);}",
+      ".cm-cd .u::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,var(--gold),transparent);}",
+      ".cm-cd .n{font-size:30px;font-weight:900;font-variant-numeric:tabular-nums;color:#fff;line-height:1;text-shadow:0 2px 12px rgba(0,0,0,.4);will-change:transform;}",
+      ".cm-cd .l{font-size:9.5px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--gold);margin-top:6px;}",
+      ".cm-cd .u.pulse .n{animation:cm-tick .55s ease;}",
+      "@keyframes cm-tick{0%{transform:scale(1);}42%{transform:scale(1.18);color:var(--gold);}100%{transform:scale(1);}}",
+      ".cm-venue{margin-top:13px;font-size:13px;font-weight:700;color:#fff;}",
+      ".cm-venue .pin{color:var(--gold);display:inline-block;animation:cm-pin 2s ease-in-out infinite;}",
+      "@keyframes cm-pin{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.45;transform:scale(.78);}}",
       ".cm-body{padding:18px 20px 20px;}",
       ".cm-mtitle{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:2px 0 10px;}",
       ".cm-mtitle b{font-size:15px;font-weight:800;color:var(--text-primary);}",
@@ -225,7 +232,7 @@
       "#cm-dev .cm-devbox button:hover{border-color:var(--muted);}",
       "#cm-dev .cm-devbox hr{border:0;border-top:1px solid var(--border);margin:2px 0;}",
       // reduced motion: kill entrance/confetti animations
-      "@media (prefers-reduced-motion: reduce){.cm-card,.cm-act-title,.cm-act-sub,.cm-mbwrap,.cm-mbtrophy,.cm-mbanner b{animation:none !important;}.cm-fade{animation:none !important;opacity:0;}}"
+      "@media (prefers-reduced-motion: reduce){.cm-card,.cm-act-title,.cm-act-sub,.cm-mbwrap,.cm-mbtrophy,.cm-mbanner b,.cm-stage::before,.cm-cd .u.pulse .n,.cm-venue .pin{animation:none !important;}.cm-fade{animation:none !important;opacity:0;}}"
     ].join("\n");
     var st = document.createElement("style");
     st.id = "cm-style";
@@ -321,9 +328,22 @@
     var h = Math.floor(s / 3600); s -= h * 3600;
     var m = Math.floor(s / 60); s -= m * 60;
     var vals = [[d, "Days"], [h, "Hours"], [m, "Minutes"], [s, "Seconds"]];
-    wrap.innerHTML = vals.map(function (v) {
-      return '<div class="u"><div class="n">' + v[0] + '</div><div class="l">' + v[1] + "</div></div>";
-    }).join("");
+    // build the four tiles once, then update only the numbers that change and
+    // pulse that tile — so the seconds tick every second, minutes flip on the
+    // minute, etc., instead of re-rendering (and re-flashing) the whole row.
+    if (wrap.children.length !== 4) {
+      wrap.innerHTML = vals.map(function (v) {
+        return '<div class="u"><div class="n">' + v[0] + '</div><div class="l">' + v[1] + "</div></div>";
+      }).join("");
+      return;
+    }
+    for (var i = 0; i < 4; i++) {
+      var tile = wrap.children[i], nEl = tile.firstChild, nv = String(vals[i][0]);
+      if (nEl.textContent !== nv) {
+        nEl.textContent = nv;
+        tile.classList.remove("pulse"); void tile.offsetWidth; tile.classList.add("pulse"); // restart the tick
+      }
+    }
   }
 
   // ---- render steps ----------------------------------------------------------
@@ -331,7 +351,7 @@
     var v = VIEW[mode];
     var cd = v.countdown ? '<div class="cm-cd" aria-hidden="true"></div><span class="cm-sr" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Counting down to DCI World Championship Finals, August 8, 2026.</span>' : "";
     var note = v.note ? '<p class="cm-note">' + esc(v.note) + "</p>" : "";
-    return '<div class="cm-head">' +
+    return '<div class="cm-head cm-stage">' +
       '<button class="cm-x" type="button" aria-label="Close">×</button>' +
       '<div class="cm-eyebrow">DCI World Championships</div>' +
       '<h2 class="cm-title" id="cm-h">' + esc(v.title) + "</h2>" +
@@ -557,17 +577,15 @@
   }
 
   // which temporary screen is active right now. Both windows are short-term and
-  // self-retiring: Championship Mode runs from the countdown days through Aug 8,
-  // the Colin tribute runs from Finals night until COLIN_END — after that nothing
-  // shows again, ever. The "pre" countdown is live now so the auto-popup + reopen
-  // button can be seen (and tested) in the run-up to Worlds week.
+  // self-retiring: Championship Mode runs from the Finals-countdown days through
+  // Aug 8, the Colin tribute shows only on Aug 9 — after that nothing shows again.
   function phase() {
     var now = Date.now();
     if (now >= Date.parse(COLIN_AFTER) && now < Date.parse(COLIN_END)) return "colin";
     if (now < Date.parse(COLIN_AFTER)) {
       var m = modeForDate(todayET());
-      if (isEventDay(m)) return "champ";                        // Aug 6–8, the real screens
-      if (m === "pre" && todayET() === PREVIEW_DATE) return "champ"; // one-day countdown preview
+      if (isEventDay(m)) return "champ"; // Aug 6–8, the real Prelims/Semis/Finals screens
+      if (m === "pre") return "champ";   // the run-up: the live Finals countdown
     }
     return "none";
   }
