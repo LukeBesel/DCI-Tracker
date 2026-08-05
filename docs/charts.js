@@ -61,14 +61,25 @@
 
   const tooltip = () => document.getElementById("tooltip");
 
-  function showTip(html, x, y) {
+  function showTip(html, x, y, touch) {
     const t = tooltip();
     t.innerHTML = html;
     t.hidden = false;
     const r = t.getBoundingClientRect();
-    let left = x + 14, top = y + 14;
+    let left = x + 14;
     if (left + r.width > innerWidth - 8) left = x - r.width - 14;
-    if (top + r.height > innerHeight - 8) top = y - r.height - 14;
+    let top;
+    if (touch) {
+      // lift the whole box a clear gap ABOVE the fingertip so the finger never
+      // covers it; measured height keeps the gap right whatever the box size.
+      // Only drop below the finger when there's no room up top.
+      const GAP = 46;
+      top = y - r.height - GAP;
+      if (top < 6) top = y + GAP;
+    } else {
+      top = y + 14;
+      if (top + r.height > innerHeight - 8) top = y - r.height - 14;
+    }
     t.style.left = Math.max(6, left) + "px";
     t.style.top = Math.max(6, top) + "px";
   }
@@ -117,7 +128,7 @@
     hover.addEventListener("touchcancel", end);
   }
   // keep the tooltip clear of the fingertip on touch (mouse points precisely)
-  const tipY = evt => evt.pointerType === "touch" ? evt.clientY - 46 : evt.clientY;
+  const isTouch = evt => evt.pointerType === "touch";
 
   function esc(s) {
     const d = document.createElement("span");
@@ -213,7 +224,7 @@
           ? `<div class="tt-row"><span class="tt-key" style="background:${s.color}"></span><span class="tt-val">${esc(fmt(p.y))}</span> <span class="tt-name">${esc(s.name)}</span></div>`
           : "";
       }).join("");
-      showTip(`<div class="tt-title">${esc(opts.xLabels[i])}</div>${rows}`, evt.clientX, tipY(evt));
+      showTip(`<div class="tt-title">${esc(opts.xLabels[i])}</div>${rows}`, evt.clientX, evt.clientY, isTouch(evt));
     }
     bindScrub(hover, cross, moveTo);
 
@@ -308,7 +319,7 @@
         const p = s.points.find(q => q.x === best && q.y != null);
         return p ? `<div class="tt-row"><span class="tt-key" style="background:${s.color}"></span><span class="tt-val">${esc(yFmt(p.y))}</span> <span class="tt-name">${esc((numbered ? (si + 1) + " · " : "") + s.name)}</span></div>` : "";
       }).join("");
-      showTip(`<div class="tt-title">${esc(xFmt(best))}</div>${rows}`, evt.clientX, tipY(evt));
+      showTip(`<div class="tt-title">${esc(xFmt(best))}</div>${rows}`, evt.clientX, evt.clientY, isTouch(evt));
     }
     bindScrub(hover, cross, moveTo);
 
