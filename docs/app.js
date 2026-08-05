@@ -577,7 +577,7 @@
   function singleSelect(mount, cfg) {
     const selected = new Set(cfg.value != null ? [String(cfg.value)] : []);
     const ms = multiSelect(mount, {
-      label: cfg.label || "", single: true, searchable: cfg.searchable,
+      label: cfg.label || "", single: true, searchable: cfg.searchable, searchHint: cfg.searchHint,
       options: cfg.options, selected,
       onChange: v => cfg.onChange(v[0]),
     });
@@ -688,7 +688,7 @@
 
       function renderList() {
         list.innerHTML = "";
-        const opts = cfg.options.filter(o => !q || o.label.toLowerCase().includes(q));
+        const opts = cfg.options.filter(o => !q || o.label.toLowerCase().includes(q) || (cfg.searchHint && (o.hint || "").toLowerCase().includes(q)));
         if (!opts.length) list.innerHTML = "<div class='empty' style='padding:10px'>No matches</div>";
         opts.forEach(o => {
           const row = document.createElement("label");
@@ -2147,10 +2147,10 @@
         if (corpsSel) corpsSel.style.display = "none";
         return;
       }
-      const opts = shows.map(sh => ({ value: sh.d + "|" + sh.ev, label: sh.ev, hint: fmtDate(sh.d) }));
+      const opts = shows.map(sh => ({ value: sh.d + "|" + sh.ev, label: sh.ev, hint: fmtDateY(sh.d) }));
       if (!ssShow) {
         ssShow = singleSelect(document.getElementById("showSel"), {
-          label: "Pick a show…", searchable: shows.length > 10,
+          label: "Pick a show…", searchable: shows.length > 6, searchHint: true,
           options: opts, value: opts[0].value,
           onChange: renderShowCmp,
         });

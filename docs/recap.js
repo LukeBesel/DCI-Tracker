@@ -32,7 +32,7 @@
   }
   function shortDate(ds) {
     try {
-      return new Intl.DateTimeFormat("en-US", { timeZone: "UTC", weekday: "short", month: "short", day: "numeric" })
+      return new Intl.DateTimeFormat("en-US", { timeZone: "UTC", weekday: "short", month: "short", day: "numeric", year: "numeric" })
         .format(new Date(ds + "T12:00:00Z"));
     } catch (e) { return ds; }
   }
