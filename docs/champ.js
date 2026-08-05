@@ -12,10 +12,10 @@
   var TZ = "America/New_York";              // Indianapolis / Lucas Oil Stadium is Eastern
   var FINALS_TARGET = "2026-08-08T17:00:00-04:00"; // Finals countdown target (ET, EDT = -04:00)
   var DATE = { prelims: "2026-08-06", semis: "2026-08-07", finals: "2026-08-08" };
-  // one-day live preview: the countdown auto-pops + shows its reopen button only
-  // on this date, so the whole flow can be seen before Worlds week. Set to "" to
-  // disable the preview entirely (the real Aug 6–8 screens are unaffected).
-  var PREVIEW_DATE = "2026-08-04";
+  // one-day live preview of the countdown (auto-pop + reopen button). Testing is
+  // done, so it's OFF ("") — nothing auto-shows before the 6th. Set to a date
+  // like "2026-08-05" to bring the countdown preview back for that day.
+  var PREVIEW_DATE = "";
   // short-lived preview of the end-of-season tribute LAYOUT (nameless, sample
   // numbers) so it can be eyeballed now. It auto-pops until this instant, then
   // vanishes. Set to "" to turn off. Deliberately generic so it reveals nothing.
@@ -65,8 +65,8 @@
 
   // ---- Colin tribute config (after-finals surprise) --------------------------
   var COLIN = { name: "Colin Besel", corps: "Phantom Regiment", year: "2026", home: "Rockford, IL" };
-  var COLIN_AFTER = "2026-08-08T22:30:00-04:00"; // reveal once Finals night wraps
-  var COLIN_END = "2026-08-16T00:00:00-04:00";   // tribute retires after this — then nothing shows, ever
+  var COLIN_AFTER = "2026-08-09T00:00:00-04:00"; // the day after Finals — Aug 9 (ET) only
+  var COLIN_END = "2026-08-10T00:00:00-04:00";   // retires at end of Aug 9 — then nothing shows, ever
   // coordinates for a mileage estimate — Phantom's 2026 tour cities + home + Indy,
   // with US state centroids as a fallback for anything unexpected.
   var CITY = {
