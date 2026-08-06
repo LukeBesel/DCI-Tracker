@@ -218,16 +218,34 @@
 
     g.textBaseline = "alphabetic";
     g.fillStyle = accent; g.font = "800 30px " + FONT; g.fillText("C A D E N C E", PAD, 118);
-    g.fillStyle = "rgba(255,255,255,.6)"; g.textAlign = "right"; g.fillText("DAILY RECAP", W - PAD, 118); g.textAlign = "left";
+    g.fillStyle = "rgba(255,255,255,.6)"; g.textAlign = "right"; g.fillText("SHOW RECAP", W - PAD, 118); g.textAlign = "left";
 
     var parts = recap.date.split("-");
-    g.fillStyle = "#fff"; g.font = "900 66px " + FONT; g.fillText(MONTHS_LONG[+parts[1] - 1] + " " + (+parts[2]), PAD, 232);
-    g.fillStyle = accent; g.font = "800 29px " + FONT;
-    g.fillText(weekday(recap.date) + " · " + parts[0] + "  ·  " + recap.shows.length + " show" + (recap.shows.length === 1 ? "" : "s") + " · " + recap.corpsCount + " corps", PAD, 274);
-
-    var cursor = 344;
+    var subDate = weekday(recap.date) + " · " + MONTHS_LONG[+parts[1] - 1] + " " + (+parts[2]) + ", " + parts[0];
+    var cursor;
+    if (recap.event) {
+      // headline the show name (wrap up to 2 lines), date/location beneath
+      var size = fitText(g, recap.event, W - PAD * 2, 62, 40);
+      g.fillStyle = "#fff"; g.font = "900 " + size + "px " + FONT;
+      var y = 210, name = recap.event;
+      if (g.measureText(name).width > W - PAD * 2) {
+        var words = name.split(" "), line = "", lines = [];
+        words.forEach(function (w) { var t = line ? line + " " + w : w; if (g.measureText(t).width > W - PAD * 2 && line) { lines.push(line); line = w; } else line = t; });
+        if (line) lines.push(line);
+        lines.slice(0, 2).forEach(function (ln, i) { g.fillText(ln, PAD, y + i * (size + 6)); });
+        y = y + Math.min(2, lines.length) * (size + 6) + 6;
+      } else { g.fillText(name, PAD, y); y += 34; }
+      g.fillStyle = accent; g.font = "800 28px " + FONT;
+      g.fillText(subDate + (recap.location ? " · " + recap.location : ""), PAD, y);
+      cursor = y + 62;
+    } else {
+      g.fillStyle = "#fff"; g.font = "900 66px " + FONT; g.fillText(MONTHS_LONG[+parts[1] - 1] + " " + (+parts[2]), PAD, 232);
+      g.fillStyle = accent; g.font = "800 29px " + FONT;
+      g.fillText(weekday(recap.date) + " · " + parts[0] + "  ·  " + recap.corpsCount + " corps", PAD, 274);
+      cursor = 344;
+    }
     g.fillStyle = "rgba(255,255,255,.72)"; g.font = "800 27px " + FONT;
-    g.fillText("TOP OF THE DAY" + (pod.cls ? " · " + pod.cls.toUpperCase() : ""), PAD, cursor); cursor += 20;
+    g.fillText("TOP OF THE SHOW" + (pod.cls ? " · " + pod.cls.toUpperCase() : ""), PAD, cursor); cursor += 20;
     pod.rows.slice(0, 3).forEach(function (r, i) {
       var big = i === 0, h = big ? 152 : 112, top = cursor;
       roundRect(g, PAD, top, W - PAD * 2, h, 20); g.fillStyle = "rgba(255,255,255,.09)"; g.fill();
@@ -348,7 +366,7 @@
   // A lightbox that shows one or more cards big, in the app, each with a Share
   // button. Season card, daily recaps and history all open here — one surface.
   var VIEW_CSS =
-    ".cad-ov{position:fixed;inset:0;z-index:3000;display:flex;align-items:center;justify-content:center;background:rgba(6,8,14,.74);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);padding:20px;animation:cadFade .18s ease}" +
+    ".cad-ov{position:fixed;inset:0;z-index:4200;display:flex;align-items:center;justify-content:center;background:rgba(6,8,14,.74);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);padding:20px;animation:cadFade .18s ease}" +
     "@keyframes cadFade{from{opacity:0}to{opacity:1}}" +
     ".cad-modal{position:relative;width:min(430px,100%);display:flex;flex-direction:column;align-items:center;gap:13px}" +
     ".cad-x{position:absolute;top:-4px;right:-4px;z-index:3;width:40px;height:40px;border-radius:999px;border:none;background:rgba(255,255,255,.15);color:#fff;font-size:25px;line-height:38px;cursor:pointer}" +

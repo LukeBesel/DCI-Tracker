@@ -163,6 +163,72 @@
     return result;
   }
 
+  // every scored show (event) on a given date
+  function showsForDay(evs, date) {
+    return (evs || []).filter(function (e) {
+      return e.date === date && (e.classes || []).some(function (c) { return (c.results || []).some(function (r) { return r.score != null; }); });
+    });
+  }
+
+  // a full recap for ONE show: every class's leaderboard + facts scoped to that
+  // show (biggest mover, who passed whom, closest, new highs)
+  function recapForShow(evs, ev) {
+    var hist = buildHistory(evs), date = ev.date;
+    var priorRows = function (corps) { return (hist[corps] || []).filter(function (x) { return x.date < date; }); };
+    var priorScore = function (corps) { var h = priorRows(corps); return h.length ? h[h.length - 1] : null; };
+    var priorBest = function (corps) { var h = priorRows(corps); return h.length ? Math.max.apply(null, h.map(function (x) { return x.score; })) : null; };
+
+    var classes = (ev.classes || []).map(function (c) {
+      return { cls: c.class, results: (c.results || []).filter(function (r) { return r.score != null; })
+        .slice().sort(function (a, b) { return (a.place || 99) - (b.place || 99) || b.score - a.score; }) };
+    }).filter(function (c) { return c.results.length; });
+
+    var rows = [];
+    classes.forEach(function (c) { c.results.forEach(function (r) { rows.push({ corps: r.corps, score: r.score, place: r.place, cls: c.cls }); }); });
+
+    var topScore = null;
+    rows.forEach(function (r) { if (!topScore || r.score > topScore.score) topScore = r; });
+    var movers = rows.map(function (r) {
+      var p = priorScore(r.corps);
+      return p ? { corps: r.corps, score: r.score, prev: p.score, delta: +(r.score - p.score).toFixed(3) } : null;
+    }).filter(Boolean).sort(function (a, b) { return b.delta - a.delta; });
+    var highs = rows.filter(function (r) { var pb = priorBest(r.corps); return pb != null && r.score > pb + 1e-9; })
+      .map(function (r) { return { corps: r.corps, score: r.score }; }).sort(function (a, b) { return b.score - a.score; });
+    var seenH = {}; highs = highs.filter(function (h) { if (seenH[h.corps]) return false; return (seenH[h.corps] = 1); });
+    var passed = [], pk = {};
+    classes.forEach(function (c) {
+      var rs = c.results;
+      for (var i = 0; i < rs.length; i++) for (var j = i + 1; j < rs.length; j++) {
+        var A = rs[i].corps, B = rs[j].corps, ha = priorRows(A), hb = priorRows(B), bd = {};
+        hb.forEach(function (x) { bd[x.date] = Math.max(bd[x.date] || -1, x.score); });
+        var common = ha.filter(function (x) { return bd[x.date] != null; });
+        if (!common.length) continue;
+        var last = common[common.length - 1];
+        if (bd[last.date] > last.score + 1e-9) { var key = A + "|" + B; if (pk[key]) continue; pk[key] = 1; passed.push({ a: A, b: B, cls: c.cls, worldish: /world/i.test(c.cls || "") }); }
+      }
+    });
+    passed.sort(function (a, b) { return b.worldish - a.worldish; });
+    var closest = null;
+    classes.forEach(function (c) {
+      for (var i = 1; i < c.results.length; i++) {
+        var g = +(c.results[i - 1].score - c.results[i].score).toFixed(3);
+        if (g >= 0 && (!closest || g < closest.gap)) closest = { a: c.results[i - 1].corps, b: c.results[i].corps, gap: g, cls: c.cls };
+      }
+    });
+
+    var byCls = {};
+    classes.forEach(function (c) { c.results.forEach(function (r) { (byCls[c.cls] = byCls[c.cls] || []).push({ corps: r.corps, score: r.score }); }); });
+    var clsKeys = Object.keys(byCls).sort(function (a, b) { return classRank(a) - classRank(b) || (a < b ? -1 : 1); });
+    var mcls = clsKeys[0] || "";
+    return {
+      date: date, pretty: prettyDate(date), event: ev.name, location: ev.location, url: ev.url,
+      classes: classes, corpsCount: Object.keys(rows.reduce(function (o, r) { o[r.corps] = 1; return o; }, {})).length,
+      facts: { topScore: topScore, movers: movers.slice(0, 3), highs: highs.slice(0, 6), passed: passed.slice(0, 4), closest: closest },
+      podium: { cls: mcls, rows: (byCls[mcls] || []).slice().sort(function (a, b) { return b.score - a.score; }).slice(0, 3) },
+      shows: [{ name: ev.name, location: ev.location, classes: classes }] // drawShowCard compat
+    };
+  }
+
   // ---- styles ----------------------------------------------------------------
   function injectStyles() {
     if (document.getElementById("rc-style")) return;
@@ -243,7 +309,67 @@
       // top-bar button
       "#rc-topbtn{display:inline-flex;align-items:center;justify-content:center;background:var(--surface-2);color:var(--text-primary);cursor:pointer;border:1px solid var(--border);border-radius:10px;padding:6px;line-height:0;order:2;}",
       "#rc-topbtn:hover{border-color:var(--muted);}",
-      "#rc-topbtn svg{width:20px;height:20px;display:block;}"
+      "#rc-topbtn svg{width:20px;height:20px;display:block;}",
+      // ---- rich per-show recap popup (a full in-app view) ----
+      ".sr-overlay{position:fixed;inset:0;z-index:3600;display:flex;align-items:center;justify-content:center;padding:16px;}",
+      ".sr-backdrop{position:absolute;inset:0;background:rgba(6,10,18,.66);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);}",
+      ".sr-card{position:relative;z-index:3;width:100%;max-width:470px;max-height:94vh;display:flex;flex-direction:column;background:var(--surface-1);color:var(--text-primary);border:1px solid var(--border);border-radius:22px;box-shadow:0 26px 74px rgba(6,10,18,.6);overflow:hidden;}",
+      ".sr-card.sr-in{animation:sr-pop .28s cubic-bezier(.2,.9,.3,1.15) both;}",
+      "@keyframes sr-pop{from{opacity:0;transform:translateY(14px) scale(.975);}to{opacity:1;transform:none;}}",
+      "@media (prefers-reduced-motion: reduce){.sr-card.sr-in{animation:none;}}",
+      // hero header in the winner's corps colors
+      ".sr-hero{position:relative;flex:0 0 auto;padding:16px 18px 17px;color:#fff;background:linear-gradient(158deg,var(--sr-bar1,#123a5e),var(--sr-bar2,#0a1420));}",
+      ".sr-hero::after{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(120% 100% at 90% -20%,var(--sr-glow,rgba(240,180,41,.4)),transparent 60%);}",
+      ".sr-hero>*{position:relative;}",
+      ".sr-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;min-height:30px;}",
+      ".sr-count{font-size:12px;font-weight:800;letter-spacing:1px;color:rgba(255,255,255,.82);background:rgba(255,255,255,.14);padding:4px 10px;border-radius:999px;}",
+      ".sr-topbtns{display:flex;align-items:center;gap:8px;}",
+      ".sr-closeall{font:inherit;font-size:12.5px;font-weight:700;color:#fff;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);border-radius:999px;padding:5px 12px;cursor:pointer;}",
+      ".sr-closeall:hover{background:rgba(255,255,255,.24);}",
+      ".sr-x{width:34px;height:34px;border:0;border-radius:50%;background:rgba(255,255,255,.16);color:#fff;font-size:21px;line-height:1;cursor:pointer;display:grid;place-items:center;}",
+      ".sr-x:hover{background:rgba(255,255,255,.28);}",
+      ".sr-eyebrow{font-size:11px;font-weight:800;letter-spacing:1.6px;text-transform:uppercase;color:var(--sr-acc);filter:brightness(1.25) saturate(1.1);}",
+      ".sr-title{font-size:24px;line-height:1.08;font-weight:900;letter-spacing:-.4px;margin:5px 0 0;color:#fff;}",
+      ".sr-sub{font-size:12.5px;color:rgba(255,255,255,.8);margin-top:5px;}",
+      // scroll body
+      ".sr-body{padding:14px 16px 8px;overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1 1 auto;}",
+      ".sr-cls{margin-bottom:12px;border:1px solid var(--border);border-radius:12px;overflow:hidden;}",
+      // podium + facts reuse the rc-* look; leaderboard rows compact
+      ".rc-sech{font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin:14px 2px 8px;}",
+      ".rc-sechcls{color:var(--gold);}",
+      ".rc-podium{display:flex;flex-direction:column;gap:8px;}",
+      ".rc-pod{display:flex;align-items:center;gap:12px;padding:10px 13px;border-radius:13px;background:var(--surface-2);border:1px solid var(--border);border-left:5px solid var(--rc-accent,var(--gold));}",
+      ".rc-pod.first{padding:14px 13px;}",
+      ".rc-medal{font-size:21px;line-height:1;flex:0 0 auto;}",
+      ".rc-pod.first .rc-medal{font-size:28px;}",
+      ".rc-pod-main{flex:1;min-width:0;}",
+      ".rc-pod-corps{font-weight:800;font-size:14.5px;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}",
+      ".rc-pod.first .rc-pod-corps{font-size:17.5px;}",
+      ".rc-pod-score{flex:0 0 auto;font-weight:900;font-variant-numeric:tabular-nums;font-size:18px;color:var(--text-primary);}",
+      ".rc-pod.first .rc-pod-score{font-size:23px;}",
+      ".rc-facts{display:flex;flex-direction:column;gap:8px;}",
+      ".rc-fact{display:flex;gap:11px;align-items:flex-start;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:10px 13px;}",
+      ".rc-fico{font-size:19px;line-height:1.2;flex:0 0 auto;}",
+      ".rc-ftk{font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);margin-bottom:2px;}",
+      ".rc-ft{font-size:14px;line-height:1.4;color:var(--text-primary);}",
+      ".rc-ft b{font-weight:800;}",
+      ".rc-ft .rc-num{font-variant-numeric:tabular-nums;font-weight:800;}",
+      ".rc-ft .rc-up{color:var(--good);font-weight:800;}",
+      ".rc-clsh{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);background:var(--surface-2);padding:8px 13px;}",
+      ".rc-row{display:flex;align-items:center;gap:10px;padding:7px 13px;font-size:13.5px;}",
+      ".rc-row+.rc-row{border-top:1px solid var(--border);}",
+      ".rc-pl{flex:0 0 22px;text-align:center;font-weight:800;color:var(--muted);font-variant-numeric:tabular-nums;}",
+      ".rc-medcol{flex:0 0 22px;text-align:center;}",
+      ".rc-cn{flex:1;color:var(--text-primary);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}",
+      ".rc-sc{flex:0 0 auto;font-weight:800;font-variant-numeric:tabular-nums;color:var(--text-primary);}",
+      ".rc-dot{flex:0 0 auto;width:9px;height:9px;border-radius:50%;}",
+      // sticky action bar
+      ".sr-actions{flex:0 0 auto;display:flex;gap:10px;padding:12px 16px;border-top:1px solid var(--border);background:var(--surface-1);}",
+      ".sr-share{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:7px;font:inherit;font-size:14.5px;font-weight:800;cursor:pointer;border:0;border-radius:999px;padding:12px 16px;background:var(--gold);color:#16233d;}",
+      ".sr-share svg{width:16px;height:16px;}",
+      ".sr-share:hover{filter:brightness(1.04);}",
+      ".sr-next{flex:0 0 auto;font:inherit;font-size:14.5px;font-weight:800;cursor:pointer;border:1px solid var(--border);border-radius:999px;padding:12px 20px;background:var(--surface-2);color:var(--text-primary);}",
+      ".sr-next:hover{border-color:var(--muted);}"
     ].join("\n");
     var st = document.createElement("style"); st.id = "rc-style"; st.textContent = css; document.head.appendChild(st);
   }
@@ -297,24 +423,172 @@
     return { cls: cls, rows: byCls[cls].slice().sort(function (a, b) { return b.score - a.score; }).slice(0, 3) };
   }
 
-  // ---- render: recaps as shareable "wrapped" cards ---------------------------
-  // Recaps render as image cards in the shared CadWrapped viewer — the same
-  // surface as the season card — so there's one consistent report-out.
-  function recapCard(recap) {
-    return {
-      canvas: window.CadWrapped.drawShowCard(recap),
-      filename: "cadence-recap-" + recap.date + ".png",
-      title: "DCI recap · " + recap.pretty, caption: recap.pretty
-    };
+  // corps accent from the app's shared palette; neutral gold fallback
+  function accent(corps) {
+    try { if (window.CadCorps && window.CadCorps.accent) return window.CadCorps.accent(corps); } catch (e) {}
+    return "var(--gold)";
   }
-  // open one or more show days as a swipeable deck; `extras` (e.g. the
-  // this-day-in-history card) ride at the end
-  function openDeck(recaps, extras) {
-    if (!window.CadWrapped || !window.CadWrapped.openViewer) return;
-    var cards = recaps.filter(Boolean).map(recapCard).concat(extras || []);
-    if (cards.length) window.CadWrapped.openViewer(cards);
+  function corpsVars(corps) {
+    try { if (window.CadCorps && window.CadCorps.vars) return window.CadCorps.vars(corps); } catch (e) {}
+    return { bar: "#0a3f6b", accent: "#f0b429" };
   }
-  function openRecap(recap) { openDeck([recap]); }
+  function hx(s) { s = String(s || "").replace("#", ""); if (s.length === 3) s = s.split("").map(function (c) { return c + c; }).join(""); var n = parseInt(s, 16) || 0; return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+  function mix(a, b, t) { return a.map(function (c, i) { return Math.round(c * (1 - t) + b[i] * t); }); }
+  function rgbs(a) { return "rgb(" + a.map(function (c) { return Math.max(0, Math.min(255, c)); }).join(",") + ")"; }
+  function rgbaOf(hex, al) { var c = hx(hex); return "rgba(" + c[0] + "," + c[1] + "," + c[2] + "," + al + ")"; }
+
+  // ---- render: rich per-show recap (a full in-app view, not an image) --------
+  var MEDALS = ["🥇", "🥈", "🥉"];
+  function factsHtml(f) {
+    var out = [];
+    (f.passed || []).slice(0, 3).forEach(function (p) {
+      out.push(fact("↗", "Moved ahead", "<b>" + esc(p.a) + "</b> passed <b>" + esc(p.b) + "</b>", p.cls));
+    });
+    (f.movers || []).filter(function (m) { return m.delta > 0.001; }).slice(0, 2).forEach(function (m) {
+      out.push(fact("📈", "Biggest jump", "<b>" + esc(m.corps) + "</b> <span class='rc-up'>" + signed(m.delta) + "</span> — " + fmt(m.prev) + " → <span class='rc-num'>" + fmt(m.score) + "</span>", ""));
+    });
+    if ((f.highs || []).length) out.push(fact("🔥", "New season high" + (f.highs.length > 1 ? "s" : ""),
+      f.highs.slice(0, 4).map(function (h) { return "<b>" + esc(h.corps) + "</b> <span class='rc-num'>" + fmt(h.score) + "</span>"; }).join(" · "), ""));
+    if (f.closest) out.push(fact("🤏", "Closest finish",
+      "<b>" + esc(f.closest.a) + "</b> over <b>" + esc(f.closest.b) + "</b> by <span class='rc-num'>" + fmt(f.closest.gap) + "</span>", f.closest.cls));
+    return out.length ? '<div class="rc-facts">' + out.join("") + "</div>" : "";
+  }
+  function fact(ico, key, txt, cls) {
+    return '<div class="rc-fact"><div class="rc-fico">' + ico + '</div><div style="min-width:0"><div class="rc-ftk">' + esc(key) + (cls ? " · " + esc(cls) : "") + '</div><div class="rc-ft">' + txt + "</div></div></div>";
+  }
+  function podiumHtml(recap) {
+    var top = recap.podium;
+    if (!top || !top.rows.length) return "";
+    var pods = top.rows.map(function (r, i) {
+      return '<div class="rc-pod' + (i === 0 ? " first" : "") + '" style="--rc-accent:' + accent(r.corps) + '">' +
+        '<div class="rc-medal">' + MEDALS[i] + "</div>" +
+        '<div class="rc-pod-main"><div class="rc-pod-corps">' + esc(r.corps) + "</div></div>" +
+        '<div class="rc-pod-score">' + fmt(r.score) + "</div></div>";
+    }).join("");
+    return '<div class="rc-sech">Top of the show' + (top.cls ? ' · <span class="rc-sechcls">' + esc(top.cls) + "</span>" : "") + "</div>" +
+      '<div class="rc-podium">' + pods + "</div>";
+  }
+  function leaderboardHtml(recap) {
+    return recap.classes.map(function (c) {
+      var rows = c.results.map(function (r) {
+        var pl = r.place >= 1 && r.place <= 3 ? '<span class="rc-medcol">' + MEDALS[r.place - 1] + "</span>" : '<span class="rc-pl">' + (r.place || "") + "</span>";
+        return '<div class="rc-row">' + pl +
+          '<span class="rc-dot" style="background:' + accent(r.corps) + '"></span>' +
+          '<span class="rc-cn">' + esc(r.corps) + '</span><span class="rc-sc">' + fmt(r.score) + "</span></div>";
+      }).join("");
+      return '<div class="rc-cls"><div class="rc-clsh">' + esc(c.cls) + " · " + c.results.length + " corps</div>" + rows + "</div>";
+    }).join("");
+  }
+  function renderShowRecap(recap, idx, total) {
+    var v = corpsVars((recap.podium && recap.podium.rows[0] && recap.podium.rows[0].corps) || "");
+    var multi = total > 1;
+    var loc = recap.location ? esc(recap.location) + " · " : "";
+    var bar = hx(v.bar);
+    var heroVars = "--sr-bar1:" + rgbs(mix(bar, [255, 255, 255], .05)) +
+      ";--sr-bar2:" + rgbs(mix(bar, [6, 7, 10], .55)) +
+      ";--sr-glow:" + rgbaOf(v.accent, .4) + ";--sr-acc:" + v.accent;
+    return '<div class="sr-hero" style="' + heroVars + '">' +
+      '<div class="sr-top">' +
+        (multi ? '<span class="sr-count">' + (idx + 1) + " / " + total + "</span>" : "<span></span>") +
+        '<div class="sr-topbtns">' +
+          (multi ? '<button class="sr-closeall" type="button">Close all</button>' : "") +
+          '<button class="sr-x" type="button" aria-label="' + (multi ? "Next" : "Close") + '">×</button>' +
+        "</div>" +
+      "</div>" +
+      '<div class="sr-eyebrow">Show recap · ' + esc(shortDate(recap.date)) + "</div>" +
+      '<h2 class="sr-title">' + esc(recap.event) + "</h2>" +
+      '<div class="sr-sub">' + loc + recap.corpsCount + " corps · " + recap.classes.length + " class" + (recap.classes.length === 1 ? "" : "es") + "</div>" +
+      "</div>" +
+      '<div class="sr-body">' +
+        podiumHtml(recap) +
+        (factsHtml(recap.facts) ? '<div class="rc-sech">Highlights</div>' + factsHtml(recap.facts) : "") +
+        '<div class="rc-sech">Full results</div>' + leaderboardHtml(recap) +
+      "</div>" +
+      '<div class="sr-actions">' +
+        '<button class="sr-share" type="button">' + SHARE_SVG + " Share image</button>" +
+        (multi ? '<button class="sr-next" type="button">Next ›</button>' : "") +
+      "</div>";
+  }
+
+  // swipeable stack of rich show-recap popups
+  var stackList = [], stackIdx = 0, srOverlay = null;
+  var SHARE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M8 7l4-4 4 4M4 13v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6"/></svg>';
+  function closeStack() {
+    if (srOverlay) { srOverlay.remove(); srOverlay = null; }
+    document.removeEventListener("keydown", onStackKey, true);
+    stackList = [];
+  }
+  function onStackKey(e) {
+    if (!srOverlay) return;
+    if (e.key === "Escape") { e.preventDefault(); advance(); }
+    else if (e.key === "ArrowRight") advance();
+  }
+  function advance() { // dismiss current → next, or close when done
+    stackIdx++;
+    if (stackIdx >= stackList.length) { closeStack(); return; }
+    paintStack(true);
+  }
+  function shareCurrent() {
+    var recap = stackList[stackIdx];
+    if (!window.CadWrapped || !window.CadWrapped.drawShowCard) return;
+    var cv = window.CadWrapped.drawShowCard(recap);
+    window.CadWrapped.openViewer([{ canvas: cv, filename: "cadence-recap-" + recap.date + ".png",
+      title: "DCI recap · " + recap.event, caption: recap.event + " · " + shortDate(recap.date) }]);
+  }
+  function paintStack(slide) {
+    var card = srOverlay.querySelector(".sr-card");
+    card.innerHTML = renderShowRecap(stackList[stackIdx], stackIdx, stackList.length);
+    card.scrollTop = 0;
+    if (slide) { card.classList.remove("sr-in"); void card.offsetWidth; card.classList.add("sr-in"); }
+    card.querySelector(".sr-x").addEventListener("click", advance);
+    var ca = card.querySelector(".sr-closeall"); if (ca) ca.addEventListener("click", closeStack);
+    var nx = card.querySelector(".sr-next"); if (nx) nx.addEventListener("click", advance);
+    card.querySelector(".sr-share").addEventListener("click", shareCurrent);
+    wireSwipe(card);
+  }
+  function wireSwipe(card) {
+    var sx = 0, sy = 0, drag = false, decided = false, horiz = false;
+    var body = card.querySelector(".sr-body");
+    card.addEventListener("touchstart", function (e) {
+      var t = e.touches[0]; sx = t.clientX; sy = t.clientY; drag = true; decided = false; horiz = false;
+    }, { passive: true });
+    card.addEventListener("touchmove", function (e) {
+      if (!drag) return;
+      var t = e.touches[0], dx = t.clientX - sx, dy = t.clientY - sy;
+      if (!decided) { decided = Math.abs(dx) > 8 || Math.abs(dy) > 8; horiz = Math.abs(dx) > Math.abs(dy) + 4; }
+      if (decided && horiz) { card.style.transform = "translateX(" + dx + "px) rotate(" + (dx / 40) + "deg)"; card.style.opacity = String(Math.max(0.4, 1 - Math.abs(dx) / 420)); }
+    }, { passive: true });
+    card.addEventListener("touchend", function (e) {
+      if (!drag) return; drag = false;
+      var dx = e.changedTouches[0].clientX - sx;
+      if (horiz && Math.abs(dx) > 90) {
+        card.style.transition = "transform .22s ease, opacity .22s ease";
+        card.style.transform = "translateX(" + (dx < 0 ? -600 : 600) + "px) rotate(" + (dx < 0 ? -12 : 12) + "deg)"; card.style.opacity = "0";
+        setTimeout(function () { card.style.transition = ""; card.style.transform = ""; card.style.opacity = ""; advance(); }, 200);
+      } else { card.style.transition = "transform .2s ease, opacity .2s ease"; card.style.transform = ""; card.style.opacity = ""; setTimeout(function () { card.style.transition = ""; }, 200); }
+    }, { passive: true });
+  }
+  function openStack(recaps) {
+    recaps = (recaps || []).filter(Boolean);
+    if (!recaps.length) return;
+    injectStyles();
+    // these popups take priority over Championship Mode: dismiss it and keep it
+    // from re-popping this session
+    var cm = document.querySelector(".cm-overlay"); if (cm) cm.remove();
+    try { sessionStorage.setItem("cad-cm-session", "1"); } catch (e) {}
+    if (srOverlay) closeStack();
+    stackList = recaps; stackIdx = 0;
+    srOverlay = document.createElement("div");
+    srOverlay.className = "sr-overlay";
+    srOverlay.setAttribute("role", "dialog"); srOverlay.setAttribute("aria-modal", "true"); srOverlay.setAttribute("aria-label", "Show recap");
+    srOverlay.innerHTML = '<div class="sr-backdrop"></div><div class="sr-card sr-in"></div>';
+    srOverlay.querySelector(".sr-backdrop").addEventListener("click", closeStack);
+    document.body.appendChild(srOverlay);
+    document.addEventListener("keydown", onStackKey, true);
+    paintStack(false);
+  }
+  // one show → its own single-card stack
+  function openRecap(recap) { openStack([recap]); }
 
   // ---- render: browser -------------------------------------------------------
   var browseState = { year: null, q: "", cls: "" };
@@ -391,7 +665,9 @@
       }).join("");
       list.innerHTML = rows || '<p class="rc-empty">No show days match.</p>';
       Array.prototype.forEach.call(list.querySelectorAll(".rc-day"), function (b) {
-        b.addEventListener("click", function () { openRecap(recapForDate(evs, b.dataset.d), { back: true }); });
+        b.addEventListener("click", function () {
+          openStack(showsForDay(evs, b.dataset.d).map(function (ev) { return recapForShow(evs, ev); }));
+        });
       });
     });
   }
@@ -413,46 +689,31 @@
     if (d === today && hourET() < SCORES_IN_HOUR) return false;
     return true;
   }
-  // the show days you missed: newest-first, eligible, and unseen — stop at the
-  // first already-seen day (older ones were seen too). Capped so the deck stays
-  // digestible.
-  function missedDays(evs, cap) {
+  // the individual SHOWS you missed: newest-first, eligible, unseen. Tracked
+  // per show (date + event) so each show you haven't caught up on appears once.
+  function seenKey(ev) { return "cad-rc-show-" + ev.date + "|" + (ev.name || ""); }
+  function missedShows(evs, cap) {
     var days = scoredShowDays(evs), out = [];
-    for (var i = days.length - 1; i >= 0 && out.length < (cap || 4); i--) {
+    for (var i = days.length - 1; i >= 0 && out.length < (cap || 6); i--) {
       var d = days[i];
       if (!eligible(d)) continue;
-      if (lget("cad-rc-seen-" + d)) break;
-      out.push(d);
+      var shows = showsForDay(evs, d);
+      var unseen = shows.filter(function (ev) { return !lget(seenKey(ev)); });
+      if (!unseen.length) break;                    // caught up through here
+      unseen.forEach(function (ev) { if (out.length < (cap || 6)) out.push(ev); });
     }
     return out; // newest first
   }
-  function monthDayLabel(iso) {
-    try { return new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "long", day: "numeric" }).format(new Date(iso + "T12:00:00Z")); }
-    catch (e) { return iso.slice(5); }
-  }
-  // build the auto-open deck: missed show-day cards + the this-day-in-history
-  // card, then open the shared viewer
-  function openAutoDeck(evs, days) {
-    var recaps = days.map(function (d) { return recapForDate(evs, d); });
-    var mmdd = todayET().slice(5), label = monthDayLabel(todayET());
-    var hc = window.CadWrapped && window.CadWrapped.historyCard
-      ? window.CadWrapped.historyCard(mmdd, label) : Promise.resolve(null);
-    hc.then(function (card) { openDeck(recaps, card ? [card] : []); },
-      function () { openDeck(recaps, []); });
-  }
   function maybeAutoShow() {
-    // don't stack on top of Championship Mode / the tribute
-    if (document.querySelector(".cm-overlay")) return;
     try { if (sessionStorage.getItem("cad-rc-session")) return; } catch (e) {}
     var year = +todayET().slice(0, 4);
     loadYear(year).then(function (evs) {
       if (!evs) return;
-      var days = missedDays(evs, 4);
-      if (!days.length) return;                     // nothing new to catch up on
-      if (document.querySelector(".cm-overlay")) return;
+      var shows = missedShows(evs, 6);
+      if (!shows.length) return;                    // nothing new to catch up on
       try { sessionStorage.setItem("cad-rc-session", "1"); } catch (e) {}
-      days.forEach(function (d) { lset("cad-rc-seen-" + d, "1"); });
-      openAutoDeck(evs, days);
+      shows.forEach(function (ev) { lset(seenKey(ev), "1"); });
+      openStack(shows.map(function (ev) { return recapForShow(evs, ev); }));
     });
   }
   function injectButton() {
@@ -461,7 +722,7 @@
     injectStyles();
     var btn = document.createElement("button");
     btn.id = "rc-topbtn"; btn.type = "button";
-    btn.title = "Daily recaps"; btn.setAttribute("aria-label", "Open daily recaps");
+    btn.title = "Show recaps"; btn.setAttribute("aria-label", "Open show recaps");
     btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="2.5"/><path d="M3 9h18M8 2.5v4M16 2.5v4"/><path d="M7.5 13.5l2 2 3.5-4"/></svg>';
     var gear = document.getElementById("settingsBtn");
     if (gear) bar.insertBefore(btn, gear); else bar.appendChild(btn);
@@ -470,7 +731,7 @@
 
   function init() {
     try { injectButton(); } catch (e) {}
-    // let Championship Mode open first so the recap defers to it
+    // recaps take priority over Championship Mode, so show them right away
     setTimeout(function () { try { maybeAutoShow(); } catch (e) {} }, 0);
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
@@ -478,7 +739,13 @@
 
   window.CadRecap = {
     open: openBrowser,
-    show: function (year, date) { loadYear(year || +todayET().slice(0, 4)).then(function (evs) { if (evs) openRecap(recapForDate(evs, date || latestEligibleDay(evs)), { browseBtn: true }); }); },
-    forDate: recapForDate, close: close
+    show: function (year, date) {
+      loadYear(year || +todayET().slice(0, 4)).then(function (evs) {
+        if (!evs) return;
+        var d = date || latestEligibleDay(evs);
+        if (d) openStack(showsForDay(evs, d).map(function (ev) { return recapForShow(evs, ev); }));
+      });
+    },
+    forShow: recapForShow, forDate: recapForDate, close: closeStack
   };
 })();
