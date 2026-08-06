@@ -36,47 +36,47 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]), :root:not([data-theme="light"]) .viz-root {
-  --page: #16203a;
-  --surface-1: #1f2b49;
-  --surface-2: #293659;
-  --text-primary: #eaeef7;
-  --text-secondary: #bec8da;
-  --muted: #929db3;
-  --grid: #2e3c60;
-  --baseline: #49597f;
-  --border: #364568;
-  --navy: #0a3253;
-  --accent-wash: rgba(240,180,41,0.12);
-  --ch-grid: #2e3c60;
-  --ch-base: #49597f;
-  --ch-label: #929db3;
-  --ch-ink: #e2e8f4;
-  --ch-halo: #1f2b49;
-  --ch-cross: #5f6d8f;
-  --link: #f0b429;
-  --heading: #e8ecf5;
+  --page: #12161d;
+  --surface-1: #1b212b;
+  --surface-2: #262e3a;
+  --text-primary: #edf1f6;
+  --text-secondary: #c0c9d5;
+  --muted: #8b95a4;
+  --grid: #2a323f;
+  --baseline: #46505f;
+  --border: #333c49;
+  --navy: #0d2c48;
+  --accent-wash: rgba(240,180,41,0.14);
+  --ch-grid: #262d39;
+  --ch-base: #46505f;
+  --ch-label: #8b95a4;
+  --ch-ink: #e3e8f1;
+  --ch-halo: #1b212b;
+  --ch-cross: #5d6b80;
+  --link: #f5c24a;
+  --heading: #edf1f6;
   }
 }
 :root[data-theme="dark"], :root[data-theme="dark"] .viz-root {
-  --page: #16203a;
-  --surface-1: #1f2b49;
-  --surface-2: #293659;
-  --text-primary: #eaeef7;
-  --text-secondary: #bec8da;
-  --muted: #929db3;
-  --grid: #2e3c60;
-  --baseline: #49597f;
-  --border: #364568;
-  --navy: #0a3253;
-  --accent-wash: rgba(240,180,41,0.12);
-  --ch-grid: #2e3c60;
-  --ch-base: #49597f;
-  --ch-label: #929db3;
-  --ch-ink: #e2e8f4;
-  --ch-halo: #1f2b49;
-  --ch-cross: #5f6d8f;
-  --link: #f0b429;
-  --heading: #e8ecf5;
+  --page: #12161d;
+  --surface-1: #1b212b;
+  --surface-2: #262e3a;
+  --text-primary: #edf1f6;
+  --text-secondary: #c0c9d5;
+  --muted: #8b95a4;
+  --grid: #2a323f;
+  --baseline: #46505f;
+  --border: #333c49;
+  --navy: #0d2c48;
+  --accent-wash: rgba(240,180,41,0.14);
+  --ch-grid: #262d39;
+  --ch-base: #46505f;
+  --ch-label: #8b95a4;
+  --ch-ink: #e3e8f1;
+  --ch-halo: #1b212b;
+  --ch-cross: #5d6b80;
+  --link: #f5c24a;
+  --heading: #edf1f6;
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: rgba(240,180,41,0.25); }
