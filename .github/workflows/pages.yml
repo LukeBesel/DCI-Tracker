@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths: ["docs/**"]
   workflow_dispatch: {}
+  # Retained for infrequent backfill/history jobs. The frequent data updater
+  # dispatches this workflow asynchronously so Pages cannot hold its lock.
   workflow_call: {}
 
 permissions:
