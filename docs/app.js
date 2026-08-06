@@ -1241,7 +1241,7 @@
       const favLabel = () => FAVS.has(detail.name)
         ? "★ Favorited"
         : "☆ Add to favorites";
-      pt.innerHTML = `${corpsLogo(detail.name, 34, prof && prof.img)}${esc(detail.name)} <button id="corpFav" class="favtoggle${FAVS.has(detail.name) ? " on" : ""}">${favLabel()}</button> <button id="corpShare" class="favtoggle" title="Share this corps">${SHARE_SVG} Share</button>`;
+      pt.innerHTML = `${corpsLogo(detail.name, 34, prof && prof.img)}${esc(detail.name)} <button id="corpFav" class="favtoggle${FAVS.has(detail.name) ? " on" : ""}">${favLabel()}</button> <button id="corpShare" class="favtoggle" title="Share this corps">${SHARE_SVG} Share</button> <button id="corpCard" class="favtoggle" title="Share a season card image">🖼️ Season card</button>`;
       const fb = document.getElementById("corpFav");
       fb.onclick = () => {
         FAVS.toggle(detail.name);
@@ -1249,6 +1249,14 @@
         fb.textContent = favLabel();
       };
       wireShare("corpShare", `${detail.name} · Cadence`);
+      const cardBtn = document.getElementById("corpCard");
+      if (cardBtn) cardBtn.onclick = async () => {
+        if (!window.CadWrapped) return;
+        const sel = selYears(), yr = sel.length === 1 ? sel[0] : years[years.length - 1];
+        const orig = cardBtn.innerHTML; cardBtn.innerHTML = "Creating…"; cardBtn.disabled = true;
+        try { await window.CadWrapped.seasonCard(detail.name, yr); } catch (e) {}
+        cardBtn.innerHTML = orig; cardBtn.disabled = false;
+      };
     }
     // profile card: who this corps is, straight from Wikipedia
     const factRow = (label, v) => v ? `<span><b>${label}</b> ${esc(v)}</span>` : "";
