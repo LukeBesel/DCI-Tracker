@@ -598,9 +598,13 @@
     recaps = (recaps || []).filter(Boolean);
     if (!recaps.length) return;
     injectStyles();
-    // these popups take priority over Championship Mode: dismiss it and keep it
-    // from re-popping this session
-    var cm = document.querySelector(".cm-overlay"); if (cm) cm.remove();
+    // these popups take priority over Championship Mode: close it cleanly (this
+    // also stops its confetti + cancels its pending reveal) and keep it from
+    // re-popping this session
+    try {
+      if (window.CadChamp && window.CadChamp.close) window.CadChamp.close();
+      else { var cm = document.querySelector(".cm-overlay"); if (cm) cm.remove(); }
+    } catch (e) { var c2 = document.querySelector(".cm-overlay"); if (c2) c2.remove(); }
     try { sessionStorage.setItem("cad-cm-session", "1"); } catch (e) {}
     if (srOverlay) closeStack();
     stackList = recaps; stackIdx = 0;
