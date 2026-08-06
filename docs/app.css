@@ -256,9 +256,10 @@ th[data-sort] { cursor: pointer; user-select: none; }
 .subtabs a:hover { text-decoration: none; color: var(--text-primary); }
 .subtabs a.on { background: var(--navy); border-color: var(--navy); color: #fff; }
 @media (max-width: 640px) {
-  .subtabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-left: -12px; margin-right: -12px; padding: 0 12px; }
-  .subtabs::-webkit-scrollbar { display: none; }
-  .subtabs a { white-space: nowrap; }
+  /* all sub-tabs visible at once (3 per row, centered) instead of a
+     horizontal scroll that cut off the ends */
+  .subtabs { justify-content: center; gap: 6px; margin: 2px 0 14px; }
+  .subtabs a { flex: 0 1 calc(33.333% - 4px); padding: 10px 6px; font-size: 13.5px; text-align: center; white-space: nowrap; }
 }
 
 /* filters/tabs */
