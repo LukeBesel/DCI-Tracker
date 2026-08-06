@@ -262,11 +262,11 @@ window.CadAsk = (function () {
 </script>
 <!-- Temporary DCI World Championships "Championship Mode" (Aug 6–8, 2026). Self-contained; remove champ.js + this tag + its SW cache entry to retire. -->
 <script src="champ.js"></script>
-<!-- Daily Recaps — nightly show-day summaries + a browsable archive. Self-contained. -->
+<!-- Shareable "Wrapped" image cards — season cards, daily recaps & this-day-in-history. Self-contained. Must load before recap.js. -->
+<script src="wrapped.js"></script>
+<!-- Daily Recaps — nightly show-day card deck + a browsable archive. Renders via wrapped.js. Self-contained. -->
 <script src="recap.js"></script>
 <!-- Hidden "Keep the Beat" mini-game (tap the logo 3× fast). Self-contained. -->
 <script src="arcade.js"></script>
-<!-- Shareable "Wrapped" image cards (season card, etc.). Self-contained. -->
-<script src="wrapped.js"></script>
 </body>
 </html>

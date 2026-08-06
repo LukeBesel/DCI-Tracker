@@ -187,6 +187,142 @@
     return cv;
   }
 
+  // ---- shared card helpers ---------------------------------------------------
+  var MONTHS_LONG = ["January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"];
+  function newCanvas() { var cv = document.createElement("canvas"); cv.width = 1080; cv.height = 1350; return cv; }
+  function fmt3(n) { return n == null ? "—" : (Math.round(n * 1000) / 1000).toFixed(3); }
+  function signed3(n) { return (n > 0 ? "+" : "") + (Math.round(n * 1000) / 1000).toFixed(3); }
+  function accentOf(corps) { try { if (window.CadCorps && window.CadCorps.accent) return window.CadCorps.accent(corps); } catch (e) {} return pair(corps).accent; }
+  function weekday(iso) { try { return new Intl.DateTimeFormat("en-US", { timeZone: "UTC", weekday: "long" }).format(new Date(iso + "T12:00:00Z")); } catch (e) { return ""; } }
+  function ellip(g, text, max) { text = String(text == null ? "" : text); if (g.measureText(text).width <= max) return text; var t = text; while (t.length > 1 && g.measureText(t + "…").width > max) t = t.slice(0, -1); return t + "…"; }
+  function rankBadge(g, cx, cy, r, n, col) {
+    g.beginPath(); g.arc(cx, cy, r, 0, 6.2832); g.fillStyle = col; g.fill();
+    g.fillStyle = "#15130f"; g.font = "900 " + Math.round(r * 1.05) + "px " + FONT;
+    g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(String(n), cx, cy + 1);
+    g.textAlign = "left"; g.textBaseline = "alphabetic";
+  }
+  var METALS = ["#f4c542", "#cfd4dc", "#d79a63"];
+
+  // ---- daily recap card ------------------------------------------------------
+  // recap: the object CadRecap.forDate() returns, with .podium {cls, rows}
+  function drawShowCard(recap) {
+    var W = 1080, H = 1350, cv = newCanvas(), g = cv.getContext("2d");
+    var pod = recap.podium || { cls: "", rows: [] }, winner = pod.rows[0];
+    var p = winner ? pair(winner.corps) : { bar: "#0a3f6b", accent: "#f0b429" };
+    var bar = p.bar, accent = p.accent, PAD = 84;
+    var grad = g.createLinearGradient(0, 0, 0, H); grad.addColorStop(0, shade(bar, 0.06)); grad.addColorStop(1, shade(bar, -0.5));
+    g.fillStyle = grad; g.fillRect(0, 0, W, H);
+    var rg = g.createRadialGradient(W * 0.85, H * 0.08, 0, W * 0.85, H * 0.08, W * 0.92);
+    rg.addColorStop(0, hexA(accent, 0.28)); rg.addColorStop(1, hexA(accent, 0)); g.fillStyle = rg; g.fillRect(0, 0, W, H);
+
+    g.textBaseline = "alphabetic";
+    g.fillStyle = accent; g.font = "800 30px " + FONT; g.fillText("C A D E N C E", PAD, 118);
+    g.fillStyle = "rgba(255,255,255,.6)"; g.textAlign = "right"; g.fillText("DAILY RECAP", W - PAD, 118); g.textAlign = "left";
+
+    var parts = recap.date.split("-");
+    g.fillStyle = "#fff"; g.font = "900 66px " + FONT; g.fillText(MONTHS_LONG[+parts[1] - 1] + " " + (+parts[2]), PAD, 232);
+    g.fillStyle = accent; g.font = "800 29px " + FONT;
+    g.fillText(weekday(recap.date) + " · " + parts[0] + "  ·  " + recap.shows.length + " show" + (recap.shows.length === 1 ? "" : "s") + " · " + recap.corpsCount + " corps", PAD, 274);
+
+    var cursor = 344;
+    g.fillStyle = "rgba(255,255,255,.72)"; g.font = "800 27px " + FONT;
+    g.fillText("TOP OF THE DAY" + (pod.cls ? " · " + pod.cls.toUpperCase() : ""), PAD, cursor); cursor += 20;
+    pod.rows.slice(0, 3).forEach(function (r, i) {
+      var big = i === 0, h = big ? 152 : 112, top = cursor;
+      roundRect(g, PAD, top, W - PAD * 2, h, 20); g.fillStyle = "rgba(255,255,255,.09)"; g.fill();
+      roundRect(g, PAD, top, 12, h, 6); g.fillStyle = accentOf(r.corps); g.fill();
+      var br = big ? 34 : 27; rankBadge(g, PAD + 40 + br, top + h / 2, br, i + 1, METALS[i]);
+      var nameX = PAD + 40 + br * 2 + 24;
+      g.fillStyle = "#fff"; g.textBaseline = "middle"; g.textAlign = "right";
+      g.font = (big ? "900 50px " : "800 42px ") + FONT; g.fillText(fmt3(r.score), W - PAD - 30, top + h / 2);
+      g.textAlign = "left"; g.font = (big ? "900 46px " : "800 36px ") + FONT;
+      g.fillText(ellip(g, r.corps, W - PAD - 30 - 180 - nameX), nameX, top + h / 2);
+      g.textBaseline = "alphabetic";
+      cursor += h + 14;
+    });
+
+    // highlights
+    var f = recap.facts || {}, facts = [];
+    (f.passed || []).slice(0, 1).forEach(function (pp) { facts.push([accentOf(pp.a), "MOVED AHEAD", pp.a + " passed " + pp.b]); });
+    (f.movers || []).filter(function (m) { return m.delta > 0.001; }).slice(0, 1).forEach(function (m) { facts.push([accentOf(m.corps), "BIGGEST JUMP", m.corps + "  " + signed3(m.delta)]); });
+    if (f.closest) facts.push([accent, "CLOSEST", f.closest.a + " over " + f.closest.b + " by " + fmt3(f.closest.gap)]);
+    if ((f.highs || []).length && facts.length < 3) facts.push([accentOf(f.highs[0].corps), "SEASON HIGH", f.highs[0].corps + "  " + fmt3(f.highs[0].score)]);
+    if (facts.length) {
+      cursor += 14;
+      g.fillStyle = "rgba(255,255,255,.72)"; g.font = "800 27px " + FONT; g.fillText("HIGHLIGHTS", PAD, cursor); cursor += 16;
+      facts.slice(0, 3).forEach(function (ft) {
+        if (cursor > H - 150) return;
+        roundRect(g, PAD, cursor, W - PAD * 2, 86, 16); g.fillStyle = "rgba(255,255,255,.07)"; g.fill();
+        g.fillStyle = ft[0]; g.fillRect(PAD + 22, cursor + 30, 30, 6);
+        g.fillStyle = "rgba(255,255,255,.7)"; g.font = "800 19px " + FONT; g.fillText(ft[1], PAD + 68, cursor + 36);
+        g.fillStyle = "#fff"; g.font = "700 31px " + FONT; g.fillText(ellip(g, ft[2], W - PAD * 2 - 90), PAD + 68, cursor + 70);
+        cursor += 86 + 12;
+      });
+    }
+
+    g.fillStyle = "rgba(255,255,255,.5)"; g.font = "700 26px " + FONT; g.textAlign = "center";
+    g.fillText("Full scores at " + SITE_LABEL, W / 2, H - 60); g.textAlign = "left";
+    return cv;
+  }
+
+  // ---- this day in DCI history card ------------------------------------------
+  // entries: [{ y, e, loc, cls, c, s, k }] from onthisday.json (k=3 => champion)
+  function drawHistoryCard(dayLabel, entries) {
+    var W = 1080, H = 1350, cv = newCanvas(), g = cv.getContext("2d");
+    var NAVY = "#0a2a4a", accent = "#f0b429", PAD = 84;
+    var grad = g.createLinearGradient(0, 0, 0, H); grad.addColorStop(0, shade(NAVY, 0.05)); grad.addColorStop(1, shade(NAVY, -0.55));
+    g.fillStyle = grad; g.fillRect(0, 0, W, H);
+    var rg = g.createRadialGradient(W * 0.18, H * 0.05, 0, W * 0.18, H * 0.05, W * 0.9);
+    rg.addColorStop(0, hexA(accent, 0.22)); rg.addColorStop(1, hexA(accent, 0)); g.fillStyle = rg; g.fillRect(0, 0, W, H);
+
+    g.textBaseline = "alphabetic";
+    g.fillStyle = accent; g.font = "800 30px " + FONT; g.fillText("C A D E N C E", PAD, 118);
+    g.fillStyle = "rgba(255,255,255,.6)"; g.textAlign = "right"; g.fillText("DCI HISTORY", W - PAD, 118); g.textAlign = "left";
+    g.fillStyle = "rgba(255,255,255,.85)"; g.font = "800 34px " + FONT; g.fillText("This day in DCI history", PAD, 202);
+    g.fillStyle = accent; g.font = "900 66px " + FONT; g.fillText(dayLabel, PAD, 276);
+
+    var cursor = 344;
+    g.fillStyle = "rgba(255,255,255,.72)"; g.font = "800 27px " + FONT; g.fillText("ON THIS DATE", PAD, cursor); cursor += 20;
+    entries.slice(0, 5).forEach(function (en) {
+      var h = 156, top = cursor, champ = en.k >= 3;
+      roundRect(g, PAD, top, W - PAD * 2, h, 18);
+      g.fillStyle = champ ? hexA(accent, 0.13) : "rgba(255,255,255,.06)"; g.fill();
+      if (champ) { g.lineWidth = 2; g.strokeStyle = hexA(accent, 0.55); roundRect(g, PAD, top, W - PAD * 2, h, 18); g.stroke(); }
+      g.fillStyle = accent; g.font = "900 42px " + FONT; g.fillText(String(en.y), PAD + 30, top + h / 2 + 14);
+      var midX = PAD + 185, scoreLeft = W - PAD - 30 - 170;
+      g.fillStyle = "#fff"; g.textAlign = "right"; g.font = "900 44px " + FONT; g.fillText(fmt3(en.s), W - PAD - 30, top + h / 2 + 14); g.textAlign = "left";
+      g.fillStyle = "#fff"; g.font = "800 35px " + FONT; g.fillText(ellip(g, en.c, scoreLeft - midX), midX, top + 66);
+      if (champ) {
+        g.font = "800 19px " + FONT; var tag = "WORLD CHAMPION", tw = g.measureText(tag).width + 24;
+        roundRect(g, midX, top + 86, tw, 32, 8); g.fillStyle = accent; g.fill();
+        g.fillStyle = "#15130f"; g.fillText(tag, midX + 12, top + 108);
+      } else {
+        g.fillStyle = "rgba(255,255,255,.62)"; g.font = "600 25px " + FONT; g.fillText(ellip(g, en.e, scoreLeft - midX), midX, top + 104);
+      }
+      cursor += h + 12;
+    });
+
+    g.fillStyle = "rgba(255,255,255,.5)"; g.font = "700 26px " + FONT; g.textAlign = "center";
+    g.fillText("Relive every season at " + SITE_LABEL, W / 2, H - 60); g.textAlign = "left";
+    return cv;
+  }
+
+  var HIST = null;
+  function loadHistory() {
+    return HIST || (HIST = fetch("data/onthisday.json", { cache: "no-cache" })
+      .then(function (r) { return r.ok ? r.json() : {}; }).catch(function () { return {}; }));
+  }
+  function historyCard(mmdd, label) {
+    return loadHistory().then(function (idx) {
+      var entries = (idx && idx[mmdd]) || [];
+      if (!entries.length) return null;
+      return { canvas: drawHistoryCard(label, entries),
+        filename: "cadence-dci-history-" + mmdd + ".png",
+        title: "This day in DCI history · " + label, caption: "This day in DCI history · " + label };
+    });
+  }
+
   // ---- share -----------------------------------------------------------------
   function shareCanvas(cv, filename, title) {
     return new Promise(function (res) {
@@ -212,7 +348,7 @@
   // A lightbox that shows one or more cards big, in the app, each with a Share
   // button. Season card, daily recaps and history all open here — one surface.
   var VIEW_CSS =
-    ".cad-ov{position:fixed;inset:0;z-index:1200;display:flex;align-items:center;justify-content:center;background:rgba(6,8,14,.74);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);padding:20px;animation:cadFade .18s ease}" +
+    ".cad-ov{position:fixed;inset:0;z-index:3000;display:flex;align-items:center;justify-content:center;background:rgba(6,8,14,.74);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);padding:20px;animation:cadFade .18s ease}" +
     "@keyframes cadFade{from{opacity:0}to{opacity:1}}" +
     ".cad-modal{position:relative;width:min(430px,100%);display:flex;flex-direction:column;align-items:center;gap:13px}" +
     ".cad-x{position:absolute;top:-4px;right:-4px;z-index:3;width:40px;height:40px;border-radius:999px;border:none;background:rgba(255,255,255,.15);color:#fff;font-size:25px;line-height:38px;cursor:pointer}" +
@@ -314,7 +450,9 @@
 
   window.CadWrapped = {
     seasonCard: seasonCard, openViewer: openViewer, standing: standing,
-    drawSeasonCard: drawSeasonCard, shareCanvas: shareCanvas, slug: slug,
+    drawSeasonCard: drawSeasonCard, drawShowCard: drawShowCard,
+    drawHistoryCard: drawHistoryCard, historyCard: historyCard,
+    shareCanvas: shareCanvas, slug: slug,
     loadSeason: loadSeason, _stats: seasonStats, _draw: drawSeasonCard,
     _helpers: { pair: pair, hexA: hexA, shade: shade, ordinal: ordinal, roundRect: roundRect, fitText: fitText, logo: logo, FONT: FONT, SITE_URL: SITE_URL, SITE_LABEL: SITE_LABEL },
   };

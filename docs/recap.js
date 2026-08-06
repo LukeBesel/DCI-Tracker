@@ -154,11 +154,13 @@
       }
     }); });
 
-    return {
+    var result = {
       date: date, pretty: prettyDate(date), shows: shows,
       corpsCount: Object.keys(rows.reduce(function (o, r) { o[r.corps] = 1; return o; }, {})).length,
       facts: { topScore: topScore, movers: movers.slice(0, 3), highs: highs.slice(0, 6), passed: passed.slice(0, 4), closest: closest }
     };
+    result.podium = topOfDay(result); // marquee-class top 3, for the recap card
+    return result;
   }
 
   // ---- styles ----------------------------------------------------------------
@@ -277,14 +279,7 @@
     return overlay.querySelector(".rc-card");
   }
 
-  // corps dot color from the app's shared palette; neutral gold as a fallback
-  function dot(corps) {
-    try { if (window.CadCorps && window.CadCorps.accent) return window.CadCorps.accent(corps); } catch (e) {}
-    return "var(--gold)";
-  }
-
-  // ---- render: recap detail --------------------------------------------------
-  var MEDALS = ["🥇", "🥈", "🥉"];
+  // ---- marquee podium (used by both the card and the browser list) -----------
   var CLASS_ORDER = ["World Class", "Open Class", "All-Age", "International"];
   function classRank(c) { var i = CLASS_ORDER.indexOf(c); return i < 0 ? 99 : i; }
   // the podium must NOT mix classes — World Class and All-Age are separate
@@ -301,82 +296,25 @@
     var cls = classes[0];
     return { cls: cls, rows: byCls[cls].slice().sort(function (a, b) { return b.score - a.score; }).slice(0, 3) };
   }
-  function podiumSection(recap) {
-    var top = topOfDay(recap);
-    if (!top.rows.length) return "";
-    var multi = recap.shows.length > 1;
-    var pods = top.rows.map(function (r, i) {
-      return '<div class="rc-pod' + (i === 0 ? " first" : "") + '" style="--rc-accent:' + dot(r.corps) + '">' +
-        '<div class="rc-medal">' + MEDALS[i] + "</div>" +
-        '<div class="rc-pod-main"><div class="rc-pod-corps">' + esc(r.corps) + "</div>" +
-        (multi ? '<div class="rc-pod-ev">' + esc(r.event) + "</div>" : "") + "</div>" +
-        '<div class="rc-pod-score">' + fmt(r.score) + "</div></div>";
-    }).join("");
-    return '<div class="rc-sech">Top of the day' + (top.cls ? ' · <span class="rc-sechcls">' + esc(top.cls) + "</span>" : "") + "</div>" +
-      '<div class="rc-podium">' + pods + "</div>";
+
+  // ---- render: recaps as shareable "wrapped" cards ---------------------------
+  // Recaps render as image cards in the shared CadWrapped viewer — the same
+  // surface as the season card — so there's one consistent report-out.
+  function recapCard(recap) {
+    return {
+      canvas: window.CadWrapped.drawShowCard(recap),
+      filename: "cadence-recap-" + recap.date + ".png",
+      title: "DCI recap · " + recap.pretty, caption: recap.pretty
+    };
   }
-  // a one-line story of the day, anchored on the marquee class's winner
-  function leadLine(recap) {
-    var top = topOfDay(recap), w = top.rows[0]; if (!w) return "";
-    var f = recap.facts, when = recap.shows.length > 1 ? "the day" : "the night";
-    var s = "<b>" + esc(w.corps) + "</b> took " + when + " with a <b>" + fmt(w.score) + "</b>";
-    if (f.closest && f.closest.a === w.corps) s += ", edging <b>" + esc(f.closest.b) + "</b> by " + fmt(f.closest.gap);
-    else if (top.rows[1]) s += ", " + fmt(w.score - top.rows[1].score) + " ahead of <b>" + esc(top.rows[1].corps) + "</b>";
-    s += ".";
-    return '<p class="rc-lead">' + s + "</p>";
+  // open one or more show days as a swipeable deck; `extras` (e.g. the
+  // this-day-in-history card) ride at the end
+  function openDeck(recaps, extras) {
+    if (!window.CadWrapped || !window.CadWrapped.openViewer) return;
+    var cards = recaps.filter(Boolean).map(recapCard).concat(extras || []);
+    if (cards.length) window.CadWrapped.openViewer(cards);
   }
-  function factsHtml(f) {
-    var out = [];
-    (f.passed || []).forEach(function (p) {
-      out.push(fact("↗️", "Moved ahead", "<b>" + esc(p.a) + "</b> passed <b>" + esc(p.b) + "</b> <span class='rc-ftk' style='display:inline'>· " + esc(p.cls) + "</span>"));
-    });
-    (f.movers || []).filter(function (m) { return m.delta > 0.001; }).slice(0, 2).forEach(function (m) {
-      out.push(fact("📈", "Biggest jump", "<b>" + esc(m.corps) + "</b> <span class='rc-up'>" + signed(m.delta) + "</span> — " + fmt(m.prev) + " → <span class='rc-num'>" + fmt(m.score) + "</span>"));
-    });
-    if ((f.highs || []).length) out.push(fact("🔥", "New season high" + (f.highs.length > 1 ? "s" : ""),
-      f.highs.map(function (h) { return "<b>" + esc(h.corps) + "</b> " + "<span class='rc-num'>" + fmt(h.score) + "</span>"; }).join(" · ")));
-    if (f.closest) out.push(fact("🤏", "Closest finish",
-      "<b>" + esc(f.closest.a) + "</b> over <b>" + esc(f.closest.b) + "</b> by <span class='rc-num'>" + fmt(f.closest.gap) + "</span>"));
-    return out.length ? '<div class="rc-facts">' + out.join("") + "</div>" : "";
-  }
-  function fact(ico, key, txt) {
-    return '<div class="rc-fact"><div class="rc-fico">' + ico + '</div><div><div class="rc-ftk">' + esc(key) + '</div><div class="rc-ft">' + txt + "</div></div></div>";
-  }
-  function showsHtml(shows) {
-    return shows.map(function (s) {
-      var cls = s.classes.map(function (c) {
-        var rows = c.results.slice(0, 12).map(function (r) {
-          var pl = r.place >= 1 && r.place <= 3 ? '<span class="rc-medcol">' + MEDALS[r.place - 1] + "</span>" : '<span class="rc-pl">' + (r.place || "") + "</span>";
-          return '<div class="rc-row">' + pl +
-            '<span class="rc-dot" style="background:' + dot(r.corps) + '"></span>' +
-            '<span class="rc-cn">' + esc(r.corps) + '</span><span class="rc-sc">' + fmt(r.score) + "</span></div>";
-        }).join("");
-        var more = c.results.length > 12 ? '<div class="rc-row" style="color:var(--muted)"><span class="rc-pl"></span><span class="rc-cn">+ ' + (c.results.length - 12) + " more</span></div>" : "";
-        return (s.classes.length > 1 ? '<div class="rc-clsh">' + esc(c.cls) + "</div>" : "") + rows + more;
-      }).join("");
-      var loc = s.location ? '<span>' + esc(s.location) + "</span>" : "";
-      return '<div class="rc-show"><div class="rc-showh"><b>' + esc(s.name) + "</b>" + loc + "</div>" + cls + "</div>";
-    }).join("");
-  }
-  function openRecap(recap, opts) {
-    opts = opts || {};
-    var facts = factsHtml(recap.facts);
-    var card = shell(
-      '<div class="rc-head"><button class="rc-x" type="button" aria-label="Close">×</button>' +
-      '<div class="rc-eyebrow">Daily Recap</div>' +
-      '<h2 class="rc-title" id="rc-h">' + esc(recap.pretty) + "</h2>" +
-      '<div class="rc-sub">' + recap.shows.length + " show" + (recap.shows.length === 1 ? "" : "s") + " · " + recap.corpsCount + " corps</div></div>" +
-      '<div class="rc-body">' +
-        leadLine(recap) +
-        podiumSection(recap) +
-        (facts ? '<div class="rc-sech">Fun facts</div>' + facts : "") +
-        '<div class="rc-sech">Full results</div>' + showsHtml(recap.shows) +
-        '<button class="rc-btn rc-ghost" id="rc-browse" type="button">← All recaps</button>' +
-      "</div>");
-    card.querySelector(".rc-x").addEventListener("click", close);
-    card.querySelector("#rc-browse").addEventListener("click", function () { openBrowser(); });
-    var x = card.querySelector(".rc-x"); if (x) setTimeout(function () { try { x.focus(); } catch (e) {} }, 30);
-  }
+  function openRecap(recap) { openDeck([recap]); }
 
   // ---- render: browser -------------------------------------------------------
   var browseState = { year: null, q: "", cls: "" };
@@ -469,6 +407,39 @@
     if (last === today && hourET() < SCORES_IN_HOUR) return null; // tonight, but scores may still be landing
     return last;
   }
+  function eligible(d) {
+    var today = todayET();
+    if (d > today) return false;
+    if (d === today && hourET() < SCORES_IN_HOUR) return false;
+    return true;
+  }
+  // the show days you missed: newest-first, eligible, and unseen — stop at the
+  // first already-seen day (older ones were seen too). Capped so the deck stays
+  // digestible.
+  function missedDays(evs, cap) {
+    var days = scoredShowDays(evs), out = [];
+    for (var i = days.length - 1; i >= 0 && out.length < (cap || 4); i--) {
+      var d = days[i];
+      if (!eligible(d)) continue;
+      if (lget("cad-rc-seen-" + d)) break;
+      out.push(d);
+    }
+    return out; // newest first
+  }
+  function monthDayLabel(iso) {
+    try { return new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "long", day: "numeric" }).format(new Date(iso + "T12:00:00Z")); }
+    catch (e) { return iso.slice(5); }
+  }
+  // build the auto-open deck: missed show-day cards + the this-day-in-history
+  // card, then open the shared viewer
+  function openAutoDeck(evs, days) {
+    var recaps = days.map(function (d) { return recapForDate(evs, d); });
+    var mmdd = todayET().slice(5), label = monthDayLabel(todayET());
+    var hc = window.CadWrapped && window.CadWrapped.historyCard
+      ? window.CadWrapped.historyCard(mmdd, label) : Promise.resolve(null);
+    hc.then(function (card) { openDeck(recaps, card ? [card] : []); },
+      function () { openDeck(recaps, []); });
+  }
   function maybeAutoShow() {
     // don't stack on top of Championship Mode / the tribute
     if (document.querySelector(".cm-overlay")) return;
@@ -476,13 +447,12 @@
     var year = +todayET().slice(0, 4);
     loadYear(year).then(function (evs) {
       if (!evs) return;
-      var day = latestEligibleDay(evs);
-      if (!day) return;
-      if (lget("cad-rc-seen-" + day)) return;      // already saw this day's recap
-      if (document.querySelector(".cm-overlay") || overlay) return;
+      var days = missedDays(evs, 4);
+      if (!days.length) return;                     // nothing new to catch up on
+      if (document.querySelector(".cm-overlay")) return;
       try { sessionStorage.setItem("cad-rc-session", "1"); } catch (e) {}
-      lset("cad-rc-seen-" + day, "1");
-      openRecap(recapForDate(evs, day), { browseBtn: true });
+      days.forEach(function (d) { lset("cad-rc-seen-" + d, "1"); });
+      openAutoDeck(evs, days);
     });
   }
   function injectButton() {
