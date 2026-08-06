@@ -328,7 +328,8 @@
 
   var HIST = null;
   function loadHistory() {
-    return HIST || (HIST = fetch("data/onthisday.json", { cache: "no-cache" })
+    // in docs/ (not docs/data/) — the scraper wipes docs/data on every run
+    return HIST || (HIST = fetch("onthisday.json", { cache: "no-cache" })
       .then(function (r) { return r.ok ? r.json() : {}; }).catch(function () { return {}; }));
   }
   function historyCard(mmdd, label) {

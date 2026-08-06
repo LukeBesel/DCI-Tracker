@@ -7,9 +7,11 @@ then highest scores) come first. Static history; regenerate when season data
 changes. Reads docs/data/seasons/*.json, writes docs/data/onthisday.json."""
 import json, glob, os, collections
 
-ROOT = os.path.join(os.path.dirname(__file__), "..", "docs", "data")
-SEASONS = os.path.join(ROOT, "seasons")
-OUT = os.path.join(ROOT, "onthisday.json")
+DOCS = os.path.join(os.path.dirname(__file__), "..", "docs")
+SEASONS = os.path.join(DOCS, "data", "seasons")
+# NOTE: lives in docs/ (NOT docs/data/) on purpose — the scraper wipes docs/data
+# on every run (build_data.py rmtree), which would delete this static index.
+OUT = os.path.join(DOCS, "onthisday.json")
 
 # marquee class priority — the class whose winner headlines the event
 PRIO = {"World Class": 0, "Open Class": 1, "All-Age": 2, "International": 3}

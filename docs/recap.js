@@ -289,6 +289,32 @@
       ".rc-tools{display:flex;gap:8px;padding:12px 18px;border-bottom:1px solid var(--border);background:var(--surface-1);flex-wrap:wrap;}",
       ".rc-tools input,.rc-tools select{font:inherit;font-size:13px;padding:8px 10px;border-radius:9px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-primary);}",
       ".rc-tools input{flex:1;min-width:120px;}",
+      ".rc-histbtn{font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;border:1px solid var(--gold);background:var(--accent-wash);color:var(--accent-ink);border-radius:9px;padding:8px 12px;flex:1 0 100%;}",
+      ".rc-histbtn:hover{background:var(--gold);color:#16233d;}",
+      // ---- season calendar ----
+      ".rc-cal{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:6px 14px 16px;}",
+      ".rc-month{margin-top:16px;}",
+      ".rc-month:first-child{margin-top:8px;}",
+      ".rc-month-h{font-size:15px;font-weight:800;color:var(--text-primary);margin:0 2px 8px;}",
+      ".rc-wd{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:5px;}",
+      ".rc-wd span{text-align:center;font-size:10.5px;font-weight:800;color:var(--muted);letter-spacing:.4px;}",
+      ".rc-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;}",
+      ".rc-cell{min-height:44px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;padding:2px;}",
+      ".rc-cell.pad{visibility:hidden;}",
+      ".rc-cell .rc-cd{font-size:13px;font-weight:600;color:var(--text-secondary);}",
+      ".rc-cell .rc-cd.off{color:var(--muted);opacity:.5;}",
+      ".rc-cell.has{background:var(--surface-2);border:1px solid var(--border);cursor:pointer;transition:transform .12s ease,border-color .12s ease;}",
+      ".rc-cell.has:hover{border-color:var(--muted);transform:translateY(-1px);}",
+      ".rc-cell.has .rc-cd{color:var(--text-primary);font-weight:800;}",
+      ".rc-cell .rc-cdot{width:6px;height:6px;border-radius:50%;margin-top:4px;background:var(--muted);}",
+      ".rc-cell.wc{border-color:rgba(240,180,41,.5);}",
+      ".rc-cell.wc .rc-cdot{background:#f0b429;}",
+      ".rc-cell.oc{border-color:rgba(77,171,247,.5);}",
+      ".rc-cell.oc .rc-cdot{background:#4dabf7;}",
+      ".rc-cell.aa{border-color:rgba(34,184,207,.5);}",
+      ".rc-cell.aa .rc-cdot{background:#22b8cf;}",
+      ".rc-cell.dim{opacity:.26;}",
+      ".rc-cx{position:absolute;top:2px;right:4px;font-size:9.5px;font-weight:800;color:var(--muted);}",
       ".rc-list{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:8px 12px 14px;}",
       ".rc-day{width:100%;text-align:left;display:flex;align-items:center;gap:12px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:11px 13px;margin-top:8px;cursor:pointer;font:inherit;color:var(--text-primary);}",
       ".rc-day:hover{border-color:var(--muted);}",
@@ -599,72 +625,101 @@
     if (/inter/i.test(cls)) return { k: "other", label: "Intl" };
     return { k: "other", label: cls };
   }
+  function pad2(n) { return n < 10 ? "0" + n : "" + n; }
+  var MNAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  // build a per-day index for a season: class set, top score per class, show
+  // count, and searchable text
+  function dayIndex(evs) {
+    var info = {};
+    scoredShowDays(evs).forEach(function (d) { info[d] = { text: "", classes: {}, top: {}, shows: 0 }; });
+    evs.forEach(function (e) {
+      if (!e.date || !info[e.date]) return;
+      var nfo = info[e.date], scored = false, t = (e.name || "") + " " + (e.location || "") + " ";
+      (e.classes || []).forEach(function (c) {
+        if (!(c.results || []).length) return;
+        var cn = c["class"]; nfo.classes[cn] = 1;
+        (c.results || []).forEach(function (r) { t += r.corps + " "; if (r.score != null) { scored = true; if (!nfo.top[cn] || r.score > nfo.top[cn].score) nfo.top[cn] = { corps: r.corps, score: r.score }; } });
+      });
+      if (scored) nfo.shows++;
+      nfo.text += t.toLowerCase();
+    });
+    return info;
+  }
+  function marqueeOf(nfo) { return Object.keys(nfo.classes).sort(function (a, b) { return classRank(a) - classRank(b); })[0]; }
+
   function openBrowser() {
     var card = shell(
       '<div class="rc-head"><button class="rc-x" type="button" aria-label="Close">×</button>' +
-      '<div class="rc-eyebrow">Cadence</div><h2 class="rc-title">Daily Recaps</h2>' +
-      '<div class="rc-sub">Every show day, every season</div></div>' +
+      '<div class="rc-eyebrow">Cadence</div><h2 class="rc-title">Season Calendar</h2>' +
+      '<div class="rc-sub">Tap any highlighted day for its show recaps</div></div>' +
       '<div class="rc-tools"><select id="rc-year" aria-label="Season"></select>' +
       '<select id="rc-cls" aria-label="Class"><option value="">All classes</option><option>World Class</option><option>Open Class</option><option>All-Age</option><option>International</option></select>' +
-      '<input id="rc-q" type="search" placeholder="Search corps or show…" autocomplete="off"></div>' +
-      '<div class="rc-list" id="rc-list"><p class="rc-empty">Loading…</p></div>');
+      '<input id="rc-q" type="search" placeholder="Search corps or show…" autocomplete="off">' +
+      '<button id="rc-hist" class="rc-histbtn" type="button" title="What happened on today\'s date in DCI history">✨ This day in history</button></div>' +
+      '<div class="rc-cal" id="rc-cal"><p class="rc-empty">Loading…</p></div>');
     card.querySelector(".rc-x").addEventListener("click", close);
-    var sel = card.querySelector("#rc-year"), clsSel = card.querySelector("#rc-cls"), q = card.querySelector("#rc-q"), list = card.querySelector("#rc-list");
-    q.value = browseState.q || "";
-    clsSel.value = browseState.cls || "";
+    var sel = card.querySelector("#rc-year"), clsSel = card.querySelector("#rc-cls"), q = card.querySelector("#rc-q"), cal = card.querySelector("#rc-cal");
+    q.value = browseState.q || ""; clsSel.value = browseState.cls || "";
+    card.querySelector("#rc-hist").addEventListener("click", function () {
+      if (!window.CadWrapped || !window.CadWrapped.historyCard) return;
+      var t = todayET(), mmdd = t.slice(5), label = MNAMES[+mmdd.slice(0, 2) - 1] + " " + (+mmdd.slice(3));
+      window.CadWrapped.historyCard(mmdd, label).then(function (c) {
+        if (c) window.CadWrapped.openViewer([c]);
+        else alert("No DCI championships or standout scores are on record for " + label + " yet.");
+      });
+    });
     loadYears().then(function (years) {
-      if (!years.length) { list.innerHTML = '<p class="rc-empty">Couldn’t load seasons.</p>'; return; }
+      if (!years.length) { cal.innerHTML = '<p class="rc-empty">Couldn’t load seasons.</p>'; return; }
       if (!browseState.year || years.indexOf(browseState.year) < 0) browseState.year = years[0];
       sel.innerHTML = years.map(function (y) { return '<option value="' + y + '"' + (y === browseState.year ? " selected" : "") + ">" + y + "</option>"; }).join("");
-      renderList(list, q.value);
-      sel.addEventListener("change", function () { browseState.year = +sel.value; renderList(list, q.value); });
-      clsSel.addEventListener("change", function () { browseState.cls = clsSel.value; renderList(list, q.value); });
-      var t; q.addEventListener("input", function () { clearTimeout(t); browseState.q = q.value; t = setTimeout(function () { renderList(list, q.value); }, 160); });
+      renderCal(cal);
+      sel.addEventListener("change", function () { browseState.year = +sel.value; renderCal(cal); });
+      clsSel.addEventListener("change", function () { browseState.cls = clsSel.value; renderCal(cal); });
+      var t; q.addEventListener("input", function () { clearTimeout(t); browseState.q = q.value; t = setTimeout(function () { renderCal(cal); }, 180); });
     });
   }
-  function renderList(list, query) {
-    list.innerHTML = '<p class="rc-empty">Loading…</p>';
-    var year = browseState.year, clsFilter = browseState.cls || "";
+  function monthGrid(mk, info, active, filtering) {
+    var parts = mk.split("-"), y = +parts[0], m = +parts[1];
+    var firstWd = new Date(Date.UTC(y, m - 1, 1)).getUTCDay();
+    var dim = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    var cells = "";
+    for (var i = 0; i < firstWd; i++) cells += '<span class="rc-cell pad"></span>';
+    for (var day = 1; day <= dim; day++) {
+      var iso = mk + "-" + pad2(day), nfo = info[iso];
+      if (nfo) {
+        var pill = pillFor(marqueeOf(nfo));
+        var dimd = filtering && !active[iso] ? " dim" : "";
+        cells += '<button class="rc-cell has ' + pill.k + dimd + '" type="button" data-d="' + iso + '" title="' + nfo.shows + ' show' + (nfo.shows === 1 ? "" : "s") + '">' +
+          '<span class="rc-cd">' + day + "</span><span class='rc-cdot'></span>" +
+          (nfo.shows > 1 ? '<span class="rc-cx">' + nfo.shows + "</span>" : "") + "</button>";
+      } else {
+        cells += '<span class="rc-cell"><span class="rc-cd off">' + day + "</span></span>";
+      }
+    }
+    return '<div class="rc-month"><div class="rc-month-h">' + MNAMES[m - 1] + " " + y + "</div>" +
+      '<div class="rc-wd"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>' +
+      '<div class="rc-grid">' + cells + "</div></div>";
+  }
+  function renderCal(cal) {
+    cal.innerHTML = '<p class="rc-empty">Loading…</p>';
+    var year = browseState.year, clsFilter = browseState.cls || "", qq = (browseState.q || "").trim().toLowerCase();
     loadYear(year).then(function (evs) {
-      if (!evs) { list.innerHTML = '<p class="rc-empty">No data for ' + year + ".</p>"; return; }
-      var days = scoredShowDays(evs).slice().reverse(); // newest first
-      var qq = (query || "").trim().toLowerCase();
-      // per-day: search text, class set, per-class top score, and show count
-      var info = {};
-      days.forEach(function (d) { info[d] = { text: "", classes: {}, top: {}, shows: 0 }; });
-      evs.forEach(function (e) {
-        if (!e.date || !info[e.date]) return;
-        var nfo = info[e.date], scored = false, t = (e.name || "") + " " + (e.location || "") + " ";
-        (e.classes || []).forEach(function (c) {
-          if (!(c.results || []).length) return;
-          var cn = c["class"];
-          nfo.classes[cn] = 1;
-          (c.results || []).forEach(function (r) {
-            t += r.corps + " ";
-            if (r.score != null) { scored = true; if (!nfo.top[cn] || r.score > nfo.top[cn].score) nfo.top[cn] = { corps: r.corps, score: r.score }; }
-          });
-        });
-        if (scored) nfo.shows++;
-        nfo.text += t.toLowerCase();
+      if (!evs) { cal.innerHTML = '<p class="rc-empty">No data for ' + year + ".</p>"; return; }
+      var info = dayIndex(evs), days = Object.keys(info);
+      if (!days.length) { cal.innerHTML = '<p class="rc-empty">No scored shows for ' + year + ".</p>"; return; }
+      var filtering = !!(qq || clsFilter), active = {}, anyActive = false;
+      days.forEach(function (d) {
+        if (clsFilter && !info[d].classes[clsFilter]) return;
+        if (qq && info[d].text.indexOf(qq) < 0) return;
+        active[d] = 1; anyActive = true;
       });
-      var rows = days.filter(function (d) {
-        if (qq && info[d].text.indexOf(qq) < 0) return false;
-        if (clsFilter && !info[d].classes[clsFilter]) return false;
-        return true;
-      }).map(function (d) {
-        var nfo = info[d];
-        var present = Object.keys(nfo.classes).sort(function (a, b) { return classRank(a) - classRank(b); });
-        var marquee = present[0], top = marquee ? nfo.top[marquee] : null;
-        var names = evs.filter(function (e) { return e.date === d && (e.classes || []).some(function (c) { return (c.results || []).length; }); }).map(function (e) { return e.name; }).join(" · ");
-        var pill = marquee ? pillFor(marquee) : null;
-        var pillHtml = pill ? '<span class="rc-clspill ' + pill.k + '">' + esc(pill.label) + "</span>" : "";
-        return '<button class="rc-day" data-d="' + d + '" type="button"><div class="rc-dd">' +
-          '<div class="rc-dt">' + esc(shortDate(d)) + "</div>" +
-          '<div class="rc-dm">' + esc(names) + (top ? " — " + esc(top.corps) + " " + fmt(top.score) : "") + "</div></div>" +
-          '<div class="rc-dtags">' + pillHtml + '<span class="rc-dc">' + nfo.shows + " show" + (nfo.shows === 1 ? "" : "s") + "</span></div></button>";
-      }).join("");
-      list.innerHTML = rows || '<p class="rc-empty">No show days match.</p>';
-      Array.prototype.forEach.call(list.querySelectorAll(".rc-day"), function (b) {
+      if (filtering && !anyActive) { cal.innerHTML = '<p class="rc-empty">No show days match.</p>'; return; }
+      // months to show: when filtering, only months with a match; else all
+      var months = {};
+      days.forEach(function (d) { if (!filtering || active[d]) months[d.slice(0, 7)] = 1; });
+      var keys = Object.keys(months).sort().reverse(); // newest month first
+      cal.innerHTML = keys.map(function (mk) { return monthGrid(mk, info, active, filtering); }).join("");
+      Array.prototype.forEach.call(cal.querySelectorAll(".rc-cell.has"), function (b) {
         b.addEventListener("click", function () {
           openStack(showsForDay(evs, b.dataset.d).map(function (ev) { return recapForShow(evs, ev); }));
         });
