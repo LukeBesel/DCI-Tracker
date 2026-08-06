@@ -616,6 +616,22 @@
     const ia = CLASS_ORDER.indexOf(a), ib = CLASS_ORDER.indexOf(b);
     return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b);
   });
+  const COMBINABLE_SCORE_CLASSES = new Set(["World Class", "Open Class"]);
+
+  function combinedStandings(standings, selected) {
+    if (selected.length === 1) return standings[selected[0]];
+    const rows = selected.flatMap(cls => (standings[cls].rows || []).map(r => ({ ...r, class: cls })))
+      .sort((a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity) || a.corps.localeCompare(b.corps))
+      .map((r, i) => ({ ...r, rank: i + 1 }));
+    const movers = rows.filter(r => Number.isFinite(r.delta))
+      .sort((a, b) => b.delta - a.delta || a.rank - b.rank).slice(0, 3);
+    const battles = rows.slice(1).map((r, i) => {
+      const prev = rows[i];
+      return { a: prev.corps, b: r.corps, ra: prev.rank, rb: r.rank,
+        sa: prev.score, sb: r.score, gap: Math.abs(prev.score - r.score) };
+    }).sort((a, b) => a.gap - b.gap || a.ra - b.ra);
+    return { rows, movers, battles };
+  }
 
   /* ============ multiselect dropdown ============ */
   // Document-level listeners: outside click / Escape close any open panel.
@@ -781,8 +797,16 @@
       app.innerHTML = `<div class="card"><div class="empty">No scores yet for ${rk.season} — check back after the first show.</div></div>`;
       return;
     }
-    const saved = localStorage.getItem("dt-class");
-    const cls = classes.includes(saved) ? saved : classes[0];
+    const defaults = ["World Class", "Open Class"].filter(c => classes.includes(c));
+    let saved = [];
+    try {
+      const parsed = JSON.parse(localStorage.getItem("dt-classes") || "[]");
+      if (Array.isArray(parsed)) saved = parsed.filter(c => classes.includes(c));
+    } catch (e) {}
+    let selected = sortClasses([...(saved.length ? new Set(saved) : new Set(defaults.length ? defaults : [classes[0]]))]);
+    const savedExclusive = selected.find(c => !COMBINABLE_SCORE_CLASSES.has(c));
+    if (savedExclusive) selected = [savedExclusive];
+    const selectedSet = new Set(selected);
     app.innerHTML = h`
       <h1 class="page">${esc(String(rk.season))} Scoreboard</h1>
       <div class="filters"><div id="clsSel"></div></div>
@@ -802,14 +826,30 @@
         </div>
       </div>`;
 
-    singleSelect(document.getElementById("clsSel"), {
+    const previousSelection = new Set(selected);
+    multiSelect(document.getElementById("clsSel"), {
       label: "Class",
       options: classes.map(c => ({ value: c, label: c, hint: `${rk.standings[c].rows.length} corps` })),
-      value: cls,
-      onChange: v => { localStorage.setItem("dt-class", v); viewRankings(null, stale); },
+      selected: selectedSet,
+      summary: () => selectedSet.has("World Class") && selectedSet.has("Open Class")
+        ? "World + Open Class" : null,
+      onChange: values => {
+        const added = values.find(c => !previousSelection.has(c));
+        if (added && !COMBINABLE_SCORE_CLASSES.has(added)) {
+          selectedSet.clear();
+          selectedSet.add(added);
+        } else if (added) {
+          [...selectedSet].filter(c => !COMBINABLE_SCORE_CLASSES.has(c)).forEach(c => selectedSet.delete(c));
+        }
+        if (!selectedSet.size) previousSelection.forEach(c => selectedSet.add(c));
+        localStorage.setItem("dt-classes", JSON.stringify(sortClasses([...selectedSet])));
+        viewRankings(null, stale);
+      },
     });
 
-    const block = rk.standings[cls];
+    selected = sortClasses([...selectedSet]);
+    const block = combinedStandings(rk.standings, selected);
+    const classLabel = selected.length > 1 ? "World + Open Class" : selected[0];
 
     // progression chart: top 12 pre-selected — open the picker to tweak
     const top12 = block.rows.slice(0, 12).map(r => r.corps);
@@ -851,7 +891,7 @@
       // not pulled to the top
       const sorted = block.rows.slice().sort((a, b) => a.rank - b.rank);
       document.getElementById("standTitle").innerHTML =
-        `${esc(cls)} Standings <span class="sub">each corps' most recent score · your favorites are starred</span>`;
+        `${esc(classLabel)} Standings <span class="sub">each corps' most recent score · your favorites are starred</span>`;
       document.getElementById("standings").innerHTML = `
         <table class="t standings"><thead><tr><th>#</th><th>Corps · last event</th><th class="num">Score</th><th class="num col-high">3-show avg</th><th class="num col-high">Season high</th><th class="num">vs prev</th><th class="col-trend">Trend</th></tr></thead><tbody>
         ${sorted.map(r => h`<tr${FAVS.has(r.corps) ? ' class="favrow"' : ""}>
