@@ -1233,31 +1233,53 @@
     const cmpYears = years.slice(-3).reverse().join(",");
 
     const bestPerf = scored.length ? scored.reduce((m, p) => p.s > m.s ? p : m, scored[0]) : null;
+    // the plain page title is replaced by the "wrapped"-style hero below
     const pt = document.getElementById("corpsPageTitle");
-    if (pt) {
-      // favorite toggle lives here now (removed from the standings table so the
-      // date + event have room). Favorites are starred/highlighted in place —
-      // they keep their real rank on the scoreboard, not pulled to the top.
-      const favLabel = () => FAVS.has(detail.name)
-        ? "★ Favorited"
-        : "☆ Add to favorites";
-      pt.innerHTML = `${corpsLogo(detail.name, 34, prof && prof.img)}${esc(detail.name)} <button id="corpFav" class="favtoggle${FAVS.has(detail.name) ? " on" : ""}">${favLabel()}</button> <button id="corpShare" class="favtoggle" title="Share this corps">${SHARE_SVG} Share</button> <button id="corpCard" class="favtoggle" title="Share a season card image">🖼️ Season card</button>`;
-      const fb = document.getElementById("corpFav");
-      fb.onclick = () => {
-        FAVS.toggle(detail.name);
-        fb.classList.toggle("on", FAVS.has(detail.name));
-        fb.textContent = favLabel();
-      };
-      wireShare("corpShare", `${detail.name} · Cadence`);
-      const cardBtn = document.getElementById("corpCard");
-      if (cardBtn) cardBtn.onclick = async () => {
-        if (!window.CadWrapped) return;
-        const sel = selYears(), yr = sel.length === 1 ? sel[0] : years[years.length - 1];
-        const orig = cardBtn.innerHTML; cardBtn.innerHTML = "Creating…"; cardBtn.disabled = true;
-        try { await window.CadWrapped.seasonCard(detail.name, yr); } catch (e) {}
-        cardBtn.innerHTML = orig; cardBtn.disabled = false;
+    if (pt) pt.hidden = true;
+
+    // ---- wrapped-style hero (mirrors the shareable season card, but live) ----
+    const favLabel = () => FAVS.has(detail.name) ? "★ Favorited" : "☆ Favorite";
+    const heroPair = corpsPair(detail.name);
+    const _hbar = _hx(heroPair.bar), _hacc = _hx(heroPair.accent);
+    const heroVars =
+      `--ch-bar1:${_rgb(_mix(_hbar, [255, 255, 255], .06))};` +
+      `--ch-bar2:${_rgb(_mix(_hbar, [6, 7, 10], .6))};` +
+      `--ch-accent:${heroPair.accent};` +
+      `--ch-glow:rgba(${_hacc[0]},${_hacc[1]},${_hacc[2]},.36)`;
+    const primaryCls = perfs.length ? perfs[perfs.length - 1].cls : "";
+    const ordinal = n => {
+      if (n == null) return "—";
+      const s = ["th", "st", "nd", "rd"], v = n % 100;
+      return n + (s[(v - 20) % 10] || s[v] || s[0]);
+    };
+    // season stats for the focus year — the same four the share card shows
+    function seasonAgg(yr) {
+      const ps = (byYear.get(yr) || []).filter(p => p.s != null)
+        .slice().sort((a, b) => (a.d || "").localeCompare(b.d || ""));
+      if (!ps.length) return null;
+      const sc = ps.map(p => p.s), pl = ps.map(p => p.p).filter(p => p != null);
+      return {
+        high: Math.max(...sc), best: pl.length ? Math.min(...pl) : null,
+        gained: +(sc[sc.length - 1] - sc[0]).toFixed(3), shows: ps.length,
       };
     }
+    const heroHtml = h`
+      <div class="corpshero" style="${heroVars}">
+        <div class="corpshero-top">
+          ${corpsLogo(detail.name, 74, prof && prof.img)}
+          <div class="corpshero-id">
+            <div class="corpshero-kicker">${esc(primaryCls || "Drum Corps")}${titles.length ? ` · ${titles.length} title${titles.length > 1 ? "s" : ""}` : ""}</div>
+            <div class="corpshero-name">${esc(detail.name)}</div>
+            <div class="corpshero-sub" id="heroSub"></div>
+          </div>
+        </div>
+        <div class="corpshero-stats" id="heroStats"></div>
+        <div class="corpshero-actions">
+          <button id="corpFav" class="ch-btn${FAVS.has(detail.name) ? " on" : ""}">${favLabel()}</button>
+          <button id="corpShare" class="ch-btn" title="Share this corps">${SHARE_SVG} Share</button>
+          <button id="corpCard" class="ch-btn" title="Share a season card image">🖼️ Season card</button>
+        </div>
+      </div>`;
     // profile card: who this corps is, straight from Wikipedia
     const factRow = (label, v) => v ? `<span><b>${label}</b> ${esc(v)}</span>` : "";
     const site = prof && prof.website ? (/^https?:/i.test(prof.website) ? prof.website : "https://" + prof.website) : null;
@@ -1279,6 +1301,7 @@
       </div>` : "";
 
     mount().innerHTML = h`
+      ${heroHtml}
       <div class="filters"><div id="yearSel2"></div></div>
       <div class="card"><h2 id="corpsChartTitle"></h2><div class="chartwrap" id="corpsChart"></div></div>
       <div class="card" style="margin-top:14px"><h2 id="perfTitle">Performance Log</h2>
@@ -1299,6 +1322,42 @@
       </div>
       ${profHtml ? `<div style="margin-top:14px">${profHtml}</div>` : ""}`;
 
+    // hero action buttons — favorite (in-place rank), share, and season card
+    const fb = document.getElementById("corpFav");
+    if (fb) fb.onclick = () => {
+      FAVS.toggle(detail.name);
+      fb.classList.toggle("on", FAVS.has(detail.name));
+      fb.textContent = favLabel();
+    };
+    wireShare("corpShare", `${detail.name} · Cadence`);
+    const cardBtn = document.getElementById("corpCard");
+    if (cardBtn) cardBtn.onclick = async () => {
+      if (!window.CadWrapped) return;
+      const sel = selYears(), yr = sel.length === 1 ? sel[0] : years[years.length - 1];
+      const orig = cardBtn.innerHTML; cardBtn.innerHTML = "Creating…"; cardBtn.disabled = true;
+      try { await window.CadWrapped.seasonCard(detail.name, yr); } catch (e) {}
+      cardBtn.innerHTML = orig; cardBtn.disabled = false;
+    };
+    // the hero's season tiles follow the focus year (the latest selected season)
+    function renderHero() {
+      const yr = selYears().slice(-1)[0] || years[years.length - 1];
+      const agg = seasonAgg(yr);
+      const subEl = document.getElementById("heroSub");
+      const statsEl = document.getElementById("heroStats");
+      if (subEl) subEl.textContent = agg ? `${yr} season · by the numbers` : `${years.length} season${years.length > 1 ? "s" : ""} on record`;
+      if (!statsEl) return;
+      const cell = (v, l) => `<div class="corpshero-stat"><div class="b"></div><div class="v">${v}</div><div class="l">${l}</div></div>`;
+      statsEl.innerHTML = agg
+        ? cell(score3(agg.high), "Season high")
+          + cell(ordinal(agg.best), "Best finish")
+          + cell((agg.gained >= 0 ? "+" : "") + agg.gained.toFixed(2), "Points gained")
+          + cell(agg.shows, "Shows")
+        : cell(bestPerf ? score3(bestPerf.s) : "—", "Best score")
+          + cell(titles.length, "Titles")
+          + cell(perfs.length, "Performances")
+          + cell(years.length, "Seasons");
+    }
+
     // the year filter drives BOTH the chart and the log; one year shows the
     // full season show-by-show, several show top score per year. Default to
     // the corps' most recent season (the current year for an active corps) so
@@ -1309,7 +1368,7 @@
       presets: [{ label: "Past 5", values: () => years.slice(-5).map(String) }],
       options: years.slice().reverse().map(y => ({ value: String(y), label: String(y) })),
       selected: yearSet,
-      onChange: () => { renderChart(); renderPerfs(); },
+      onChange: () => { renderChart(); renderPerfs(); renderHero(); },
     });
     function selYears() { return [...yearSet].map(Number).sort((a, b) => a - b); }
     function renderChart() {
@@ -1382,6 +1441,7 @@
     }
     renderChart();
     renderPerfs();
+    renderHero();
 
     // stat tiles double as drill-downs
     document.getElementById("tilePerfs").onclick = () => {
@@ -1390,6 +1450,7 @@
       msYears.refresh();
       renderChart();
       renderPerfs();
+      renderHero();
       const btn = document.querySelector("#perfTable .expandwrap .tab");
       if (btn && document.querySelector("#perfRows tr.hid")) btn.click();
       document.getElementById("perfTitle").scrollIntoView({ block: "start", behavior: "smooth" });
@@ -1401,6 +1462,7 @@
       msYears.refresh();
       renderChart();
       renderPerfs();
+      renderHero();
       document.getElementById("corpsChartTitle").scrollIntoView({ block: "start", behavior: "smooth" });
     };
     document.getElementById("tileTitles").onclick = () => { location.hash = "#/seasons"; };

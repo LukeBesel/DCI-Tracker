@@ -325,6 +325,57 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14.5px; }
 .profcard .facts b { color: var(--text-secondary); font-weight: 650; }
 @media (max-width: 640px) { .profcard img { width: 64px; height: 64px; } }
 
+/* corps "wrapped" hero — a shareable-card look, live in the page.
+   Colors come from inline vars set per corps (--ch-*). */
+.corpshero {
+  position: relative; overflow: hidden; border-radius: 22px;
+  padding: 22px 22px 20px; margin-bottom: 14px; color: #fff;
+  background: linear-gradient(158deg, var(--ch-bar1, #123a5e), var(--ch-bar2, #0a1420));
+  box-shadow: 0 14px 34px rgba(0, 0, 0, .32);
+}
+.corpshero::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(120% 90% at 88% -10%, var(--ch-glow, rgba(240,180,41,.34)), transparent 62%);
+}
+.corpshero > * { position: relative; }
+.corpshero-top { display: flex; align-items: center; gap: 16px; }
+.corpshero .corpslogo { border-radius: 18px; box-shadow: 0 6px 18px rgba(0, 0, 0, .34); }
+.corpshero-id { min-width: 0; flex: 1; }
+.corpshero-kicker {
+  font-size: 12px; letter-spacing: .16em; text-transform: uppercase;
+  font-weight: 800; color: var(--ch-accent, #f0b429);
+}
+.corpshero-name { font-size: clamp(25px, 6.4vw, 40px); font-weight: 900; line-height: 1.03; margin: 3px 0 0; }
+.corpshero-sub { margin-top: 5px; font-size: 13px; color: rgba(255, 255, 255, .7); font-weight: 600; }
+.corpshero-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 18px; }
+.corpshero-stat {
+  background: rgba(255, 255, 255, .09); border: 1px solid rgba(255, 255, 255, .15);
+  border-radius: 15px; padding: 13px 14px 12px;
+}
+.corpshero-stat .b { width: 26px; height: 4px; border-radius: 2px; background: var(--ch-accent, #f0b429); margin-bottom: 9px; }
+.corpshero-stat .v { font-size: clamp(21px, 5vw, 29px); font-weight: 900; line-height: 1; }
+.corpshero-stat .l {
+  margin-top: 6px; font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase;
+  font-weight: 700; color: rgba(255, 255, 255, .72);
+}
+.corpshero-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.ch-btn {
+  font: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+  border-radius: 999px; padding: 7px 14px;
+  color: #fff; background: rgba(255, 255, 255, .13);
+  border: 1px solid rgba(255, 255, 255, .22);
+}
+.ch-btn svg { width: 15px; height: 15px; }
+.ch-btn:hover { background: rgba(255, 255, 255, .2); }
+.ch-btn:disabled { opacity: .6; cursor: default; }
+.ch-btn.on { background: var(--ch-accent, #f0b429); border-color: transparent; color: #15130f; }
+@media (max-width: 640px) {
+  .corpshero { padding: 18px 16px 16px; border-radius: 18px; }
+  .corpshero-logo { width: 62px; height: 62px; border-radius: 16px; }
+  .corpshero-stats { grid-template-columns: repeat(2, 1fr); gap: 9px; }
+}
+
 /* stat tiles */
 .tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; }
 .tile.click { cursor: pointer; }
