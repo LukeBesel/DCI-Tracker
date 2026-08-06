@@ -21,6 +21,7 @@ concurrency:
   cancel-in-progress: false
 permissions:
   contents: write
+  actions: write   # to dispatch the Pages deploy after each live publish
 jobs:
   watch:
     runs-on: ubuntu-latest
@@ -34,6 +35,8 @@ jobs:
           python-version: "3.12"
       - run: pip install -r scraper/requirements.txt
       - name: Watch for score drops
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -u
           # no shows today (UTC date == ET date at 23:20) -> go back to sleep
@@ -62,7 +65,17 @@ jobs:
               python scraper/build_data.py
               git add -A data docs/data
               git diff --cached --quiet || git commit -m "Live scores: $(date -u '+%Y-%m-%d %H:%M UTC')"
-              git push && return 0
+              if git push; then
+                # bot pushes with GITHUB_TOKEN don't trigger pages.yml's on:push,
+                # so publish the fresh scores by dispatching the deploy directly
+                # (workflow_dispatch IS allowed for GITHUB_TOKEN). Non-fatal.
+                curl -sf -X POST \
+                  -H "Authorization: Bearer $GH_TOKEN" \
+                  -H "Accept: application/vnd.github+json" \
+                  "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/workflows/pages.yml/dispatches" \
+                  -d '{"ref":"main"}' >/dev/null 2>&1 || echo "::warning::pages dispatch failed"
+                return 0
+              fi
               sleep $((5 * i))
             done
             echo "::warning::live publish failed after retries"

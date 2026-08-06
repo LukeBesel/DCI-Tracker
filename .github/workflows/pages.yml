@@ -12,9 +12,14 @@ permissions:
   pages: write
   id-token: write
 
+# Queue deploys instead of cancelling: during show nights the live watcher and
+# the 15-minute update both trigger deploys, and cancel-in-progress starved them
+# (a newer trigger killed the in-flight deploy before it published). false keeps
+# at most one running + one pending, and every job checks out main, so the site
+# still converges to the newest data — it just never gets stuck.
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
