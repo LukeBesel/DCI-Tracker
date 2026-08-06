@@ -21,8 +21,10 @@ so a mis-parse can never surface as a wrong score.
 """
 from __future__ import annotations
 
+import argparse
 import json
 import re
+from datetime import date
 
 from common import ROOT, fetch, log, norm_space, canon_corps, slugify
 
@@ -197,6 +199,30 @@ def _competitions(season_guid: str) -> list[dict]:
     return d.get("competitions") or []
 
 
+def _recent_competitions(comps: list[dict], days: int | None,
+                         today: date | None = None) -> list[dict]:
+    """Limit a live pass to recently completed shows.
+
+    CompetitionSuite's season list is authoritative but can contain dozens of
+    completed events. The show-night watcher already knows that a source
+    changed, so re-fetching every competition only adds latency. Keep the
+    normal scraper's all-season behavior when ``days`` is None.
+    """
+    if days is None:
+        return comps
+    today = today or date.today()
+    selected = []
+    for comp in comps:
+        raw = (comp.get("competitionDate") or "")[:10]
+        try:
+            age = (today - date.fromisoformat(raw)).days
+        except ValueError:
+            continue
+        if 0 <= age <= days:
+            selected.append(comp)
+    return selected
+
+
 def _norm(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", norm_space(s or "").lower())
 
@@ -279,7 +305,8 @@ def _has_results(ev: dict) -> bool:
     return any(c.get("results") for c in ev.get("classes") or [])
 
 
-def main(year: int = 2026) -> int:
+def main(year: int = 2026, recent_days: int | None = None,
+         sync_results: bool = False) -> int:
     events_path = PARSED / "dci_events.json"
     if not events_path.exists():
         return 0
@@ -291,12 +318,17 @@ def main(year: int = 2026) -> int:
     if not season:
         log(f"compsuite: no season GUID for {year} — skipping")
         return 0
-    comps = _competitions(season)
-    log(f"compsuite: {len(comps)} competitions listed for {year}")
+    all_comps = _competitions(season)
+    comps = _recent_competitions(all_comps, recent_days)
+    if recent_days is None:
+        log(f"compsuite: {len(comps)} competitions listed for {year}")
+    else:
+        log(f"compsuite live: checking {len(comps)}/{len(all_comps)} competitions "
+            f"from the last {recent_days} day(s)")
 
     created = filled = updated = recapped = 0
     for comp in comps:
-        date = (comp.get("competitionDate") or "")[:10]
+        comp_date = (comp.get("competitionDate") or "")[:10]
         name = norm_space(comp.get("name"))
         url = canon.get(_norm(name)) or \
             f"https://www.dci.org/scores/final-scores/{year}-{slugify(name)}/"
@@ -306,13 +338,14 @@ def main(year: int = 2026) -> int:
         # the two days keep separate keys instead of clobbering each other.
         if cur is not None:
             cd = _ev_iso_date(cur)
-            if date and cd and cd != date:
-                url = url.rstrip("/") + f"-{date}/"
+            if comp_date and cd and cd != comp_date:
+                url = url.rstrip("/") + f"-{comp_date}/"
                 cur = by_url.get(url)
         # dci.org's OWN recap is the authoritative, final form — never touch it.
         # (A fallback-created event carries a "source" tag; a dci.org one does
         # not, so this only protects genuine dci.org scrapes.)
-        if cur is not None and cur.get("recap") and not cur.get("source"):
+        if (cur is not None and cur.get("recap") and not cur.get("source")
+                and not sync_results):
             continue
 
         detail = _bridge(f"GetCompetition/jsonp?competition={comp['competitionGuid']}")
@@ -327,7 +360,7 @@ def main(year: int = 2026) -> int:
             # brand-new show no other source has yet — create it in full
             by_url[url] = {
                 "url": url, "slug": slug, "year": year, "name": name,
-                "date": date,
+                "date": comp_date,
                 "date_display": _date_display(comp.get("competitionDate")),
                 "location": comp.get("location") or "",
                 "recap_url": f"https://www.dci.org/scores/recap/{slug}/",
@@ -336,7 +369,23 @@ def main(year: int = 2026) -> int:
             created += 1
             top = classes[0]["results"][0] if classes and classes[0]["results"] else None
             lead = f" — {top['corps']} {top['score']}" if top else ""
-            log(f"  + created {name} ({date}){lead} [{len(classes)} class(es)]")
+            log(f"  + created {name} ({comp_date}){lead} [{len(classes)} class(es)]")
+        elif sync_results:
+            # The live watcher is triggered by a changed source. CompetitionSuite
+            # is DCI's scoring platform, so use its current classes immediately,
+            # including partial rounds, while preserving a richer official DCI
+            # recap if one is already attached to the event.
+            changed = False
+            if classes and classes != cur.get("classes"):
+                cur["classes"] = classes
+                changed = True
+            if recap and recap != cur.get("recap") and (cur.get("source") or not cur.get("recap")):
+                cur["recap"] = recap
+                changed = True
+            if changed:
+                updated += 1
+                ncorps = sum(len(c.get("results") or []) for c in classes)
+                log(f"  ~ live synced {name} ({comp_date}) → {len(classes)} class(es), {ncorps} corps")
         elif cur.get("source"):
             # a fallback-filled show — RE-SYNC from CompetitionSuite every run so
             # a partial show completes: shows post in stages (Open Class performs
@@ -353,17 +402,17 @@ def main(year: int = 2026) -> int:
             if changed:
                 updated += 1
                 ncorps = sum(len(c.get("results") or []) for c in classes)
-                log(f"  ~ synced {name} ({date}) → {len(classes)} class(es), {ncorps} corps")
+                log(f"  ~ synced {name} ({comp_date}) → {len(classes)} class(es), {ncorps} corps")
         elif not _has_results(cur):
             cur["classes"] = classes or cur.get("classes")
             if recap:
                 cur["recap"] = recap
             filled += 1
-            log(f"  + filled {name} ({date}) results+recap from CompetitionSuite")
+            log(f"  + filled {name} ({comp_date}) results+recap from CompetitionSuite")
         elif not cur.get("recap") and recap:
             cur["recap"] = recap  # dci.org results with no recap yet — add captions
             recapped += 1
-            log(f"  + recap for {name} ({date})")
+            log(f"  + recap for {name} ({comp_date})")
 
     if created or filled or updated or recapped:
         merged = sorted(by_url.values(),
@@ -376,5 +425,11 @@ def main(year: int = 2026) -> int:
 
 
 if __name__ == "__main__":
-    import sys
-    raise SystemExit(main(int(sys.argv[1]) if len(sys.argv) > 1 else 2026))
+    parser = argparse.ArgumentParser()
+    parser.add_argument("year", nargs="?", type=int, default=date.today().year)
+    parser.add_argument("--recent-days", type=int, default=None,
+                        help="only fetch competitions completed within DAYS")
+    parser.add_argument("--sync-results", action="store_true",
+                        help="update recent official-source score rows from CompetitionSuite")
+    args = parser.parse_args()
+    raise SystemExit(main(args.year, args.recent_days, args.sync_results))
