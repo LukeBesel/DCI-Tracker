@@ -1276,8 +1276,7 @@
         <div class="corpshero-stats" id="heroStats"></div>
         <div class="corpshero-actions">
           <button id="corpFav" class="ch-btn${FAVS.has(detail.name) ? " on" : ""}">${favLabel()}</button>
-          <button id="corpShare" class="ch-btn" title="Share this corps">${SHARE_SVG} Share</button>
-          <button id="corpCard" class="ch-btn" title="Share a season card image">🖼️ Season card</button>
+          <button id="corpCard" class="ch-btn" title="Share this corps' season card">${SHARE_SVG} Share</button>
         </div>
       </div>`;
     // profile card: who this corps is, straight from Wikipedia
@@ -1329,7 +1328,6 @@
       fb.classList.toggle("on", FAVS.has(detail.name));
       fb.textContent = favLabel();
     };
-    wireShare("corpShare", `${detail.name} · Cadence`);
     const cardBtn = document.getElementById("corpCard");
     if (cardBtn) cardBtn.onclick = async () => {
       if (!window.CadWrapped) return;
