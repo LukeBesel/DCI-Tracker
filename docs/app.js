@@ -1346,16 +1346,25 @@
       const statsEl = document.getElementById("heroStats");
       if (subEl) subEl.textContent = agg ? `${yr} season · by the numbers` : `${years.length} season${years.length > 1 ? "s" : ""} on record`;
       if (!statsEl) return;
-      const cell = (v, l) => `<div class="corpshero-stat"><div class="b"></div><div class="v">${v}</div><div class="l">${l}</div></div>`;
+      const cell = (v, l, id) => `<div class="corpshero-stat"${id ? ` id="${id}"` : ""}><div class="b"></div><div class="v">${v}</div><div class="l">${l}</div></div>`;
       statsEl.innerHTML = agg
         ? cell(score3(agg.high), "Season high")
-          + cell(score3(agg.avg), "Season avg")
+          + cell("…", "Class rank", "heroRank")
           + cell((agg.gained >= 0 ? "+" : "") + agg.gained.toFixed(2), "Points gained")
           + cell(agg.shows, "Shows")
         : cell(bestPerf ? score3(bestPerf.s) : "—", "Best score")
           + cell(titles.length, "Titles")
           + cell(perfs.length, "Performances")
           + cell(years.length, "Seasons");
+      // current standing needs every corps in the class — fill it once it loads
+      if (agg && window.CadWrapped && window.CadWrapped.standing) {
+        window.CadWrapped.standing(detail.name, yr).then(st => {
+          const tile = document.getElementById("heroRank");
+          if (!tile || (selYears().slice(-1)[0] || years[years.length - 1]) !== yr) return;
+          if (st) { tile.querySelector(".v").textContent = ordinal(st.rank); tile.querySelector(".l").textContent = "Class rank"; }
+          else { tile.querySelector(".v").textContent = score3(agg.avg); tile.querySelector(".l").textContent = "Season avg"; }
+        });
+      }
     }
 
     // the year filter drives BOTH the chart and the log; one year shows the

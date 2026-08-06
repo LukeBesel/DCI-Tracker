@@ -20,31 +20,82 @@
   var FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 
   // ---- data ------------------------------------------------------------------
+  var SEASON_CACHE = {};
+  function loadSeason(year) {
+    if (!SEASON_CACHE[year]) {
+      SEASON_CACHE[year] = fetch("data/seasons/" + year + ".json", { cache: "no-cache" })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .catch(function () { return null; });
+    }
+    return SEASON_CACHE[year];
+  }
+
+  // the class a corps most recently competed in that season
+  function corpsClassIn(evs, corps) {
+    var cls = null, date = "";
+    (evs || []).forEach(function (ev) {
+      (ev.classes || []).forEach(function (c) {
+        (c.results || []).forEach(function (r) {
+          if (r.corps === corps && (ev.date || "") >= date) { date = ev.date || ""; cls = c["class"]; }
+        });
+      });
+    });
+    return cls;
+  }
+
+  // current standing across all corps in that class — ranked by each corps'
+  // most-recent score, the same way the scoreboard does it
+  function computeStanding(evs, corps) {
+    var cls = corpsClassIn(evs, corps);
+    if (!cls) return null;
+    var latest = {};
+    (evs || []).forEach(function (ev) {
+      (ev.classes || []).forEach(function (c) {
+        if (c["class"] !== cls) return;
+        (c.results || []).forEach(function (r) {
+          if (r.score == null) return;
+          var cur = latest[r.corps];
+          if (!cur || (ev.date || "") >= cur.date) latest[r.corps] = { date: ev.date || "", score: r.score };
+        });
+      });
+    });
+    var arr = Object.keys(latest).map(function (n) { return { corps: n, score: latest[n].score }; })
+      .sort(function (a, b) { return b.score - a.score; });
+    var i = arr.findIndex(function (x) { return x.corps === corps; });
+    if (i < 0) return null;
+    return { rank: i + 1, total: arr.length, cls: cls };
+  }
+
+  function standing(corps, year) {
+    return loadSeason(year).then(function (evs) { return evs ? computeStanding(evs, corps) : null; });
+  }
+
   function seasonStats(corps, year) {
-    return fetch("data/seasons/" + year + ".json?cb=" + Date.now(), { headers: { "cache-control": "no-cache" } })
-      .then(function (r) { return r.json(); })
-      .then(function (evs) {
-        var rows = [];
-        (evs || []).forEach(function (ev) {
-          (ev.classes || []).forEach(function (c) {
-            (c.results || []).forEach(function (r) {
-              if (r.corps === corps && r.score != null) rows.push({ date: ev.date, event: ev.name, loc: ev.location, score: r.score, place: r.place });
-            });
+    return loadSeason(year).then(function (evs) {
+      if (!evs) return null;
+      var rows = [];
+      evs.forEach(function (ev) {
+        (ev.classes || []).forEach(function (c) {
+          (c.results || []).forEach(function (r) {
+            if (r.corps === corps && r.score != null) rows.push({ date: ev.date, event: ev.name, loc: ev.location, score: r.score, place: r.place });
           });
         });
-        rows.sort(function (a, b) { return (a.date || "").localeCompare(b.date || ""); });
-        if (!rows.length) return null;
-        var scores = rows.map(function (r) { return r.score; });
-        return {
-          corps: corps, year: year, rows: rows, scores: scores,
-          high: Math.max.apply(null, scores),
-          avg: scores.reduce(function (a, b) { return a + b; }, 0) / scores.length,
-          first: scores[0], last: scores[scores.length - 1],
-          gained: +(scores[scores.length - 1] - scores[0]).toFixed(3),
-          shows: rows.length,
-          wins: rows.filter(function (r) { return r.place === 1; }).length
-        };
-      }).catch(function () { return null; });
+      });
+      rows.sort(function (a, b) { return (a.date || "").localeCompare(b.date || ""); });
+      if (!rows.length) return null;
+      var scores = rows.map(function (r) { return r.score; });
+      var st = computeStanding(evs, corps);
+      return {
+        corps: corps, year: year, rows: rows, scores: scores,
+        high: Math.max.apply(null, scores),
+        avg: scores.reduce(function (a, b) { return a + b; }, 0) / scores.length,
+        first: scores[0], last: scores[scores.length - 1],
+        gained: +(scores[scores.length - 1] - scores[0]).toFixed(3),
+        shows: rows.length,
+        wins: rows.filter(function (r) { return r.place === 1; }).length,
+        rank: st ? st.rank : null, total: st ? st.total : null, cls: st ? st.cls : null
+      };
+    }).catch(function () { return null; });
   }
 
   // ---- canvas card -----------------------------------------------------------
@@ -99,7 +150,7 @@
     // stat tiles (2x2)
     var tiles = [
       ["Season high", s.high.toFixed(3)],
-      ["Season avg", s.avg.toFixed(3)],
+      s.rank ? ["Class rank", ordinal(s.rank)] : ["Season avg", s.avg.toFixed(3)],
       ["Points gained", (s.gained >= 0 ? "+" : "") + s.gained.toFixed(2)],
       ["Shows", String(s.shows)]
     ];
@@ -262,9 +313,9 @@
   }
 
   window.CadWrapped = {
-    seasonCard: seasonCard, openViewer: openViewer,
+    seasonCard: seasonCard, openViewer: openViewer, standing: standing,
     drawSeasonCard: drawSeasonCard, shareCanvas: shareCanvas, slug: slug,
-    _stats: seasonStats, _draw: drawSeasonCard,
+    loadSeason: loadSeason, _stats: seasonStats, _draw: drawSeasonCard,
     _helpers: { pair: pair, hexA: hexA, shade: shade, ordinal: ordinal, roundRect: roundRect, fitText: fitText, logo: logo, FONT: FONT, SITE_URL: SITE_URL, SITE_LABEL: SITE_LABEL },
   };
 })();
