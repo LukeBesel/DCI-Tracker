@@ -1257,9 +1257,9 @@
       const ps = (byYear.get(yr) || []).filter(p => p.s != null)
         .slice().sort((a, b) => (a.d || "").localeCompare(b.d || ""));
       if (!ps.length) return null;
-      const sc = ps.map(p => p.s), pl = ps.map(p => p.p).filter(p => p != null);
+      const sc = ps.map(p => p.s);
       return {
-        high: Math.max(...sc), best: pl.length ? Math.min(...pl) : null,
+        high: Math.max(...sc), avg: sc.reduce((a, b) => a + b, 0) / sc.length,
         gained: +(sc[sc.length - 1] - sc[0]).toFixed(3), shows: ps.length,
       };
     }
@@ -1349,7 +1349,7 @@
       const cell = (v, l) => `<div class="corpshero-stat"><div class="b"></div><div class="v">${v}</div><div class="l">${l}</div></div>`;
       statsEl.innerHTML = agg
         ? cell(score3(agg.high), "Season high")
-          + cell(ordinal(agg.best), "Best finish")
+          + cell(score3(agg.avg), "Season avg")
           + cell((agg.gained >= 0 ? "+" : "") + agg.gained.toFixed(2), "Points gained")
           + cell(agg.shows, "Shows")
         : cell(bestPerf ? score3(bestPerf.s) : "—", "Best score")

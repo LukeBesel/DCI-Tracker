@@ -35,13 +35,12 @@
         rows.sort(function (a, b) { return (a.date || "").localeCompare(b.date || ""); });
         if (!rows.length) return null;
         var scores = rows.map(function (r) { return r.score; });
-        var places = rows.map(function (r) { return r.place; }).filter(function (p) { return p != null; });
         return {
           corps: corps, year: year, rows: rows, scores: scores,
           high: Math.max.apply(null, scores),
+          avg: scores.reduce(function (a, b) { return a + b; }, 0) / scores.length,
           first: scores[0], last: scores[scores.length - 1],
           gained: +(scores[scores.length - 1] - scores[0]).toFixed(3),
-          bestPlace: places.length ? Math.min.apply(null, places) : null,
           shows: rows.length,
           wins: rows.filter(function (r) { return r.place === 1; }).length
         };
@@ -100,7 +99,7 @@
     // stat tiles (2x2)
     var tiles = [
       ["Season high", s.high.toFixed(3)],
-      ["Best finish", ordinal(s.bestPlace)],
+      ["Season avg", s.avg.toFixed(3)],
       ["Points gained", (s.gained >= 0 ? "+" : "") + s.gained.toFixed(2)],
       ["Shows", String(s.shows)]
     ];
@@ -158,13 +157,114 @@
 
   function slug(s) { return String(s).replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase(); }
 
+  // ---- in-app card viewer ----------------------------------------------------
+  // A lightbox that shows one or more cards big, in the app, each with a Share
+  // button. Season card, daily recaps and history all open here — one surface.
+  var VIEW_CSS =
+    ".cad-ov{position:fixed;inset:0;z-index:1200;display:flex;align-items:center;justify-content:center;background:rgba(6,8,14,.74);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);padding:20px;animation:cadFade .18s ease}" +
+    "@keyframes cadFade{from{opacity:0}to{opacity:1}}" +
+    ".cad-modal{position:relative;width:min(430px,100%);display:flex;flex-direction:column;align-items:center;gap:13px}" +
+    ".cad-x{position:absolute;top:-4px;right:-4px;z-index:3;width:40px;height:40px;border-radius:999px;border:none;background:rgba(255,255,255,.15);color:#fff;font-size:25px;line-height:38px;cursor:pointer}" +
+    ".cad-x:hover{background:rgba(255,255,255,.26)}" +
+    ".cad-cap{color:#fff;font-weight:700;font-size:14px;opacity:.92;text-align:center;min-height:18px}" +
+    ".cad-stage{position:relative;width:100%;display:flex;justify-content:center;touch-action:pan-y}" +
+    ".cad-img{width:100%;max-width:380px;max-height:70vh;object-fit:contain;border-radius:18px;box-shadow:0 20px 54px rgba(0,0,0,.55);animation:cadPop .22s ease}" +
+    "@keyframes cadPop{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}" +
+    ".cad-dots{display:flex;gap:7px;min-height:7px}" +
+    ".cad-dot{width:7px;height:7px;border-radius:999px;background:rgba(255,255,255,.32);cursor:pointer;transition:background .15s,width .15s}" +
+    ".cad-dot.on{background:#fff;width:18px}" +
+    ".cad-actions{display:flex;align-items:center;gap:12px}" +
+    ".cad-btn{font:inherit;font-weight:700;cursor:pointer;border-radius:999px}" +
+    ".cad-btn.primary{display:inline-flex;align-items:center;gap:7px;padding:11px 26px;font-size:15px;border:none;background:var(--accent,#f0b429);color:var(--on-accent,#15130f)}" +
+    ".cad-btn.primary:disabled{opacity:.6}" +
+    ".cad-btn.ghost{width:44px;height:44px;font-size:21px;border:1px solid rgba(255,255,255,.26);background:rgba(255,255,255,.08);color:#fff}" +
+    ".cad-btn.ghost:hover{background:rgba(255,255,255,.16)}" +
+    ".cad-btn.ghost[hidden]{display:none}" +
+    ".cad-btn.primary svg{width:16px;height:16px}";
+  function ensureStyle() {
+    if (document.getElementById("cad-wrapped-css")) return;
+    var s = document.createElement("style"); s.id = "cad-wrapped-css"; s.textContent = VIEW_CSS;
+    document.head.appendChild(s);
+  }
+  var SHARE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M8 7l4-4 4 4M4 13v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6"/></svg>';
+
+  // cards: [{ canvas, filename, title, caption }]
+  function openViewer(cards) {
+    cards = (cards || []).filter(Boolean);
+    if (!cards.length) return null;
+    ensureStyle();
+    var idx = 0, urls = [];
+    var ov = document.createElement("div"); ov.className = "cad-ov";
+    ov.innerHTML =
+      '<div class="cad-modal" role="dialog" aria-modal="true" aria-label="Card">' +
+      '<button class="cad-x" aria-label="Close">&times;</button>' +
+      '<div class="cad-stage"><img class="cad-img" alt=""></div>' +
+      '<div class="cad-cap"></div>' +
+      '<div class="cad-dots"></div>' +
+      '<div class="cad-actions">' +
+      '<button class="cad-btn ghost cad-prev" aria-label="Previous">&#8249;</button>' +
+      '<button class="cad-btn primary cad-share">' + SHARE_ICON + '<span>Share</span></button>' +
+      '<button class="cad-btn ghost cad-next" aria-label="Next">&#8250;</button>' +
+      '</div></div>';
+    document.body.appendChild(ov);
+    var img = ov.querySelector(".cad-img"), cap = ov.querySelector(".cad-cap"),
+      dotsEl = ov.querySelector(".cad-dots"), prev = ov.querySelector(".cad-prev"),
+      next = ov.querySelector(".cad-next"), shareBtn = ov.querySelector(".cad-share");
+    var multi = cards.length > 1;
+    prev.hidden = next.hidden = !multi;
+    dotsEl.innerHTML = multi ? cards.map(function () { return '<span class="cad-dot"></span>'; }).join("") : "";
+    function urlFor(i) { if (!urls[i]) { try { urls[i] = cards[i].canvas.toDataURL("image/png"); } catch (e) { urls[i] = ""; } } return urls[i]; }
+    function show(i) {
+      idx = (i + cards.length) % cards.length;
+      img.src = urlFor(idx);
+      cap.textContent = cards[idx].caption || cards[idx].title || "";
+      if (multi) { var ds = dotsEl.children; for (var k = 0; k < ds.length; k++) ds[k].className = "cad-dot" + (k === idx ? " on" : ""); }
+    }
+    function close() { document.removeEventListener("keydown", onKey); ov.remove(); }
+    function onKey(e) { if (e.key === "Escape") close(); else if (multi && e.key === "ArrowRight") show(idx + 1); else if (multi && e.key === "ArrowLeft") show(idx - 1); }
+    ov.querySelector(".cad-x").onclick = close;
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    prev.onclick = function () { show(idx - 1); };
+    next.onclick = function () { show(idx + 1); };
+    for (var d = 0; d < dotsEl.children.length; d++) (function (j) { dotsEl.children[j].onclick = function () { show(j); }; })(d);
+    document.addEventListener("keydown", onKey);
+    // swipe between cards
+    if (multi) {
+      var sx = 0, sy = 0, tracking = false;
+      var stage = ov.querySelector(".cad-stage");
+      stage.addEventListener("touchstart", function (e) { var t = e.touches[0]; sx = t.clientX; sy = t.clientY; tracking = true; }, { passive: true });
+      stage.addEventListener("touchend", function (e) {
+        if (!tracking) return; tracking = false;
+        var t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
+        if (Math.abs(dx) > 46 && Math.abs(dx) > Math.abs(dy)) show(idx + (dx < 0 ? 1 : -1));
+      }, { passive: true });
+    }
+    shareBtn.onclick = function () {
+      var c = cards[idx], lbl = shareBtn.querySelector("span");
+      var was = lbl.textContent; shareBtn.disabled = true; lbl.textContent = "Sharing…";
+      try { if (navigator.vibrate) navigator.vibrate(12); } catch (e) {}
+      shareCanvas(c.canvas, c.filename, c.title).then(function () {
+        shareBtn.disabled = false; lbl.textContent = was;
+      });
+    };
+    show(0);
+    return { close: close, el: ov };
+  }
+
   function seasonCard(corps, year) {
     return seasonStats(corps, year).then(function (s) {
       if (!s) return false;
       var cv = drawSeasonCard(s);
-      return shareCanvas(cv, slug(corps) + "-" + year + "-cadence.png", corps + " · " + year + " season");
+      openViewer([{ canvas: cv, filename: slug(corps) + "-" + year + "-cadence.png",
+        title: corps + " · " + year + " season", caption: corps + " · " + year }]);
+      return true;
     });
   }
 
-  window.CadWrapped = { seasonCard: seasonCard, _stats: seasonStats, _draw: drawSeasonCard };
+  window.CadWrapped = {
+    seasonCard: seasonCard, openViewer: openViewer,
+    drawSeasonCard: drawSeasonCard, shareCanvas: shareCanvas, slug: slug,
+    _stats: seasonStats, _draw: drawSeasonCard,
+    _helpers: { pair: pair, hexA: hexA, shade: shade, ordinal: ordinal, roundRect: roundRect, fitText: fitText, logo: logo, FONT: FONT, SITE_URL: SITE_URL, SITE_LABEL: SITE_LABEL },
+  };
 })();
