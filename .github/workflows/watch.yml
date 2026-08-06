@@ -88,8 +88,9 @@ jobs:
             echo "::warning::live publish failed after retries"
             return 1
           }
-          # Poll every ~30 seconds during show windows and rescrape the moment
-          # a source changes. Primary signal is CompetitionSuite's season list
+          # Poll every ~30 seconds during show windows and run a focused live
+          # scrape the moment a source changes. Primary signal is
+          # CompetitionSuite's season list
           # (authoritative — its per-show recapUrl populates when scores post,
           # so it changes on both a new show AND fresh results); drum-corps.net
           # and downbeatdesigns are cross-checks. Each response is validated to
@@ -122,8 +123,8 @@ jobs:
             fi
             cur=$(printf '%s' "$sig" | md5sum | cut -d' ' -f1)
             if [ -n "$last" ] && [ "$cur" != "$last" ]; then
-              echo "a score source changed — scraping"
-              bash scraper/run_all.sh update || echo "::warning::scrape failed this cycle"
+              echo "a score source changed — running focused live scrape"
+              bash scraper/run_live.sh "$YEAR" || echo "::warning::live scrape failed this cycle"
               publish || true
             fi
             last="$cur"
