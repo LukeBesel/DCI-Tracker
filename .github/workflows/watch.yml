@@ -21,6 +21,7 @@ concurrency:
   cancel-in-progress: false
 permissions:
   contents: write
+  actions: write
 jobs:
   watch:
     runs-on: ubuntu-latest
@@ -34,6 +35,8 @@ jobs:
           python-version: "3.12"
       - run: pip install -r scraper/requirements.txt
       - name: Watch for score drops
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -u
           # no shows today (UTC date == ET date at 23:20) -> go back to sleep
@@ -49,6 +52,20 @@ jobs:
           PY
           git config user.name "dci-tracker-bot"
           git config user.email "actions@users.noreply.github.com"
+          request_deploy() {
+            local api code i
+            api="https://api.github.com/repos/${{ github.repository }}/actions/workflows/pages.yml/dispatches"
+            for i in 1 2 3 4; do
+              code=$(curl -s -o /tmp/pages-dispatch-response -w "%{http_code}" -X POST \
+                -H "Authorization: Bearer $GH_TOKEN" \
+                -H "Accept: application/vnd.github+json" \
+                "$api" -d '{"ref":"main"}')
+              [ "$code" = "204" ] && return 0
+              echo "::warning::Pages dispatch got HTTP $code (attempt $i): $(head -c 200 /tmp/pages-dispatch-response)"
+              sleep $((10 * i))
+            done
+            return 1
+          }
           publish() {
             git add -A data
             git diff --cached --quiet || git commit -m "Live scores: $(date -u '+%Y-%m-%d %H:%M UTC') (inputs)"
@@ -62,7 +79,10 @@ jobs:
               python scraper/build_data.py
               git add -A data docs/data
               git diff --cached --quiet || git commit -m "Live scores: $(date -u '+%Y-%m-%d %H:%M UTC')"
-              git push && return 0
+              if git push; then
+                request_deploy || echo "::warning::could not dispatch Pages; the next update will retry"
+                return 0
+              fi
               sleep $((5 * i))
             done
             echo "::warning::live publish failed after retries"
