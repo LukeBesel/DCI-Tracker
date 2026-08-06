@@ -730,9 +730,10 @@
         if (!opts.length) list.innerHTML = "<div class='empty' style='padding:10px'>No matches</div>";
         opts.forEach(o => {
           const row = document.createElement("label");
-          row.className = "msel-opt";
+          row.className = `msel-opt${o.exclusive ? " exclusive" : ""}`;
           const cb = document.createElement("input");
-          cb.type = "checkbox";
+          cb.type = o.exclusive ? "radio" : "checkbox";
+          if (o.exclusive) cb.name = `${mount.id || "msel"}-exclusive`;
           cb.checked = cfg.selected.has(String(o.value));
           cb.onchange = () => {
             const k = String(o.value);
@@ -797,7 +798,7 @@
       app.innerHTML = `<div class="card"><div class="empty">No scores yet for ${rk.season} — check back after the first show.</div></div>`;
       return;
     }
-    const defaults = ["World Class", "Open Class"].filter(c => classes.includes(c));
+    const defaults = classes.includes("World Class") ? ["World Class"] : [classes[0]];
     let saved = [];
     try {
       const parsed = JSON.parse(localStorage.getItem("dt-classes") || "[]");
@@ -829,7 +830,8 @@
     const previousSelection = new Set(selected);
     multiSelect(document.getElementById("clsSel"), {
       label: "Class",
-      options: classes.map(c => ({ value: c, label: c, hint: `${rk.standings[c].rows.length} corps` })),
+      options: classes.map(c => ({ value: c, label: c, hint: `${rk.standings[c].rows.length} corps`,
+        exclusive: !COMBINABLE_SCORE_CLASSES.has(c) })),
       selected: selectedSet,
       summary: () => selectedSet.has("World Class") && selectedSet.has("Open Class")
         ? "World + Open Class" : null,
