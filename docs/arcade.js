@@ -8,6 +8,8 @@
   "use strict";
   function lget(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function lset(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  // haptics (Android; no-ops on iOS, which doesn't expose the Vibration API)
+  function haptic(p) { try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) {} }
 
   // ---- sound (lazy — needs a user gesture) -----------------------------------
   var actx;
@@ -194,13 +196,13 @@
     tap: function () {
       if (!this.on) return;
       if (Math.abs(this.pos - this.zoneC) <= this.zoneW / 2) {
-        this.score++; snare(); this.flash("hit");
+        this.score++; snare(); haptic(18); this.flash("hit");
         this.speed = Math.min(2.4, this.speed + 0.11);
         this.zoneW = Math.max(0.07, this.zoneW * 0.93);
         this.zoneC = 0.18 + Math.random() * 0.64;
         this.zone(); this.hud();
       } else {
-        this.lives--; womp(); this.flash("miss"); this.hud();
+        this.lives--; womp(); haptic([25, 45, 25]); this.flash("miss"); this.hud();
         if (this.lives <= 0) this.over();
       }
     },
@@ -280,15 +282,16 @@
       var self = this;
       this.lite(i, true); tone(PADS[i].f); after(150, function () { self.lite(i, false); });
       if (i !== this.seq[this.step]) {            // wrong pad — costs a life
-        this.accepting = false; womp(); this.lives--; this.lifeHud();
+        this.accepting = false; womp(); haptic([25, 45, 25]); this.lives--; this.lifeHud();
         if (this.lives <= 0) { after(550, function () { self.over(); }); return; }
         this.setStatus("Oops — watch again");
         after(850, function () { self.replay(); }); // same pattern, another shot
         return;
       }
+      haptic(12);
       this.step++;
       if (this.step >= this.seq.length) {         // round complete
-        this.accepting = false; this.setStatus("Nice! ✓"); snare();
+        this.accepting = false; this.setStatus("Nice! ✓"); snare(); haptic([14, 40, 14]);
         after(650, function () { self.next(); });
       }
     },

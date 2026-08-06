@@ -138,6 +138,8 @@
     try { return matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; }
   };
   var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
+  // celebratory haptic (Android; iOS doesn't expose the Vibration API so it no-ops)
+  function haptic(p) { try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) {} }
 
   // ---- styles (injected once) ------------------------------------------------
   function injectStyles() {
@@ -244,6 +246,7 @@
   function confetti(opts) {
     opts = opts || {};
     if (reduceMotion()) return { stop: function () {} }; // caller still shows the message
+    haptic([16, 30, 16, 30, 90]); // a little celebratory rumble as the confetti pops
     var canvas = document.createElement("canvas");
     canvas.className = "cm-confetti";
     canvas.setAttribute("aria-hidden", "true");

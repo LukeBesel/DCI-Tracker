@@ -303,6 +303,26 @@
     const fav = FAVS.has(name);
     return `<a href="#/corps/${slugOf(name)}"${fav ? ' class="favname"' : ""}>${fav ? "★ " : ""}${esc(name)}</a>`;
   }
+  // ---- share: native share sheet, clipboard fallback -----------------------
+  const SHARE_SVG = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/></svg>';
+  function flashBtn(btn, msg) {
+    if (!btn) return;
+    if (btn.dataset.orig == null) btn.dataset.orig = btn.innerHTML;
+    btn.innerHTML = msg;
+    clearTimeout(btn._ft);
+    btn._ft = setTimeout(() => { btn.innerHTML = btn.dataset.orig; delete btn.dataset.orig; }, 1500);
+  }
+  async function shareView(btn, title, url) {
+    const u = url || location.href;
+    if (navigator.share) { try { await navigator.share({ title: title || "Cadence", url: u }); } catch (e) {} return; }
+    try { await navigator.clipboard.writeText(u); flashBtn(btn, "Link copied ✓"); }
+    catch (e) { try { window.prompt("Copy this link:", u); } catch (e2) {} }
+  }
+  // attach a share button (rendered elsewhere) to share the current deep link
+  function wireShare(id, title) {
+    const sb = document.getElementById(id);
+    if (sb) sb.addEventListener("click", () => shareView(sb, title, location.href));
+  }
   // pinned events: keep the shows you're following at the top of the list
   const PINS = (() => {
     let s;
@@ -1221,13 +1241,14 @@
       const favLabel = () => FAVS.has(detail.name)
         ? "★ Favorited"
         : "☆ Add to favorites";
-      pt.innerHTML = `${corpsLogo(detail.name, 34, prof && prof.img)}${esc(detail.name)} <button id="corpFav" class="favtoggle${FAVS.has(detail.name) ? " on" : ""}">${favLabel()}</button>`;
+      pt.innerHTML = `${corpsLogo(detail.name, 34, prof && prof.img)}${esc(detail.name)} <button id="corpFav" class="favtoggle${FAVS.has(detail.name) ? " on" : ""}">${favLabel()}</button> <button id="corpShare" class="favtoggle" title="Share this corps">${SHARE_SVG} Share</button>`;
       const fb = document.getElementById("corpFav");
       fb.onclick = () => {
         FAVS.toggle(detail.name);
         fb.classList.toggle("on", FAVS.has(detail.name));
         fb.textContent = favLabel();
       };
+      wireShare("corpShare", `${detail.name} · Cadence`);
     }
     // profile card: who this corps is, straight from Wikipedia
     const factRow = (label, v) => v ? `<span><b>${label}</b> ${esc(v)}</span>` : "";
@@ -2004,6 +2025,7 @@
       <div class="crumbs"><a href="#/events?y=${year}">Shows</a> / <a href="#/events?y=${year}">${year}</a> / ${esc(ev.name)}</div>
       <h1 class="page">${esc(ev.name)}</h1>
       <p class="lede">${esc(fmtDateY(ev.date) || ev.date_display || "")}${ev.location ? " · " + esc(ev.location) : ""}${ev.url ? h` · <a href="${encodeURI(ev.url)}" target="_blank" rel="noopener">source ↗</a>` : ""}</p>
+      <button id="evShare" class="favtoggle" style="margin:0 0 12px" title="Share this show">${SHARE_SVG} Share</button>
       ${(ev.classes || []).map((c, ci) => h`
         <div class="card" style="margin-bottom:14px"><h2>${esc(c.label || c.class)}</h2>
         <div class="tscroll"><table class="t"><thead><tr><th>#</th><th>Corps</th><th class="num">Score</th></tr></thead><tbody class="evres" data-ci="${ci}">
@@ -2012,6 +2034,7 @@
         ${capSection(c.class, ci)}</div>`).join("")}
       ${ev.recap_url ? `<p style="font-size:12.5px;color:var(--muted)"><a href="${encodeURI(ev.recap_url)}" target="_blank" rel="noopener">Official recap on DCI.org ↗</a></p>` : ""}
       ${ev.location ? `<p style="font-size:12.5px;color:var(--muted)"><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((ev.name || "") + " " + ev.location)}" target="_blank" rel="noopener">Venue map ↗</a></p>` : ""}`;
+    wireShare("evShare", `${ev.name} · Cadence`);
     document.querySelectorAll(".rcmount").forEach(m => {
       const rc = recByClass.get(m.dataset.cls);
       if (rc) renderRecapSheet(m, rc);
