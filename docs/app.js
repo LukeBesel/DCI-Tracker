@@ -852,6 +852,7 @@
     selected = sortClasses([...selectedSet]);
     const block = combinedStandings(rk.standings, selected);
     const classLabel = selected.length > 1 ? "World + Open Class" : selected[0];
+    const showClassTags = selected.length > 1;
 
     // progression chart: top 12 pre-selected — open the picker to tweak
     const top12 = block.rows.slice(0, 12).map(r => r.corps);
@@ -898,7 +899,7 @@
         <table class="t standings"><thead><tr><th>#</th><th>Corps · last event</th><th class="num">Score</th><th class="num col-high">3-show avg</th><th class="num col-high">Season high</th><th class="num">vs prev</th><th class="col-trend">Trend</th></tr></thead><tbody>
         ${sorted.map(r => h`<tr${FAVS.has(r.corps) ? ' class="favrow"' : ""}>
           <td class="rank">${r.rank}</td>
-          <td><span class="corpscell">${corpsLogo(r.corps, 26)}<span class="corpscell-body">${corpsLink(r.corps)}<div class="lastev">${esc(fmtDateY(r.date))} · ${esc(r.event)}</div></span></span></td>
+          <td><span class="corpscell">${corpsLogo(r.corps, 26)}<span class="corpscell-body">${corpsLink(r.corps)}${showClassTags ? `<span class="classbadge ${r.class === "Open Class" ? "open" : "world"}" title="${esc(r.class)}">${r.class === "Open Class" ? "Open" : "World"}</span>` : ""}<div class="lastev">${esc(fmtDateY(r.date))} · ${esc(r.event)}</div></span></span></td>
           <td class="num score">${score3(r.score)}</td>
           <td class="num col-high" data-tip="Average of the last ${Math.min(3, r.trend.length)} shows — smooths out one judging panel">${score3(r.trend.slice(-3).reduce((a, t) => a + t[1], 0) / Math.min(3, r.trend.length))}</td>
           <td class="num col-high" data-tip="${esc(`${score3(r.high)} — ${r.high_event || ""} · ${fmtDateY(r.high_date) || ""}`)}">${score3(r.high)}</td>

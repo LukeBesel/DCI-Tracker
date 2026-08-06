@@ -669,6 +669,13 @@ a.tile:hover { text-decoration: none; }
 .corpscell { display: flex; align-items: center; gap: 10px; }
 .corpscell .corpslogo { margin-top: 1px; }
 .corpscell-body { min-width: 0; }
+.classbadge {
+  display: inline-block; margin-left: 6px; padding: 1px 5px; vertical-align: 1px;
+  border: 1px solid var(--border); border-radius: 999px; color: var(--text-secondary);
+  background: var(--surface-2); font-size: 9px; font-weight: 750; line-height: 1.35;
+  letter-spacing: .03em; text-transform: uppercase; white-space: nowrap;
+}
+.classbadge.open { color: var(--accent-ink); background: var(--accent-wash); border-color: rgba(217,119,6,.28); }
 h1.page .corpslogo { vertical-align: -6px; margin-right: 11px; }
 /* searchable corps color picker */
 .corpsearch { margin-top: 14px; }
