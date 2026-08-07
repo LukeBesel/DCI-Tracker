@@ -3127,6 +3127,13 @@
     app.innerHTML = h`
       <h1 class="page">Settings</h1>
 
+      ${(window.CadInstall && !window.CadInstall.standalone()) ? `
+      <div class="card setcard" id="installCard">
+        <h2>📲 Add to Home Screen</h2>
+        <p class="setnote">Install Cadence like a real app — full screen, works offline, and it's how you get score alerts on iPhone.</p>
+        <button class="tab" id="installOpen" type="button" style="font-weight:800;padding:11px 20px;font-size:14.5px">Show me how →</button>
+      </div>` : ""}
+
       <div class="card setcard">
         <h2>Appearance</h2>
         <p class="setnote">Pick a light or dark look — or follow your device.</p>
@@ -3258,6 +3265,10 @@
         if (hint) hint.textContent = "Reset to default";
       }
     });
+
+    // add to home screen
+    const installOpen = document.getElementById("installOpen");
+    if (installOpen) installOpen.addEventListener("click", () => { if (window.CadInstall) window.CadInstall.open(); });
 
     // notifications
     const pushToggle = document.getElementById("pushToggle");

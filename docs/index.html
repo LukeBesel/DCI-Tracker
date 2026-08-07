@@ -104,28 +104,16 @@ window.CadTheme = (function () {
   paintMeta();
   return { effective: effective, mode: mode, set: set, paintMeta: paintMeta };
 })();
-// footer install button: native prompt where supported, instructions elsewhere
+// footer install link → the friendly Add-to-Home-Screen sheet (window.CadInstall,
+// from install.js). Capture the native prompt early here too, since
+// beforeinstallprompt can fire before install.js loads.
 (function () {
+  addEventListener("beforeinstallprompt", e => { e.preventDefault(); window.__cadInstallEvent = e; });
   const btn = document.getElementById("installBtn");
-  let deferred = null;
+  if (!btn) return;
   const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
-  if (!standalone) btn.hidden = false;
-  addEventListener("beforeinstallprompt", e => {
-    e.preventDefault();
-    deferred = e;
-    btn.hidden = false;
-  });
-  btn.addEventListener("click", e => {
-    e.preventDefault();
-    if (deferred) { deferred.prompt(); deferred = null; return; }
-    const ua = navigator.userAgent;
-    const msg = /iPhone|iPad|iPod/.test(ua)
-      ? "Install on iPhone/iPad:\n\n1. Tap the Share button (square with arrow)\n2. Scroll down and tap 'Add to Home Screen'\n3. Tap Add — Cadence appears as an app"
-      : /Android/.test(ua)
-        ? "Install on Android:\n\n1. Tap the browser menu (three dots)\n2. Tap 'Add to Home screen' or 'Install app'\n3. Confirm — Cadence appears as an app"
-        : "Install on this computer:\n\nLook for the install icon at the right end of the address bar (Chrome/Edge), or use the browser menu and choose 'Install Cadence'.";
-    alert(msg);
-  });
+  btn.hidden = !!standalone;
+  btn.addEventListener("click", e => { e.preventDefault(); if (window.CadInstall) window.CadInstall.open(); });
   addEventListener("appinstalled", () => { btn.hidden = true; });
 })();
 // score alerts: Web Push via the Cadence push relay — exposed as window.CadPush
@@ -268,5 +256,7 @@ window.CadAsk = (function () {
 <script src="recap.js"></script>
 <!-- Hidden "Keep the Beat" mini-game (tap the logo 3× fast). Self-contained. -->
 <script src="arcade.js"></script>
+<!-- Add-to-Home-Screen helper: obvious iOS instructions + occasional nudge. Self-contained. -->
+<script src="install.js"></script>
 </body>
 </html>
