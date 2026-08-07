@@ -60,7 +60,8 @@
   };
 
   // ---- Colin tribute config (after-finals surprise) --------------------------
-  var COLIN = { name: "Colin Besel", corps: "Phantom Regiment", year: "2026", home: "Rockford, IL" };
+  var COLIN = { name: "Colin Besel", corps: "Phantom Regiment", year: "2026", home: "Rockford, IL",
+    instruments: ["Trumpet", "Euphonium", "Trombone", "Mellophone"] };
   var COLIN_AFTER = "2026-08-09T00:00:00-04:00"; // the day after Finals — Aug 9 (ET) only
   var COLIN_END = "2026-08-10T00:00:00-04:00";   // retires at end of Aug 9 — then nothing shows, ever
   // coordinates for a mileage estimate — Phantom's 2026 tour cities + home + Indy,
@@ -101,11 +102,6 @@
     var pts = locs.map(coord).filter(Boolean), sum = 0;
     for (var i = 1; i < pts.length; i++) sum += haversine(pts[i - 1], pts[i]);
     return Math.round(sum * 1.25 / 50) * 50; // road factor, rounded to a clean 50
-  }
-  function ordinal(n) {
-    if (n == null) return "—";
-    var s = ["th", "st", "nd", "rd"], v = n % 100;
-    return n + (s[(v - 20) % 10] || s[v] || s[0]);
   }
 
   // ---- date / mode helpers ---------------------------------------------------
@@ -204,6 +200,31 @@
       ".cm-stat .v{font-size:23px;font-weight:900;color:var(--text-primary);line-height:1.05;font-variant-numeric:tabular-nums;}",
       ".cm-stat .k{margin-top:4px;font-size:11px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:var(--muted);}",
       ".cm-cline{font-size:14px;line-height:1.55;color:var(--text-secondary);text-align:center;margin:0 2px 16px;}",
+      /* Colin tribute, styled like the corps page's hero card: the corps' own
+         colours as a deep gradient, accent glow, and accent-barred stat tiles */
+      ".cm-card.cm-tribute{background:linear-gradient(158deg,var(--tb1,#26262b),var(--tb2,#0a0a0c));border-color:rgba(255,255,255,.14);color:#fff;box-shadow:0 22px 60px rgba(0,0,0,.55);}",
+      ".cm-tribute::before{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(120% 85% at 88% -8%,var(--tbglow,rgba(216,31,38,.42)),transparent 62%);}",
+      ".cm-tribute>*{position:relative;z-index:2;}",
+      ".cm-thead{padding:26px 22px 2px;}",
+      ".cm-teyebrow{font-size:11.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--tbacc,#d81f26);}",
+      ".cm-tname{font-size:clamp(30px,8vw,42px);font-weight:900;line-height:1.02;letter-spacing:-.6px;margin:7px 0 0;color:#fff;}",
+      ".cm-tsub{margin-top:7px;font-size:13.5px;font-weight:700;color:rgba(255,255,255,.72);}",
+      ".cm-tbody{padding:18px 22px 22px;}",
+      ".cm-tstats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:4px 0 16px;}",
+      ".cm-tstat{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.15);border-radius:15px;padding:13px 14px 12px;}",
+      ".cm-tstat .b{width:26px;height:4px;border-radius:2px;background:var(--tbacc,#d81f26);margin-bottom:9px;}",
+      ".cm-tstat .v{font-size:clamp(22px,5.6vw,29px);font-weight:900;line-height:1;font-variant-numeric:tabular-nums;}",
+      ".cm-tstat .l{margin-top:6px;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;font-weight:700;color:rgba(255,255,255,.72);}",
+      ".cm-tinst{margin:0 0 16px;}",
+      ".cm-tinst-l{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;font-weight:800;color:rgba(255,255,255,.6);margin-bottom:9px;}",
+      ".cm-tchips{display:flex;flex-wrap:wrap;gap:7px;}",
+      ".cm-tchip{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:800;color:#fff;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);border-radius:999px;padding:7px 13px;}",
+      ".cm-tline{font-size:14px;line-height:1.6;color:rgba(255,255,255,.8);margin:0 0 18px;}",
+      ".cm-tx{position:absolute;top:14px;right:14px;width:34px;height:34px;border:0;border-radius:50%;background:rgba(255,255,255,.16);color:#fff;font-size:20px;line-height:1;cursor:pointer;display:grid;place-items:center;z-index:5;}",
+      ".cm-tx:hover{background:rgba(255,255,255,.28);}",
+      ".cm-tbtn{display:block;width:100%;border:0;border-radius:999px;padding:15px 18px;font:inherit;font-size:16.5px;font-weight:800;cursor:pointer;background:var(--tbacc,#d81f26);color:#fff;box-shadow:0 8px 22px rgba(0,0,0,.45);}",
+      ".cm-tbtn:hover{filter:brightness(1.08);}",
+      ".cm-tbtn:active{transform:translateY(1px);}",
       // full-screen activation message
       ".cm-activated{position:absolute;z-index:5;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;pointer-events:none;}",
       ".cm-act-title{font-size:34px;line-height:1.05;font-weight:900;letter-spacing:-.5px;color:#fff;text-shadow:0 3px 22px rgba(0,0,0,.6);animation:cm-rise .5s cubic-bezier(.2,.9,.3,1.2) both;}",
@@ -489,14 +510,13 @@
         rows.sort(function (a, b) { return (a.date || "").localeCompare(b.date || ""); });
         if (!rows.length) return null;
         var scores = rows.map(function (r) { return r.score; }).filter(function (s) { return s != null; });
-        var places = rows.map(function (r) { return r.place; }).filter(function (p) { return p != null; });
         var cities = rows.map(function (r) { return r.loc; }).filter(Boolean);
         var first = scores[0], last = scores[scores.length - 1];
         var days = Math.round((Date.parse(rows[rows.length - 1].date) - Date.parse(rows[0].date)) / 864e5) + 1;
         return {
           shows: rows.length, days: days, miles: milesFor([COLIN.home].concat(cities)),
           gained: +(last - first).toFixed(3), first: first, last: last,
-          high: Math.max.apply(null, scores), bestPlace: places.length ? Math.min.apply(null, places) : null,
+          high: Math.max.apply(null, scores),
           wins: rows.filter(function (r) { return r.place === 1; }).length,
           cities: new Set(cities).size,
           states: new Set(cities.map(function (c) { return c.split(",").pop().trim(); })).size
@@ -510,7 +530,6 @@
       ["Miles traveled", "≈ " + s.miles.toLocaleString()],
       ["Points gained", "+" + s.gained.toFixed(1)],
       ["Highest score", s.high.toFixed(3)],
-      ["Best finish", ordinal(s.bestPlace)],
       ["Cities visited", String(s.cities)],
       ["States crossed", String(s.states)]
     ];
@@ -531,12 +550,31 @@
         ["Miles traveled", "≈ " + rnd(6000, 9000).toLocaleString()],
         ["Points gained", "+" + (12 + Math.random() * 14).toFixed(1)],
         ["Highest score", (88 + Math.random() * 9).toFixed(3)],
-        ["Best finish", ordinal(rnd(1, 6))],
         ["Cities visited", String(rnd(12, 20))],
         ["States crossed", String(rnd(8, 14))]
       ],
       line: "Miles of memories and a whole lot of heart — one unforgettable summer on the road. 🎺 (preview with sample numbers)"
     };
+  }
+  // the tribute wears the corps' own colours, the same way the corps page hero does
+  function tributeVars() {
+    var bar = "#1b1b1e", accent = "#d81f26"; // Phantom black & red
+    try {
+      if (window.CadCorps && window.CadCorps.vars) {
+        var v = window.CadCorps.vars(COLIN.corps);
+        if (v && v.bar) { bar = v.bar; accent = v.accent || accent; }
+      }
+    } catch (e) {}
+    var hex = function (s) {
+      s = String(s || "").replace("#", "");
+      if (s.length === 3) s = s.split("").map(function (c) { return c + c; }).join("");
+      var n = parseInt(s, 16) || 0; return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    };
+    var mix = function (a, b, t) { return a.map(function (v, i) { return Math.round(v + (b[i] - v) * t); }); };
+    var b = hex(bar), a = hex(accent);
+    return "--tb1:rgb(" + mix(b, [255, 255, 255], .10).join(",") + ");" +
+      "--tb2:rgb(" + mix(b, [6, 7, 10], .55).join(",") + ");" +
+      "--tbacc:" + accent + ";--tbglow:rgba(" + a[0] + "," + a[1] + "," + a[2] + ",.42)";
   }
   function openColin(opts) {
     opts = opts || {};
@@ -546,27 +584,34 @@
     overlay = document.createElement("div");
     overlay.className = "cm-overlay";
     overlay.setAttribute("role", "dialog"); overlay.setAttribute("aria-modal", "true"); overlay.setAttribute("aria-labelledby", "cm-h");
-    var headCls = opts.mock ? "cm-head" : "cm-head red";
-    overlay.innerHTML = '<div class="cm-backdrop"></div><div class="cm-card"><div class="' + headCls + '">' +
-      '<button class="cm-x" type="button" aria-label="Close">×</button>' +
-      '<div class="cm-eyebrow">' + (opts.mock ? "2026 Season · Preview" : "2026 DCI World Championships") + "</div>" +
-      '<h2 class="cm-title" id="cm-h">' + esc(opts.mock ? "What a Season!" : "Congratulations " + COLIN.name) + "</h2>" +
-      '<p class="cm-note">' + esc(opts.mock ? "A look at the end-of-season screen — sample numbers." : COLIN.corps) + "</p>" +
-      '</div><div class="cm-body"><div class="cm-cline" style="padding:14px 0">Loading…</div></div></div>';
+    overlay.innerHTML = '<div class="cm-backdrop"></div>' +
+      '<div class="cm-card cm-tribute" style="' + tributeVars() + '">' +
+      '<button class="cm-tx" type="button" aria-label="Close">×</button>' +
+      '<div class="cm-thead">' +
+      '<div class="cm-teyebrow">' + (opts.mock ? "Preview · Sample numbers" : "Congratulations · " + COLIN.year + " Season") + "</div>" +
+      '<h2 class="cm-tname" id="cm-h">' + esc(opts.mock ? "What a Season!" : COLIN.name) + "</h2>" +
+      '<div class="cm-tsub">' + esc(COLIN.corps) + " · DCI World Championships</div>" +
+      '</div><div class="cm-tbody"><div class="cm-tline">Loading…</div></div></div>';
     document.body.appendChild(overlay);
-    overlay.querySelector(".cm-x").addEventListener("click", close);
+    overlay.querySelector(".cm-tx").addEventListener("click", close);
     document.addEventListener("keydown", onKey, true);
-    var fx = overlay.querySelector(".cm-x"); if (fx) setTimeout(function () { try { fx.focus(); } catch (e) {} }, 30);
+    var fx = overlay.querySelector(".cm-tx"); if (fx) setTimeout(function () { try { fx.focus(); } catch (e) {} }, 30);
 
     function paint(data) {
       if (!overlay) return;
-      var body = overlay.querySelector(".cm-body");
+      var body = overlay.querySelector(".cm-tbody");
       var tiles = data.tiles.map(function (t) {
-        return '<div class="cm-stat"><div class="v">' + esc(t[1]) + '</div><div class="k">' + esc(t[0]) + "</div></div>";
+        return '<div class="cm-tstat"><div class="b"></div><div class="v">' + esc(t[1]) +
+          '</div><div class="l">' + esc(t[0]) + "</div></div>";
       }).join("");
-      body.innerHTML = '<div class="cm-stats">' + tiles + "</div>" +
-        (data.line ? '<p class="cm-cline">' + esc(data.line) + "</p>" : "") +
-        '<button class="cm-btn cm-primary" id="cm-done" type="button">' + (opts.mock ? "Close preview" : "So proud of you ❤️") + "</button>";
+      var inst = (COLIN.instruments || []).length
+        ? '<div class="cm-tinst"><div class="cm-tinst-l">Instruments marched</div><div class="cm-tchips">' +
+          COLIN.instruments.map(function (i) { return '<span class="cm-tchip">🎺 ' + esc(i) + "</span>"; }).join("") +
+          "</div></div>"
+        : "";
+      body.innerHTML = '<div class="cm-tstats">' + tiles + "</div>" + inst +
+        (data.line ? '<p class="cm-tline">' + esc(data.line) + "</p>" : "") +
+        '<button class="cm-tbtn" id="cm-done" type="button">' + (opts.mock ? "Close preview" : "So proud of you ❤️") + "</button>";
       body.querySelector("#cm-done").addEventListener("click", close);
       bursts.push(confetti({ parent: overlay, count: 220, duration: 3800, big: true,
         colors: opts.mock ? null : ["#d81f26", "#ffffff", "#f0b429", "#b3121b", "#7a0d14"] }));
