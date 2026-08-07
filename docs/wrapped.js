@@ -463,11 +463,17 @@
 
   function drawCaptionsCard(info) {
     var W = 1080, H = 1350, cv = newCanvas(), g = cv.getContext("2d");
-    var NAVY = "#0a2a4a", accent = "#f0b429", GOOD = "#ffd35c", PAD = 84;
-    var grad = g.createLinearGradient(0, 0, 0, H); grad.addColorStop(0, shade(NAVY, 0.05)); grad.addColorStop(1, shade(NAVY, -0.55));
+    var PAD = 84, GOOD = "#ffd35c";
+    // dress the whole card in the colours of the corps that won the show overall
+    var champ = (info.podium && info.podium[0] && info.podium[0].corps) || info.champ;
+    var theme = pair(champ), bar = theme.bar, accHex = theme.accent;
+    // the accent doubles as text on the dark ground — lighten a dark corps colour
+    // so scores stay legible
+    var accent = capLum(accHex) < 0.5 ? shade(accHex, 0.5) : accHex;
+    var grad = g.createLinearGradient(0, 0, 0, H); grad.addColorStop(0, shade(bar, 0.06)); grad.addColorStop(1, shade(bar, -0.5));
     g.fillStyle = grad; g.fillRect(0, 0, W, H);
     var rg = g.createRadialGradient(W * 0.85, H * 0.05, 0, W * 0.85, H * 0.05, W * 0.95);
-    rg.addColorStop(0, hexA(accent, 0.16)); rg.addColorStop(1, hexA(accent, 0)); g.fillStyle = rg; g.fillRect(0, 0, W, H);
+    rg.addColorStop(0, hexA(accHex, 0.18)); rg.addColorStop(1, hexA(accHex, 0)); g.fillStyle = rg; g.fillRect(0, 0, W, H);
 
     g.textBaseline = "alphabetic"; g.textAlign = "left";
     g.fillStyle = accent; g.font = "800 30px " + FONT; g.fillText("C A D E N C E", PAD, 116);
@@ -559,6 +565,7 @@
     return cv;
   }
   function fmt2(n) { return n == null ? "—" : (Math.round(n * 100) / 100).toFixed(2); }
+  function capLum(hex) { var c = hx(hex); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; }
   function captionsCard(info) {
     return captionSummary(info.year, info.date, info.event, info.cls).then(function (sum) {
       if (!sum) return false;

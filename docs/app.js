@@ -1859,16 +1859,16 @@
             ${mapLink}`
         : `<div class='empty'>Lineup not announced yet.</div>${mapLink}`;
     }
+    // full page / caption sheet is the most-wanted jump — sit it up top, right
+    // of the first class heading, so it's the first thing you see and tap
+    const fullLink = `<a href="#/event/${year}/${i}" class="evfull">${ev.has_recap ? "🏆 Captions & full page →" : "Full event page →"}</a>`;
     return h`
-      ${(ev.classes || []).map(c => h`
-        <h3 class="evcls">${esc(c.label || c.class)} <span class="kicker">${c.results.length} corps</span></h3>
+      ${(ev.classes || []).map((c, ci) => h`
+        <h3 class="evcls evcls-row">${esc(c.label || c.class)} <span class="kicker">${c.results.length} corps</span>${ci === 0 ? fullLink : ""}</h3>
         <table class="t"><tbody>
         ${c.results.map(r => `<tr><td class="rank">${r.place ?? "—"}</td><td>${corpsLink(r.corps)}</td><td class="num score">${score3(r.score)}</td></tr>`).join("")}
         </tbody></table>`).join("")}
-      <div class="predictmount"></div>
-      <div style="margin-top:10px;font-size:13px">
-        <a href="#/event/${year}/${i}">${ev.has_recap ? "Caption breakdown & full page →" : "Event page →"}</a>
-      </div>`;
+      <div class="predictmount"></div>`;
   }
 
   const MONTH_FULL = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];

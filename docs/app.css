@@ -554,6 +554,10 @@ a.tile:hover { text-decoration: none; }
 .evrow.open .caret { transform: rotate(90deg); }
 .evbody { border-top: 1px solid var(--grid); padding: 6px 14px 14px; }
 .evcls { margin: 12px 0 4px; font-size: 13px; font-weight: 650; }
+/* class heading with the "full page / captions" jump pinned to the right */
+.evcls-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.evcls-row .evfull { margin-left: auto; font-size: 13px; font-weight: 800; white-space: nowrap; color: var(--link); }
+.evcls-row .evfull:hover { text-decoration: underline; }
 .evbody table.t { max-width: 560px; }
 
 @media (max-width: 900px) {
