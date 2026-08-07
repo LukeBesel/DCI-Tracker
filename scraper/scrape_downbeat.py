@@ -117,7 +117,8 @@ def _has_results(ev: dict) -> bool:
 
 
 def main() -> int:
-    year = int(sys.argv[1]) if len(sys.argv) > 1 else 2026
+    from datetime import datetime, timezone
+    year = int(sys.argv[1]) if len(sys.argv) > 1 else datetime.now(timezone.utc).year
     url = SOURCE.format(year=year)
     page = fetch(url, force=True)
     if not page:

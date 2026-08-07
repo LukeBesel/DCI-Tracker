@@ -48,14 +48,15 @@ def _norm_name(s: str) -> str:
     return s
 
 
-def _index_2026() -> list[tuple[str, str]]:
+def _index_for_year(year: int) -> list[tuple[str, str]]:
     page = fetch(INDEX, force=True) or fetch(INDEX)
     if not page:
         return []
+    tag = f"({year})"
     seen, out = set(), []
     for m in re.finditer(r'/scores/dci/(\d+)"[^>]*>\s*([^<]*\(20\d\d\))', page):
         sid, raw = m.group(1), m.group(2)
-        if sid in seen or "(2026)" not in raw:
+        if sid in seen or tag not in raw:
             continue
         seen.add(sid)
         out.append((sid, _norm_name(raw)))
@@ -122,10 +123,10 @@ def _has_results(ev: dict) -> bool:
     return any(c.get("results") for c in ev.get("classes") or [])
 
 
-def main() -> int:
-    shows = _index_2026()
+def main(year: int) -> int:
+    shows = _index_for_year(year)
     if not shows:
-        log("drum-corps.net: index unreachable — nothing to do")
+        log(f"drum-corps.net: no {year} shows in index — nothing to do")
         return 0
     url_map = _canonical_url_map()
 
@@ -138,7 +139,7 @@ def main() -> int:
     for sid, name in sorted(shows, key=lambda s: -int(s[0]))[:12]:
         url = url_map.get(name.lower())
         if not url:  # not on the calendar — best-effort canonical slug
-            url = f"https://www.dci.org/scores/final-scores/2026-{slugify(name)}/"
+            url = f"https://www.dci.org/scores/final-scores/{year}-{slugify(name)}/"
         cur = by_url.get(url)
         if cur is not None and _has_results(cur):
             skipped += 1
@@ -152,7 +153,7 @@ def main() -> int:
         slug = url.rstrip("/").rsplit("/", 1)[-1]
         ev = {
             "url": url, "slug": slug,
-            "year": int(slug[:4]) if slug[:4].isdigit() else 2026,
+            "year": int(slug[:4]) if slug[:4].isdigit() else year,
             "name": name, "date_display": date_disp, "location": loc,
             "recap_url": f"https://www.dci.org/scores/recap/{slug}/",
             "classes": classes, "source": "drum-corps.net",
@@ -175,4 +176,7 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    from datetime import datetime, timezone
+    _year = int(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1].isdigit() \
+        else datetime.now(timezone.utc).year
+    raise SystemExit(main(_year))

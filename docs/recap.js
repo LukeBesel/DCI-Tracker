@@ -395,7 +395,12 @@
       ".sr-share svg{width:16px;height:16px;}",
       ".sr-share:hover{filter:brightness(1.04);}",
       ".sr-next{flex:0 0 auto;font:inherit;font-size:14.5px;font-weight:800;cursor:pointer;border:1px solid var(--border);border-radius:999px;padding:12px 20px;background:var(--surface-2);color:var(--text-primary);}",
-      ".sr-next:hover{border-color:var(--muted);}"
+      ".sr-next:hover{border-color:var(--muted);}",
+      // caption-winners call-to-action inside the recap body
+      ".sr-capcta{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;margin:2px 0 8px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-primary);border-radius:13px;padding:12px 14px;font:inherit;font-size:15px;font-weight:800;cursor:pointer;}",
+      ".sr-capcta span{font-weight:600;font-size:12.5px;color:var(--muted);}",
+      ".sr-capcta:hover{border-color:var(--gold);}",
+      ".sr-capcta:disabled{opacity:.6;cursor:default;}"
     ].join("\n");
     var st = document.createElement("style"); st.id = "rc-style"; st.textContent = css; document.head.appendChild(st);
   }
@@ -527,6 +532,8 @@
       "</div>" +
       '<div class="sr-body">' +
         podiumHtml(recap) +
+        (+recap.date.slice(0, 4) >= 2013
+          ? '<button class="sr-capcta" type="button">🏆 Caption winners <span>who took GE · Visual · Music →</span></button>' : "") +
         (factsHtml(recap.facts) ? '<div class="rc-sech">Highlights</div>' + factsHtml(recap.facts) : "") +
         '<div class="rc-sech">Full results</div>' + leaderboardHtml(recap) +
       "</div>" +
@@ -561,6 +568,20 @@
     window.CadWrapped.openViewer([{ canvas: cv, filename: "cadence-recap-" + recap.date + ".png",
       title: "DCI recap · " + recap.event, caption: recap.event + " · " + shortDate(recap.date) }]);
   }
+  function openCaptions(btn) {
+    var recap = stackList[stackIdx];
+    if (!window.CadWrapped || !window.CadWrapped.captionsCard) return;
+    var orig = btn.innerHTML; btn.disabled = true; btn.innerHTML = "Loading caption sheet…";
+    window.CadWrapped.captionsCard({
+      year: +recap.date.slice(0, 4), date: recap.date, event: recap.event,
+      cls: recap.podium && recap.podium.cls,
+    }).then(function (ok) {
+      btn.disabled = false;
+      if (ok) { btn.innerHTML = orig; return; }
+      btn.innerHTML = "No caption sheet for this show yet";
+      setTimeout(function () { if (btn.isConnected) btn.innerHTML = orig; }, 1900);
+    }).catch(function () { btn.disabled = false; btn.innerHTML = orig; });
+  }
   function paintStack(slide) {
     var card = srOverlay.querySelector(".sr-card");
     card.innerHTML = renderShowRecap(stackList[stackIdx], stackIdx, stackList.length);
@@ -570,6 +591,7 @@
     var ca = card.querySelector(".sr-closeall"); if (ca) ca.addEventListener("click", closeStack);
     var nx = card.querySelector(".sr-next"); if (nx) nx.addEventListener("click", advance);
     card.querySelector(".sr-share").addEventListener("click", shareCurrent);
+    var cap = card.querySelector(".sr-capcta"); if (cap) cap.addEventListener("click", function () { openCaptions(cap); });
     wireSwipe(card);
   }
   function wireSwipe(card) {

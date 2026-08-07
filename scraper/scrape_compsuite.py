@@ -305,8 +305,10 @@ def _has_results(ev: dict) -> bool:
     return any(c.get("results") for c in ev.get("classes") or [])
 
 
-def main(year: int = 2026, recent_days: int | None = None,
+def main(year: int | None = None, recent_days: int | None = None,
          sync_results: bool = False) -> int:
+    if year is None:
+        year = date.today().year
     events_path = PARSED / "dci_events.json"
     if not events_path.exists():
         return 0

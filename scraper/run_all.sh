@@ -49,7 +49,7 @@ else
   # downbeatdesigns is a full-season backstop.
   # FETCH_RETRIES=1 so a throttled mirror fails fast instead of retry-storming
   # inside the step's time cap; these fills are best-effort and best-fresh.
-  FETCH_RETRIES=1 STEP_TIMEOUT=150 run "drum-corps.net fill"     python scraper/scrape_drumcorpsnet.py
+  FETCH_RETRIES=1 STEP_TIMEOUT=150 run "drum-corps.net fill"     python scraper/scrape_drumcorpsnet.py "$YEAR"
   FETCH_RETRIES=1 STEP_TIMEOUT=120 run "downbeat fallback fill"  python scraper/scrape_downbeat.py "$YEAR"
   # Judge-level captions from CompetitionSuite (the platform DCI's own
   # recaps are built from) — reachable from the cloud even when dci.org is

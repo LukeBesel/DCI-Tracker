@@ -398,6 +398,178 @@
     return true;
   }
 
+  // ---- captions card ---------------------------------------------------------
+  // Judge-caption winners for a single show, drawn as a shareable card. Reads
+  // the flat per-show caption table (captions/<year>.json), works out who took
+  // each caption, and flags any caption that changed hands since that class's
+  // previous show ("upsets"). Cols per row:
+  //   [date, event, class, corps, ge1, ge2, ge, vp, va, cg, vis, br, ma, pc, mus, pen, tot]
+  var CAP = {};
+  function loadCaptions(year) {
+    return CAP[year] || (CAP[year] = fetch("data/captions/" + year + ".json", { cache: "no-cache" })
+      .then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }));
+  }
+  var CAP_IDX = { ge1: 4, ge2: 5, ge: 6, vp: 7, va: 8, cg: 9, vis: 10, br: 11, ma: 12, pc: 13, mus: 14, tot: 16 };
+  var CAP_DEFS = [
+    { key: "ge", label: "General Effect", main: true },
+    { key: "vis", label: "Visual", main: true },
+    { key: "mus", label: "Music", main: true },
+    { key: "ge1", label: "GE 1" }, { key: "ge2", label: "GE 2" },
+    { key: "vp", label: "Visual Prof." }, { key: "va", label: "Visual Analysis" },
+    { key: "cg", label: "Color Guard" }, { key: "br", label: "Brass" },
+    { key: "ma", label: "Music Analysis" }, { key: "pc", label: "Percussion" },
+  ];
+  function _winnerOf(set, idx) {
+    var hi = -Infinity, who = null;
+    set.forEach(function (r) { var v = r[idx]; if (v != null && v > hi) { hi = v; who = r[3]; } });
+    return who == null ? null : { corps: who, score: hi };
+  }
+  function _marginOf(set, idx) {
+    var vals = set.map(function (r) { return r[idx]; }).filter(function (v) { return v != null; })
+      .sort(function (a, b) { return b - a; });
+    return vals.length > 1 ? Math.round((vals[0] - vals[1]) * 1000) / 1000 : null;
+  }
+  function captionSummary(year, date, event, cls) {
+    return loadCaptions(year).then(function (rows) {
+      if (!rows || !rows.length) return null;
+      var show = rows.filter(function (r) { return r[0] === date && r[1] === event; });
+      if (!show.length) return null;
+      // which class to feature: the requested one if present, else the biggest field
+      var counts = {};
+      show.forEach(function (r) { counts[r[2]] = (counts[r[2]] || 0) + 1; });
+      var useCls = (cls && counts[cls]) ? cls
+        : Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a]; })[0];
+      var here = show.filter(function (r) { return r[2] === useCls; });
+      if (here.length < 2) return null; // need an actual contest
+      // the same class's previous show (most recent earlier date with data)
+      var prevDate = null;
+      rows.forEach(function (r) { if (r[2] === useCls && r[0] < date && (!prevDate || r[0] > prevDate)) prevDate = r[0]; });
+      var prev = prevDate ? rows.filter(function (r) { return r[2] === useCls && r[0] === prevDate; }) : [];
+      var caps = CAP_DEFS.map(function (d) {
+        var w = _winnerOf(here, CAP_IDX[d.key]);
+        if (!w) return null;
+        var pw = prev.length ? _winnerOf(prev, CAP_IDX[d.key]) : null;
+        return { key: d.key, label: d.label, main: !!d.main, winner: w.corps, score: w.score,
+          margin: _marginOf(here, CAP_IDX[d.key]), took: pw && pw.corps !== w.corps ? pw.corps : null };
+      }).filter(Boolean);
+      if (!caps.length) return null;
+      var champ = _winnerOf(here, CAP_IDX.tot);
+      var podium = here.slice().sort(function (a, b) { return (b[CAP_IDX.tot] || 0) - (a[CAP_IDX.tot] || 0); })
+        .slice(0, 3).map(function (r) { return { corps: r[3], score: r[CAP_IDX.tot] }; });
+      return { year: year, date: date, event: event, cls: useCls, prevDate: prevDate,
+        caps: caps, champ: champ ? champ.corps : null, podium: podium, corpsN: here.length };
+    });
+  }
+
+  function drawCaptionsCard(info) {
+    var W = 1080, H = 1350, cv = newCanvas(), g = cv.getContext("2d");
+    var NAVY = "#0a2a4a", accent = "#f0b429", GOOD = "#ffd35c", PAD = 84;
+    var grad = g.createLinearGradient(0, 0, 0, H); grad.addColorStop(0, shade(NAVY, 0.05)); grad.addColorStop(1, shade(NAVY, -0.55));
+    g.fillStyle = grad; g.fillRect(0, 0, W, H);
+    var rg = g.createRadialGradient(W * 0.85, H * 0.05, 0, W * 0.85, H * 0.05, W * 0.95);
+    rg.addColorStop(0, hexA(accent, 0.16)); rg.addColorStop(1, hexA(accent, 0)); g.fillStyle = rg; g.fillRect(0, 0, W, H);
+
+    g.textBaseline = "alphabetic"; g.textAlign = "left";
+    g.fillStyle = accent; g.font = "800 30px " + FONT; g.fillText("C A D E N C E", PAD, 116);
+    g.fillStyle = "rgba(255,255,255,.6)"; g.textAlign = "right"; g.fillText(info.year + " SEASON", W - PAD, 116); g.textAlign = "left";
+    g.fillStyle = "#fff"; g.font = "900 60px " + FONT; g.fillText("Caption Winners", PAD, 200);
+    g.fillStyle = accent; g.font = "800 27px " + FONT;
+    g.fillText(ellip(g, (info.event || "").toUpperCase() + "  ·  " + (info.cls || "").toUpperCase(), W - PAD * 2), PAD, 244);
+
+    var caps = info.caps || [];
+    var mains = caps.filter(function (c) { return c.main; });
+    var subs = caps.filter(function (c) { return !c.main; });
+
+    // three hero caption tiles: GE / Visual / Music
+    var tTop = 288, tGap = 22, tW = (W - PAD * 2 - tGap * 2) / 3, tH = 268;
+    mains.forEach(function (c, i) {
+      var tx = PAD + i * (tW + tGap), col = pair(c.winner);
+      roundRect(g, tx, tTop, tW, tH, 26); g.fillStyle = "rgba(255,255,255,.06)"; g.fill();
+      roundRect(g, tx, tTop, tW, tH, 26); g.lineWidth = 2;
+      g.strokeStyle = c.took ? hexA(GOOD, 0.85) : "rgba(255,255,255,.14)"; g.stroke();
+      // caption label
+      g.textAlign = "center";
+      g.fillStyle = "rgba(255,255,255,.66)"; g.font = "800 23px " + FONT;
+      g.fillText(c.label.toUpperCase(), tx + tW / 2, tTop + 46);
+      // color chip + winner name (wrap to 2 lines)
+      g.fillStyle = col.bar; roundRect(g, tx + tW / 2 - 9, tTop + 66, 18, 18, 5); g.fill();
+      g.fillStyle = "#fff"; g.font = "900 30px " + FONT;
+      var words = String(c.winner).split(" "), line = "", lines = [];
+      words.forEach(function (w) { var t = line ? line + " " + w : w; if (g.measureText(t).width > tW - 24 && line) { lines.push(line); line = w; } else line = t; });
+      if (line) lines.push(line);
+      lines.slice(0, 2).forEach(function (ln, k) { g.fillText(ellip(g, ln, tW - 20), tx + tW / 2, tTop + 128 + k * 34); });
+      // winning score
+      g.fillStyle = accent; g.font = "900 46px " + FONT;
+      g.fillText(fmt2(c.score), tx + tW / 2, tTop + 216);
+      // change flag
+      if (c.took) {
+        g.fillStyle = GOOD; g.font = "800 18px " + FONT;
+        g.fillText(ellip(g, "▲ took from " + c.took, tW - 20), tx + tW / 2, tTop + 250);
+      } else if (c.margin != null) {
+        g.fillStyle = "rgba(255,255,255,.5)"; g.font = "700 18px " + FONT;
+        g.fillText("+" + fmt2(c.margin) + " margin", tx + tW / 2, tTop + 250);
+      }
+      g.textAlign = "left";
+    });
+
+    // sub-caption winners — two columns
+    var sTop = tTop + tH + 74;
+    g.fillStyle = "#fff"; g.font = "800 30px " + FONT; g.fillText("Sub-caption winners", PAD, sTop - 26);
+    var colW = (W - PAD * 2) / 2, rowH = 78, perCol = Math.ceil(subs.length / 2);
+    subs.forEach(function (c, i) {
+      var col = i < perCol ? 0 : 1, idx = i < perCol ? i : i - perCol;
+      var lx = PAD + col * colW, ly = sTop + idx * rowH, cc = pair(c.winner);
+      g.fillStyle = "rgba(255,255,255,.55)"; g.font = "800 21px " + FONT;
+      g.fillText(c.label.toUpperCase(), lx, ly);
+      g.fillStyle = cc.bar; roundRect(g, lx, ly + 14, 16, 16, 4); g.fill();
+      g.fillStyle = "#fff"; g.font = "800 27px " + FONT;
+      g.fillText(ellip(g, c.winner, colW - 150), lx + 28, ly + 30);
+      g.fillStyle = accent; g.font = "800 25px " + FONT; g.textAlign = "right";
+      g.fillText(fmt2(c.score), lx + colW - 40, ly + 30); g.textAlign = "left";
+      if (c.took) {
+        g.fillStyle = GOOD; g.font = "700 16px " + FONT;
+        g.fillText(ellip(g, "▲ from " + c.took, colW - 60), lx + 28, ly + 52);
+      }
+    });
+
+    // overall top 3 — anchors the bottom and gives the caption story its context
+    var pod = info.podium || [];
+    if (pod.length) {
+      var pTop = sTop + perCol * rowH + 46;
+      g.fillStyle = "#fff"; g.font = "800 30px " + FONT; g.fillText("Overall", PAD, pTop);
+      var medal = ["#f0b429", "#c9ccd1", "#cd7f32"];
+      pod.forEach(function (r, i) {
+        var py = pTop + 44 + i * 62, cc = pair(r.corps);
+        g.fillStyle = medal[i] || "#c9ccd1"; g.font = "900 30px " + FONT; g.fillText(String(i + 1), PAD, py);
+        g.fillStyle = cc.bar; roundRect(g, PAD + 42, py - 20, 18, 18, 5); g.fill();
+        g.fillStyle = "#fff"; g.font = "800 30px " + FONT; g.fillText(ellip(g, r.corps, W - PAD * 2 - 240), PAD + 74, py);
+        g.fillStyle = accent; g.font = "900 32px " + FONT; g.textAlign = "right"; g.fillText(fmt3(r.score), W - PAD, py); g.textAlign = "left";
+      });
+    }
+
+    // footer: caption-flip note (the podium already names the overall leader)
+    var flips = caps.filter(function (c) { return c.took; }).length;
+    g.textAlign = "center";
+    if (flips && info.prevDate) {
+      g.fillStyle = GOOD; g.font = "800 26px " + FONT;
+      g.fillText(ellip(g, "▲ " + flips + " caption" + (flips === 1 ? "" : "s") + " changed hands since the last show", W - PAD * 2), W / 2, H - 92);
+    }
+    g.fillStyle = "rgba(255,255,255,.5)"; g.font = "700 24px " + FONT;
+    g.fillText(SITE_LABEL, W / 2, H - 52); g.textAlign = "left";
+    return cv;
+  }
+  function fmt2(n) { return n == null ? "—" : (Math.round(n * 100) / 100).toFixed(2); }
+  function captionsCard(info) {
+    return captionSummary(info.year, info.date, info.event, info.cls).then(function (sum) {
+      if (!sum) return false;
+      var cv = drawCaptionsCard(sum);
+      openViewer([{ canvas: cv, filename: "cadence-captions-" + sum.date + ".png",
+        title: "Caption winners · " + sum.event,
+        caption: sum.event + " · " + sum.cls + " caption winners" }]);
+      return true;
+    });
+  }
+
   var HIST = null;
   function loadHistory() {
     // in docs/ (not docs/data/) — the scraper wipes docs/data on every run
@@ -542,6 +714,7 @@
   window.CadWrapped = {
     seasonCard: seasonCard, openViewer: openViewer, standing: standing,
     standingsCard: standingsCard, drawStandingsCard: drawStandingsCard,
+    captionsCard: captionsCard, drawCaptionsCard: drawCaptionsCard, captionSummary: captionSummary,
     drawSeasonCard: drawSeasonCard, drawShowCard: drawShowCard,
     drawHistoryCard: drawHistoryCard, historyCard: historyCard,
     shareCanvas: shareCanvas, slug: slug,

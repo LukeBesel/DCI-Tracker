@@ -16,9 +16,11 @@
 
   // ---- live-show detection: which corps / shows are performing RIGHT NOW ----
   // Reads the published schedule (per-corps ET performance times) + today's
-  // posted scores. A corps is "live" from ~15 min before its slot until ~90 min
-  // after, unless its score for today is already in. DCI championship venues run
-  // on Eastern time and August is EDT (UTC-4).
+  // posted scores. A corps is "live" for a tight window around its slot (15 min
+  // either side — roughly on-deck through walk-off), unless its score for today
+  // is already in. DCI championship venues run on Eastern time; August is EDT
+  // (UTC-4).
+  const LIVE_PAD = 15 * 60000; // 15-min cushion on each side of a performance slot
   const LIVE = (() => {
     let cache = null, cacheAt = 0;
     const etToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date());
@@ -48,9 +50,9 @@
           if (!lineup.has(label)) return; // only real corps slots (skip gates/intermission)
           const t = slotMs(ev.date, pair[0]); if (t == null) return;
           first = Math.min(first, t); last = Math.max(last, t);
-          if (now >= t - 15 * 60000 && now <= t + 90 * 60000 && !scoredToday.has(label)) corpsLive.add(label);
+          if (now >= t - LIVE_PAD && now <= t + LIVE_PAD && !scoredToday.has(label)) corpsLive.add(label);
         });
-        if (first !== Infinity && now >= first - 15 * 60000 && now <= last + 90 * 60000) showLive.add(ev.name);
+        if (first !== Infinity && now >= first - LIVE_PAD && now <= last + LIVE_PAD) showLive.add(ev.name);
       });
       cache = { corpsLive, showLive, today }; cacheAt = now;
       return cache;
@@ -1337,6 +1339,16 @@
     const years = [...byYear.keys()].sort();
     const bestByYear = years.map(y => Math.max(0, ...byYear.get(y).map(p => p.s || 0)) || null);
     const scored = perfs.filter(p => p.s);
+    // show-over-show score change within each season — the first scored show of
+    // a season is the baseline (0.0), every later show is measured vs the one
+    // before it (same idea as the scoreboard's "vs prev" column). Keyed by the
+    // perf object so the log can look each one up.
+    const deltaByPerf = new Map();
+    byYear.forEach(ps => {
+      const ordered = ps.filter(p => p.s != null).slice()
+        .sort((a, b) => (a.d || "").localeCompare(b.d || ""));
+      ordered.forEach((p, i) => deltaByPerf.set(p, i === 0 ? 0 : +(p.s - ordered[i - 1].s).toFixed(3)));
+    });
     const cmpYears = years.slice(-3).reverse().join(",");
 
     const bestPerf = scored.length ? scored.reduce((m, p) => p.s > m.s ? p : m, scored[0]) : null;
@@ -1545,12 +1557,13 @@
       const list = perfs.filter(p => !sel.length || yearSet.has(String(p.y)))
         .sort((a, b) => (b.d || "").localeCompare(a.d || "") || b.y - a.y);
       document.getElementById("perfTable").innerHTML = `<div class="tscroll"><table class="t">
-        <thead><tr><th>Date</th><th>Event</th><th class="m-hide">Class</th><th class="num">Place</th><th class="num">Score</th></tr></thead>
+        <thead><tr><th>Date</th><th>Event</th><th class="m-hide">Class</th><th class="num">Place</th><th class="num">Score</th><th class="num" title="Change from this corps' previous show that season">vs prev</th></tr></thead>
         <tbody id="perfRows">${list.slice(0, 600).map(p => h`<tr>
           <td style="color:var(--muted);white-space:nowrap">${fmtDate2(p.d, p.y)}</td>
           <td>${esc(p.ev || "")}</td>
           <td class="m-hide"><span class="pill">${esc(p.cls || "")}</span></td>
-          <td class="num">${p.p ?? "—"}</td><td class="num score">${score3(p.s)}</td></tr>`).join("")}</tbody></table></div>`;
+          <td class="num">${p.p ?? "—"}</td><td class="num score">${score3(p.s)}</td>
+          <td class="num">${p.s == null ? '<span class="delta flat">—</span>' : deltaHtml(deltaByPerf.get(p))}</td></tr>`).join("")}</tbody></table></div>`;
       collapseRows(document.getElementById("perfRows"), 5, "performances");
     }
     renderChart();
@@ -2232,10 +2245,19 @@
         <div class="tscroll"><table class="t"><thead><tr><th>#</th><th>Corps</th><th class="num">Score</th></tr></thead><tbody class="evres" data-ci="${ci}">
         ${c.results.map(r => `<tr><td class="rank">${r.place ?? "—"}</td><td>${corpsLink(r.corps)}</td><td class="num score">${score3(r.score)}</td></tr>`).join("")}
         </tbody></table></div>
-        ${capSection(c.class, ci)}</div>`).join("")}
+        ${capSection(c.class, ci)}
+        ${(recByClass.has(c.class) || capByClass.has(c.class)) ? `<button class="tab capcardbtn" data-cls="${esc(c.class)}" style="margin-top:12px">🏆 Caption winners card</button>` : ""}</div>`).join("")}
       ${ev.recap_url ? `<p style="font-size:12.5px;color:var(--muted)"><a href="${encodeURI(ev.recap_url)}" target="_blank" rel="noopener">Official recap on DCI.org ↗</a></p>` : ""}
       ${ev.location ? `<p style="font-size:12.5px;color:var(--muted)"><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((ev.name || "") + " " + ev.location)}" target="_blank" rel="noopener">Venue map ↗</a></p>` : ""}`;
     wireShare("evShare", `${ev.name} · Cadence`);
+    document.querySelectorAll(".capcardbtn").forEach(btn => btn.onclick = () => {
+      if (!window.CadWrapped || !window.CadWrapped.captionsCard) return;
+      const orig = btn.innerHTML; btn.disabled = true; btn.textContent = "Creating…";
+      window.CadWrapped.captionsCard({ year: +year, date: ev.date, event: ev.name, cls: btn.dataset.cls })
+        .then(ok => { btn.disabled = false; btn.innerHTML = orig;
+          if (!ok) { btn.innerHTML = "No caption card available"; setTimeout(() => { if (btn.isConnected) btn.innerHTML = orig; }, 1800); } })
+        .catch(() => { btn.disabled = false; btn.innerHTML = orig; });
+    });
     document.querySelectorAll(".rcmount").forEach(m => {
       const rc = recByClass.get(m.dataset.cls);
       if (rc) renderRecapSheet(m, rc);
