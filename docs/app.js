@@ -813,7 +813,7 @@
       <div class="filters"><div id="clsSel"></div></div>
       <div class="card">
         <h2 id="trendTitle">Season Progression <span class="sub" id="trendSub">score by date · top 12</span></h2>
-        <div class="filters" style="margin:2px 0 8px"><div id="trendCorpsSel"></div><button class="tab" id="trendReset" hidden>Top 12</button></div>
+        <div class="filters" style="margin:2px 0 8px"><div id="trendCorpsSel"></div><button class="tab" id="trendReset" hidden>Top 12</button><button class="tab" id="trendShare" title="Share this progression as an image">${SHARE_SVG} Share</button></div>
         <div class="chartwrap" id="trendChart"></div>
       </div>
       <div class="grid cols-2" style="margin-top:14px">
@@ -886,6 +886,15 @@
       top12.forEach(c => trendPick.add(c));
       msTrend.refresh();
       drawTrend();
+    };
+    const trendShareBtn = document.getElementById("trendShare");
+    if (trendShareBtn) trendShareBtn.onclick = () => {
+      if (!window.CadWrapped || !window.CadWrapped.standingsCard) return;
+      const top = block.rows.slice(0, 10).map(r => ({
+        corps: r.corps, color: corpsColor(r.corps), rank: r.rank, last: r.score,
+        trend: (r.trend || []).filter(t => t[1] != null).map(t => [dayOfSeason(t[0]), t[1]]),
+      }));
+      window.CadWrapped.standingsCard({ year: rk.season, cls: classLabel, rows: top });
     };
     drawTrend();
 
@@ -1811,15 +1820,19 @@
     const cnt = document.getElementById("evCount");
     if (cnt) cnt.textContent = `· ${year} — ${events.filter(e => !e.future).length} events${events.some(e => e.future) ? `, ${events.filter(e => e.future).length} upcoming` : ""}`;
     mount().innerHTML = h`
-      <div class="filters">
+      <div class="filters" style="justify-content:space-between;align-items:center">
+        <button class="tab" id="fToggle" aria-expanded="false">Filters ▾</button>
+        <button class="tab" id="toggleAll">Expand All ▾</button>
+      </div>
+      <div class="filters" id="fPanel" hidden>
         <div id="fCls"></div>
         <div id="fCorps"></div>
         <input class="ctrl" id="fQ" placeholder="Search event or city…">
-        <button class="tab" id="toggleAll">Expand All ▾</button>
       </div>
       <div id="evcount" class="kicker" style="margin:-6px 0 10px"></div>
       ${recordStrip}
       <div id="evlist"></div>`;
+    const todayISO = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date());
 
     const list = document.getElementById("evlist");
 
@@ -1879,11 +1892,13 @@
         idxs.length === events.length ? "" : `${idxs.length} of ${events.length} events match`;
       list.innerHTML = shownIdxs.map(([ev, i]) => {
         const winner = eventWinner(ev);
-        return h`<div class="evrow card" data-i="${i}">
+        const live = ev.date === todayISO; // today's show — in progress / scores landing
+        const liveBadge = live ? '<span class="pill live"><span class="livedot"></span>LIVE</span>' : "";
+        return h`<div class="evrow card${live ? " evlive" : ""}" data-i="${i}">
           <button class="evhead" aria-expanded="false">
             <span class="evwhen">${fmtDate2(ev.date, ev.date_display)}</span>
-            <span class="evmain"><b>${PINS.has(pinKeyOf(ev)) ? "📌 " : ""}${esc(ev.name)}${ev.has_recap ? ' <span class="pill evpill">recap</span>' : ""}</b><span class="evloc">${esc(ev.location || "")}</span></span>
-            <span class="evwin">${ev.future ? '<span class="pill">upcoming</span>' : winner ? h`${esc(winner.corps)}<b>${score3(winner.score)}</b>` : ""}</span>
+            <span class="evmain"><b>${PINS.has(pinKeyOf(ev)) ? "📌 " : ""}${esc(ev.name)}${liveBadge}${ev.has_recap ? ' <span class="pill evpill">recap</span>' : ""}</b><span class="evloc">${esc(ev.location || "")}</span></span>
+            <span class="evwin">${live && ev.future ? '<span class="pill live"><span class="livedot"></span>waiting for scores</span>' : ev.future ? '<span class="pill">upcoming</span>' : winner ? h`${esc(winner.corps)}<b>${score3(winner.score)}</b>` : ""}</span>
             <span class="caret">▸</span>
           </button>
           <div class="evbody" hidden></div>
@@ -1966,6 +1981,17 @@
       list.querySelectorAll(".evrow").forEach(r => toggle(r, allOpen));
       syncToggle();
     };
+    // filters collapse behind a toggle — default is just the show list
+    const fPanel = document.getElementById("fPanel");
+    const fToggleBtn = document.getElementById("fToggle");
+    const anyFilter = () => !!(fClsVal || corpsPick.size || (fQEl.value || "").trim());
+    function syncFilterBtn() {
+      fToggleBtn.setAttribute("aria-expanded", String(!fPanel.hidden));
+      fToggleBtn.textContent = (anyFilter() ? "Filters ● " : "Filters ") + (fPanel.hidden ? "▾" : "▴");
+    }
+    fToggleBtn.onclick = () => { fPanel.hidden = !fPanel.hidden; syncFilterBtn(); };
+    if (anyFilter()) fPanel.hidden = false; // reveal it so an active filter isn't a mystery
+    syncFilterBtn();
     render();
   }
 

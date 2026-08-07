@@ -314,17 +314,18 @@
   };
   function simonBlurb(r) { return r >= 14 ? "Photographic. 🧠🥇" : r >= 9 ? "Sharp ears!" : r >= 5 ? "Nice memory — keep going." : r >= 2 ? "Warming up…" : "Give it another shot."; }
 
-  // ---- trigger: double-tap the logo ------------------------------------------
+  // ---- trigger: tap the logo -------------------------------------------------
+  // A single tap on the Cadence logo opens the games. Capture phase + stop lets
+  // us intercept before the brand's home-nav link (and app.js's reset handler),
+  // so one tap = games. Home is still one tap away on the Scoreboard nav tab.
   function init() {
-    var brand = document.querySelector("header.topbar .brand") || document.querySelector(".brand");
-    if (!brand) return;
-    var taps = [];
-    brand.addEventListener("click", function () {
-      var now = (window.performance && performance.now) ? performance.now() : +new Date();
-      taps.push(now);
-      taps = taps.filter(function (t) { return now - t < 450; }); // a quick double-tap
-      if (taps.length >= 2) { taps = []; try { open(); } catch (e) {} }
-    });
+    document.addEventListener("click", function (e) {
+      var brand = e.target && e.target.closest ? e.target.closest(".brand") : null;
+      if (!brand) return;
+      e.preventDefault();
+      e.stopPropagation();
+      try { open(); } catch (err) {}
+    }, true);
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();

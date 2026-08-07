@@ -304,6 +304,22 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14.5px; }
   background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border);
   font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.3px;
 }
+/* LIVE badge for a show happening today (scores landing) */
+.pill.live {
+  display: inline-flex; align-items: center; gap: 5px; vertical-align: middle;
+  background: rgba(201,42,42,0.12); color: #e03131; border-color: rgba(201,42,42,0.45);
+  font-weight: 700;
+}
+.pill.live .livedot {
+  width: 7px; height: 7px; border-radius: 50%; background: #e03131; flex: none;
+  box-shadow: 0 0 0 0 rgba(224,49,49,0.6); animation: livepulse 1.3s ease-out infinite;
+}
+@keyframes livepulse {
+  0% { box-shadow: 0 0 0 0 rgba(224,49,49,0.55); opacity: 1; }
+  70% { box-shadow: 0 0 0 7px rgba(224,49,49,0); opacity: .85; }
+  100% { box-shadow: 0 0 0 0 rgba(224,49,49,0); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .pill.live .livedot { animation: none; } }
 
 /* favorite toggle on the corps page */
 .favtoggle {

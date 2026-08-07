@@ -68,7 +68,7 @@
     if (iosSafari) {
       return '<ul class="in-steps">' +
         s(1, 'Tap the <span class="in-gly">' + SHARE + "</span> <b>Share</b> button in Safari’s toolbar") +
-        s(2, 'Scroll down and tap <span class="in-gly">' + PLUS + "</span> <b>Add to Home Screen</b>") +
+        s(2, 'In the share sheet, <b>scroll down</b> the list of options (tap <b>Edit Actions… / More</b> if you don’t see it) and choose <span class="in-gly">' + PLUS + "</span> <b>Add to Home Screen</b>") +
         s(3, "Tap <b>Add</b> — Cadence lands on your home screen") +
         "</ul>" +
         '<div class="in-hint"><span class="in-gly">' + SHARE + "</span> Look for Share at the bottom of the screen</div>";

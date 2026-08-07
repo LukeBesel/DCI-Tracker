@@ -326,6 +326,75 @@
     return cv;
   }
 
+  // ---- season-progression card (the scoreboard chart, shareable) -------------
+  // info: { year, cls, rows:[{ corps, color, rank, last, trend:[[x,y]...] }] }
+  function drawStandingsCard(info) {
+    var W = 1080, H = 1350, cv = newCanvas(), g = cv.getContext("2d");
+    var NAVY = "#0a2a4a", accent = "#f0b429", PAD = 84;
+    var grad = g.createLinearGradient(0, 0, 0, H); grad.addColorStop(0, shade(NAVY, 0.05)); grad.addColorStop(1, shade(NAVY, -0.55));
+    g.fillStyle = grad; g.fillRect(0, 0, W, H);
+    var rg = g.createRadialGradient(W * 0.85, H * 0.06, 0, W * 0.85, H * 0.06, W * 0.9);
+    rg.addColorStop(0, hexA(accent, 0.16)); rg.addColorStop(1, hexA(accent, 0)); g.fillStyle = rg; g.fillRect(0, 0, W, H);
+
+    g.textBaseline = "alphabetic";
+    g.fillStyle = accent; g.font = "800 30px " + FONT; g.fillText("C A D E N C E", PAD, 116);
+    g.fillStyle = "rgba(255,255,255,.6)"; g.textAlign = "right"; g.fillText(info.year + " SEASON", W - PAD, 116); g.textAlign = "left";
+    g.fillStyle = "#fff"; g.font = "900 52px " + FONT; g.fillText("Season Progression", PAD, 196);
+    g.fillStyle = accent; g.font = "800 27px " + FONT; g.fillText((info.cls || "").toUpperCase(), PAD, 234);
+
+    var rows = (info.rows || []).filter(function (r) { return r.trend && r.trend.length; }).slice(0, 10);
+    if (!rows.length) {
+      g.fillStyle = "rgba(255,255,255,.6)"; g.font = "600 30px " + FONT; g.fillText("Not enough scores yet.", PAD, 400);
+      return cv;
+    }
+    var cx = PAD, cyTop = 288, cw = W - PAD * 2, chh = 540;
+    var xs = [], ys = [];
+    rows.forEach(function (r) { r.trend.forEach(function (p) { xs.push(p[0]); ys.push(p[1]); }); });
+    var minX = Math.min.apply(null, xs), maxX = Math.max.apply(null, xs);
+    var minY = Math.min.apply(null, ys), maxY = Math.max.apply(null, ys), rY0 = (maxY - minY) || 1;
+    minY -= rY0 * 0.06; maxY += rY0 * 0.06;
+    var rX = (maxX - minX) || 1, rY = (maxY - minY) || 1;
+    var X = function (x) { return cx + (x - minX) / rX * cw; };
+    var Y = function (y) { return cyTop + chh - (y - minY) / rY * chh; };
+    // gridlines + score labels
+    for (var gi = 0; gi <= 4; gi++) {
+      var yy = cyTop + chh * gi / 4;
+      g.strokeStyle = "rgba(255,255,255,.09)"; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(cx, yy); g.lineTo(cx + cw, yy); g.stroke();
+      g.fillStyle = "rgba(255,255,255,.4)"; g.font = "600 21px " + FONT; g.textAlign = "right";
+      g.fillText((maxY - (maxY - minY) * gi / 4).toFixed(0), cx - 12, yy + 7); g.textAlign = "left";
+    }
+    // one line per corps, end dot carries the rank
+    rows.forEach(function (r) {
+      g.strokeStyle = r.color || accent; g.lineWidth = 5; g.lineJoin = "round"; g.lineCap = "round";
+      g.beginPath(); r.trend.forEach(function (p, i) { var xx = X(p[0]), yy = Y(p[1]); i ? g.lineTo(xx, yy) : g.moveTo(xx, yy); }); g.stroke();
+      var lp = r.trend[r.trend.length - 1], ex = X(lp[0]), ey = Y(lp[1]);
+      g.fillStyle = r.color || accent; g.beginPath(); g.arc(ex, ey, 12, 0, 6.29); g.fill();
+      g.fillStyle = "#fff"; g.font = "800 15px " + FONT; g.textAlign = "center"; g.textBaseline = "middle";
+      g.fillText(String(r.rank), ex, ey + 1); g.textAlign = "left"; g.textBaseline = "alphabetic";
+    });
+    // legend: 2 columns × 5
+    var lgTop = cyTop + chh + 62, colW = cw / 2, rowH = 54;
+    rows.forEach(function (r, i) {
+      var lx = cx + (i < 5 ? 0 : 1) * colW, ly = lgTop + (i % 5) * rowH;
+      g.fillStyle = "rgba(255,255,255,.5)"; g.font = "800 24px " + FONT; g.fillText(r.rank + ".", lx, ly);
+      g.fillStyle = r.color || accent; roundRect(g, lx + 44, ly - 18, 20, 20, 5); g.fill();
+      g.fillStyle = "#fff"; g.font = "700 26px " + FONT; g.fillText(ellip(g, r.corps, colW - 200), lx + 78, ly);
+      g.fillStyle = accent; g.font = "800 26px " + FONT; g.textAlign = "right";
+      g.fillText(fmt3(r.last), lx + colW - 34, ly); g.textAlign = "left";
+    });
+    g.fillStyle = "rgba(255,255,255,.5)"; g.font = "700 26px " + FONT; g.textAlign = "center";
+    g.fillText("Live standings at " + SITE_LABEL, W / 2, H - 56); g.textAlign = "left";
+    return cv;
+  }
+  function standingsCard(info) {
+    var cv = drawStandingsCard(info);
+    openViewer([{ canvas: cv, filename: "cadence-" + info.year + "-progression.png",
+      title: info.year + " " + (info.cls || "") + " progression",
+      caption: info.year + " · " + (info.cls || "") + " progression" }]);
+    return true;
+  }
+
   var HIST = null;
   function loadHistory() {
     // in docs/ (not docs/data/) — the scraper wipes docs/data on every run
@@ -469,6 +538,7 @@
 
   window.CadWrapped = {
     seasonCard: seasonCard, openViewer: openViewer, standing: standing,
+    standingsCard: standingsCard, drawStandingsCard: drawStandingsCard,
     drawSeasonCard: drawSeasonCard, drawShowCard: drawShowCard,
     drawHistoryCard: drawHistoryCard, historyCard: historyCard,
     shareCanvas: shareCanvas, slug: slug,

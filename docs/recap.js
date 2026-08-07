@@ -658,20 +658,11 @@
       '<div class="rc-sub">Tap any highlighted day for its show recaps</div></div>' +
       '<div class="rc-tools"><select id="rc-year" aria-label="Season"></select>' +
       '<select id="rc-cls" aria-label="Class"><option value="">All classes</option><option>World Class</option><option>Open Class</option><option>All-Age</option><option>International</option></select>' +
-      '<input id="rc-q" type="search" placeholder="Search corps or show…" autocomplete="off">' +
-      '<button id="rc-hist" class="rc-histbtn" type="button" title="What happened on today\'s date in DCI history">✨ This day in history</button></div>' +
+      '<input id="rc-q" type="search" placeholder="Search corps or show…" autocomplete="off"></div>' +
       '<div class="rc-cal" id="rc-cal"><p class="rc-empty">Loading…</p></div>');
     card.querySelector(".rc-x").addEventListener("click", close);
     var sel = card.querySelector("#rc-year"), clsSel = card.querySelector("#rc-cls"), q = card.querySelector("#rc-q"), cal = card.querySelector("#rc-cal");
     q.value = browseState.q || ""; clsSel.value = browseState.cls || "";
-    card.querySelector("#rc-hist").addEventListener("click", function () {
-      if (!window.CadWrapped || !window.CadWrapped.historyCard) return;
-      var t = todayET(), mmdd = t.slice(5), label = MNAMES[+mmdd.slice(0, 2) - 1] + " " + (+mmdd.slice(3));
-      window.CadWrapped.historyCard(mmdd, label).then(function (c) {
-        if (c) window.CadWrapped.openViewer([c]);
-        else alert("No DCI championships or standout scores are on record for " + label + " yet.");
-      });
-    });
     loadYears().then(function (years) {
       if (!years.length) { cal.innerHTML = '<p class="rc-empty">Couldn’t load seasons.</p>'; return; }
       if (!browseState.year || years.indexOf(browseState.year) < 0) browseState.year = years[0];
@@ -752,25 +743,29 @@
   // per show (date + event) so each show you haven't caught up on appears once.
   function seenKey(ev) { return "cad-rc-show-" + ev.date + "|" + (ev.name || ""); }
   function missedShows(evs, cap) {
+    cap = cap || 3;
     var days = scoredShowDays(evs), out = [];
-    for (var i = days.length - 1; i >= 0 && out.length < (cap || 6); i--) {
+    for (var i = days.length - 1; i >= 0 && out.length < cap; i--) {
       var d = days[i];
       if (!eligible(d)) continue;
       var shows = showsForDay(evs, d);
       var unseen = shows.filter(function (ev) { return !lget(seenKey(ev)); });
       if (!unseen.length) break;                    // caught up through here
-      unseen.forEach(function (ev) { if (out.length < (cap || 6)) out.push(ev); });
+      unseen.forEach(function (ev) { if (out.length < cap) out.push(ev); });
     }
     return out; // newest first
   }
   function maybeAutoShow() {
     try { if (sessionStorage.getItem("cad-rc-session")) return; } catch (e) {}
+    // the auto-popup shows ONCE, ever — after that, recaps live in the calendar
+    if (lget("cad-rc-autoseen")) return;
     var year = +todayET().slice(0, 4);
     loadYear(year).then(function (evs) {
       if (!evs) return;
-      var shows = missedShows(evs, 6);
+      var shows = missedShows(evs, 3);              // at most 3, so it's not a wall of popups
       if (!shows.length) return;                    // nothing new to catch up on
       try { sessionStorage.setItem("cad-rc-session", "1"); } catch (e) {}
+      lset("cad-rc-autoseen", "1");                 // don't auto-pop again — calendar only
       shows.forEach(function (ev) { lset(seenKey(ev), "1"); });
       openStack(shows.map(function (ev) { return recapForShow(evs, ev); }));
     });

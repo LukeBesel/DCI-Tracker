@@ -640,11 +640,8 @@
       openColin({ mock: false });
       return;
     }
-    // Aug 6–8: Championship Mode, first open each day
-    if (lget("cad-cm-seen-" + todayET())) return;
-    try { sessionStorage.setItem("cad-cm-session", "1"); } catch (e) {}
-    markSeenToday();
-    open(modeForDate(todayET()));
+    // The Finals countdown / Championship Mode popup was retired at the user's
+    // request — only the Colin Besel tribute (Aug 9) still auto-shows.
   }
 
   // A gold button beside the settings gear that reopens whichever temporary
@@ -656,9 +653,9 @@
   function injectTopButton() {
     var mock = mockPreviewActive();
     var ph = phase();
-    // shown while a temporary screen is live; also whenever dev-preview is on so
-    // the developer can see/test the button before the trip
-    if (!mock && ph === "none" && lget("cad-cm-dev") !== "1") return;
+    // only the Colin tribute keeps a reopen button now (the Finals countdown was
+    // retired); dev-preview still shows it for testing
+    if (!mock && ph !== "colin" && lget("cad-cm-dev") !== "1") return;
     var bar = document.querySelector("header.topbar");
     if (!bar || document.getElementById("cm-topbtn")) return;
     injectStyles();
