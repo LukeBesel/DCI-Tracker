@@ -31,9 +31,9 @@
       const [y, mo, d] = dateISO.split("-").map(Number);
       return Date.UTC(y, mo - 1, d, h + 4, +m[2]); // ET slot → UTC (EDT = UTC-4)
     }
-    async function refresh() {
+    async function refresh(force) {
       const now = Date.now();
-      if (cache && now - cacheAt < 45000) return cache;
+      if (!force && cache && now - cacheAt < 30000) return cache;
       const today = etToday();
       let up = [], season = null;
       try { up = await data("upcoming.json"); } catch (e) {}
@@ -61,6 +61,9 @@
       refresh,
       corpsLive: n => !!(cache && cache.corpsLive.has(n)),
       showLive: ev => !!(cache && ev && cache.showLive.has(ev.name)),
+      today: () => cache && cache.today,
+      // signature of the current live sets — lets a view repaint only on change
+      sig: () => cache ? [...cache.corpsLive].sort().join("|") + "#" + [...cache.showLive].sort().join("|") : "",
     };
   })();
   const LIVE_BADGE = '<span class="pill live" title="Performing now — scores landing"><span class="livedot"></span>LIVE</span>';
@@ -1752,6 +1755,21 @@
     return new Date(utc).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   }
 
+  // the timed running order for a show — a LIVE pill rides next to whichever
+  // corps are inside their ±15-min window right now. Split out so a live view
+  // can repaint just these rows as the running order advances.
+  function scheduleRowsHtml(ev) {
+    const tz = venueZone(ev.location);
+    const sameZone = !tz || tz === Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const abbr = tz ? tzAbbr(tz, ev.date ? new Date(ev.date + "T12:00:00") : new Date()) : "";
+    return (ev.schedule || []).map(([t, entry]) => {
+      const isCorps = (ev.lineup || []).includes(entry);
+      const shown = sameZone ? t : (localizeVenueTime(t, ev.date, tz) || t);
+      const live = isCorps && LIVE.corpsLive(entry);
+      return `<tr${live ? ' class="evlive"' : ""}><td class="num" style="color:var(--muted);white-space:nowrap"${shown !== t ? ` title="${esc(t)} ${esc(abbr)} at the venue"` : ""}>${esc(shown || "")}</td><td>${isCorps ? corpsLink(entry) + (live ? " " + LIVE_BADGE : "") : `<span style="color:var(--muted)">${esc(entry)}</span>`}</td></tr>`;
+    }).join("");
+  }
+
   function eventBodyHtml(ev, year, i) {
     const pk = pinKeyOf(ev);
     const pinBtn = `<button type="button" class="tab evpin" data-pin="${esc(pk)}" style="float:right;margin:0 0 8px 10px;padding:4px 12px;font-size:12px">${PINS.has(pk) ? "📌 Unpin" : "📌 Pin to top"}</button>`;
@@ -1770,12 +1788,8 @@
           ? `${ev.lineup.length} corps · ${abbr ? "local time (" + abbr + ")" : "venue time"}`
           : `${ev.lineup.length} corps · shown in your time — venue is on ${abbr}`;
         return h`${pinBtn}<h3 class="evcls">Schedule <span class="kicker">${kick}</span></h3>
-          <table class="t"><tbody>
-          ${ev.schedule.map(([t, entry]) => {
-            const isCorps = (ev.lineup || []).includes(entry);
-            const shown = sameZone ? t : (localizeVenueTime(t, ev.date, tz) || t);
-            return `<tr><td class="num" style="color:var(--muted);white-space:nowrap"${shown !== t ? ` title="${esc(t)} ${esc(abbr)} at the venue"` : ""}>${esc(shown || "")}</td><td>${isCorps ? corpsLink(entry) : `<span style="color:var(--muted)">${esc(entry)}</span>`}</td></tr>`;
-          }).join("")}
+          <table class="t"><tbody class="evsched" data-i="${i}">
+          ${scheduleRowsHtml(ev)}
           </tbody></table>
           <div class="predictmount"></div>
           ${mapLink}`;
@@ -1783,7 +1797,8 @@
       return (ev.lineup || []).length
         ? h`${pinBtn}<h3 class="evcls">Scheduled Lineup <span class="kicker">${ev.lineup.length} corps</span></h3>
             <table class="t"><tbody>
-            ${ev.lineup.map(c => `<tr><td>${corpsLink(c)}</td><td class="num" style="color:var(--muted)">upcoming</td></tr>`).join("")}
+            ${ev.lineup.map(c => { const live = LIVE.corpsLive(c);
+              return `<tr${live ? ' class="evlive"' : ""}><td>${corpsLink(c)}${live ? " " + LIVE_BADGE : ""}</td><td class="num" style="color:var(--muted)">${live ? "" : "upcoming"}</td></tr>`; }).join("")}
             </tbody></table>
             <div class="predictmount"></div>
             ${mapLink}`
@@ -2061,6 +2076,27 @@
     if (anyFilter()) fPanel.hidden = false; // reveal it so an active filter isn't a mystery
     syncFilterBtn();
     render();
+
+    // Live running-order tracker: while a show runs today, keep the LIVE pills
+    // in any open schedule current — the badge walks down the running order as
+    // each corps takes the field. Repaints only the schedule rows (leaving the
+    // rest of the card untouched) and only when the performing set changes.
+    // Self-stops once the Shows view is torn down.
+    const todayET = LIVE.today() || new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date());
+    if (events.some(e => Array.isArray(e.schedule) && e.schedule.length && e.date === todayET)) {
+      let sig = LIVE.sig();
+      const tick = setInterval(async () => {
+        if (stale() || !document.body.contains(list)) { clearInterval(tick); return; }
+        await LIVE.refresh(true).catch(() => {});
+        const now = LIVE.sig();
+        if (now === sig) return; // nothing changed → no repaint
+        sig = now;
+        list.querySelectorAll("tbody.evsched").forEach(tb => {
+          const ev = events[+tb.dataset.i];
+          if (ev) tb.innerHTML = scheduleRowsHtml(ev);
+        });
+      }, 30000);
+    }
   }
 
   /* ===== judge-level recap sheets =====
