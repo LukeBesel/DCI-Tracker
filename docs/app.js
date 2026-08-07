@@ -706,17 +706,30 @@
     if (selected.length === 1) return standings[selected[0]];
     // a corps can compete in more than one selected class (Open Class corps also
     // run World Class prelims at Championships), so the same name shows up once
-    // per class. Keep each corps ONCE — their most recent result across the
-    // selected classes (ties → the higher score) — so the board never repeats.
-    const byCorps = new Map();
+    // per class. Collapse each corps to ONE row — their most recent result — and
+    // stitch the two classes' histories together so "vs prev" and the trend
+    // measure their actual last outing, not "first show in this class".
+    const groups = new Map();
     selected.forEach(cls => (standings[cls].rows || []).forEach(r => {
-      const cur = byCorps.get(r.corps);
-      const newer = !cur || (r.date || "") > (cur.date || "")
-        || ((r.date || "") === (cur.date || "") && (r.score ?? -Infinity) > (cur.score ?? -Infinity));
-      if (newer) byCorps.set(r.corps, { ...r, class: cls });
+      const g = groups.get(r.corps) || [];
+      g.push({ ...r, class: cls });
+      groups.set(r.corps, g);
     }));
-    const rows = [...byCorps.values()]
-      .sort((a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity) || a.corps.localeCompare(b.corps))
+    const rows = [...groups.values()].map(g => {
+      if (g.length === 1) return g[0];
+      const latest = g.slice().sort((a, b) => (b.date || "").localeCompare(a.date || "")
+        || (b.score ?? -Infinity) - (a.score ?? -Infinity))[0];
+      // merge both classes' [date, score] trends, newest last, one point per date
+      const seen = new Set(), trend = [];
+      g.flatMap(r => r.trend || []).slice()
+        .sort((a, b) => (a[0] || "").localeCompare(b[0] || ""))
+        .forEach(t => { if (!seen.has(t[0])) { seen.add(t[0]); trend.push(t); } });
+      const prev = trend.length > 1 ? trend[trend.length - 2][1] : null;
+      const hi = g.reduce((m, r) => (r.high != null && r.high > (m.high ?? -Infinity)) ? r : m, g[0]);
+      return { ...latest, trend,
+        delta: prev != null ? +(latest.score - prev).toFixed(3) : null,
+        high: hi.high, high_event: hi.high_event, high_date: hi.high_date };
+    }).sort((a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity) || a.corps.localeCompare(b.corps))
       .map((r, i) => ({ ...r, rank: i + 1 }));
     const movers = rows.filter(r => Number.isFinite(r.delta))
       .sort((a, b) => b.delta - a.delta || a.rank - b.rank).slice(0, 3);
