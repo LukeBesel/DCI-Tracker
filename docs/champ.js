@@ -210,8 +210,14 @@
       ".cm-tribute::before{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(120% 85% at 88% -8%,var(--tbglow,rgba(216,31,38,.42)),transparent 62%);}",
       ".cm-tribute>*{position:relative;z-index:2;}",
       ".cm-thead{padding:26px 22px 2px;}",
-      ".cm-teyebrow{font-size:11.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--tbacc,#d81f26);}",
-      ".cm-tname{font-size:clamp(30px,8vw,42px);font-weight:900;line-height:1.02;letter-spacing:-.6px;margin:7px 0 0;color:#fff;}",
+      ".cm-teyebrow{font-size:11.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--tbacc,#d81f26);padding-right:42px;}",
+      ".cm-tnamerow{display:flex;align-items:center;gap:12px;}",
+      ".cm-tname{font-size:clamp(30px,8vw,42px);font-weight:900;line-height:1.02;letter-spacing:-.6px;margin:7px 0 0;color:#fff;flex:1;min-width:0;}",
+      /* current standing as its own badge in the header corner */
+      ".cm-trank{flex:0 0 auto;text-align:center;padding:7px 13px;border-radius:14px;background:rgba(255,255,255,.1);border:1px solid var(--tbacc,#d81f26);margin-top:7px;}",
+      ".cm-trank[hidden]{display:none;}",
+      ".cm-trank b{display:block;font-size:25px;font-weight:900;line-height:1.05;color:var(--tbacc,#d81f26);}",
+      ".cm-trank span{display:block;font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.66);margin-top:1px;}",
       ".cm-tsub{margin-top:7px;font-size:13.5px;font-weight:700;color:rgba(255,255,255,.72);}",
       ".cm-tbody{padding:18px 22px 22px;}",
       ".cm-tstats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:4px 0 16px;}",
@@ -558,7 +564,6 @@
       ["Miles traveled", "≈ " + s.miles.toLocaleString()],
       ["Points gained", "+" + s.gained.toFixed(1)],
       ["Highest score", s.high.toFixed(3)],
-      ["Current rank", s.rank ? ordinal(s.rank) + (s.ofN ? " of " + s.ofN : "") : "—"],
       ["Cities visited", String(s.cities)],
       ["States crossed", String(s.states)]
     ];
@@ -566,7 +571,7 @@
     var line = s.days + " days · " + s.cities + " cities · ≈" + s.miles.toLocaleString() + " miles — from a " +
       s.first.toFixed(2) + " on night one to a " + s.last.toFixed(2) + " to close it out. " +
       "One unforgettable summer.";
-    return { tiles: tiles, line: line };
+    return { tiles: tiles, line: line, rank: s.rank };
   }
   // Representative but nameless: the SAME tile labels as the real tribute so the
   // layout previews truthfully, with sample (random) numbers and no identity.
@@ -579,11 +584,11 @@
         ["Miles traveled", "≈ " + rnd(6000, 9000).toLocaleString()],
         ["Points gained", "+" + (12 + Math.random() * 14).toFixed(1)],
         ["Highest score", (88 + Math.random() * 9).toFixed(3)],
-        ["Current rank", ordinal(rnd(1, 12)) + " of 22"],
         ["Cities visited", String(rnd(12, 20))],
         ["States crossed", String(rnd(8, 14))]
       ],
-      line: "Miles of memories and a whole lot of heart — one unforgettable summer on the road. 🎺 (preview with sample numbers)"
+      line: "Miles of memories and a whole lot of heart — one unforgettable summer on the road. 🎺 (preview with sample numbers)",
+      rank: rnd(1, 12)
     };
   }
   function ordinal(n) {
@@ -646,8 +651,22 @@
     // headline
     g.fillStyle = th.accent; g.font = "800 27px " + FONT;
     g.fillText(opts.mock ? "PREVIEW · SAMPLE NUMBERS" : "CONGRATULATIONS · " + COLIN.year + " SEASON", PAD, 196);
+    // current standing: its own badge in the top-right corner
+    var rankW = 0;
+    if (data.rank) {
+      var bw = 168, bh = 96, bx = W - PAD - bw, by = 186;
+      round(bx, by, bw, bh, 20); g.fillStyle = "rgba(255,255,255,.1)"; g.fill();
+      round(bx, by, bw, bh, 20); g.lineWidth = 3; g.strokeStyle = th.accent; g.stroke();
+      g.textAlign = "center";
+      g.fillStyle = th.accent; g.font = "900 48px " + FONT;
+      g.fillText(ordinal(data.rank), bx + bw / 2, by + 56);
+      g.fillStyle = "rgba(255,255,255,.66)"; g.font = "800 16px " + FONT;
+      g.fillText("P L A C E", bx + bw / 2, by + 80);
+      g.textAlign = "left";
+      rankW = bw + 24;
+    }
     g.fillStyle = "#fff"; g.font = "900 72px " + FONT;
-    g.fillText(ellip(opts.mock ? "What a Season!" : COLIN.name, W - PAD * 2), PAD, 272);
+    g.fillText(ellip(opts.mock ? "What a Season!" : COLIN.name, W - PAD * 2 - rankW), PAD, 272);
     g.fillStyle = "rgba(255,255,255,.72)"; g.font = "700 28px " + FONT;
     g.fillText(ellip(COLIN.corps + " · DCI World Championships", W - PAD * 2), PAD, 316);
     // stat tiles, two columns
@@ -722,7 +741,10 @@
       '<button class="cm-tx" type="button" aria-label="Close">×</button>' +
       '<div class="cm-thead">' +
       '<div class="cm-teyebrow">' + (opts.mock ? "Preview · Sample numbers" : "Congratulations · " + COLIN.year + " Season") + "</div>" +
+      '<div class="cm-tnamerow">' +
       '<h2 class="cm-tname" id="cm-h">' + esc(opts.mock ? "What a Season!" : COLIN.name) + "</h2>" +
+      '<div class="cm-trank" id="cm-rank" hidden></div>' +
+      "</div>" +
       '<div class="cm-tsub">' + esc(COLIN.corps) + " · DCI World Championships</div>" +
       '</div><div class="cm-tbody"><div class="cm-tline">Loading…</div></div></div>';
     document.body.appendChild(overlay);
@@ -732,6 +754,12 @@
 
     function paint(data) {
       if (!overlay) return;
+      // standing rides in the header as its own badge, not as one of the tiles
+      var rankEl = overlay.querySelector("#cm-rank");
+      if (rankEl && data.rank) {
+        rankEl.innerHTML = "<b>" + esc(ordinal(data.rank)) + "</b><span>Place</span>";
+        rankEl.hidden = false;
+      }
       var body = overlay.querySelector(".cm-tbody");
       var tiles = data.tiles.map(function (t) {
         return '<div class="cm-tstat"><div class="b"></div><div class="v">' + esc(t[1]) +
