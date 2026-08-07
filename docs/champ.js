@@ -62,8 +62,12 @@
   // ---- Colin tribute config (after-finals surprise) --------------------------
   var COLIN = { name: "Colin Besel", corps: "Phantom Regiment", year: "2026", home: "Rockford, IL",
     instruments: ["Trumpet", "Euphonium", "Trombone", "Mellophone"] };
-  var COLIN_AFTER = "2026-08-09T00:00:00-04:00"; // the day after Finals — Aug 9 (ET) only
-  var COLIN_END = "2026-08-10T00:00:00-04:00";   // retires at end of Aug 9 — then nothing shows, ever
+  // Opens Aug 8 (Finals day) and stays available through Aug 9, so it can be
+  // reopened after Finals results land — the card reads live data every time it
+  // opens, so a card opened in the morning shows the fuller season later that
+  // night. Retires for good at the end of Aug 9.
+  var COLIN_AFTER = "2026-08-08T00:00:00-04:00";
+  var COLIN_END = "2026-08-10T00:00:00-04:00";
   // coordinates for a mileage estimate — Phantom's 2026 tour cities + home + Indy,
   // with US state centroids as a fallback for anything unexpected.
   var CITY = {
@@ -743,7 +747,7 @@
 
   // which temporary screen is active right now. Both windows are short-term and
   // self-retiring: Championship Mode runs from the Finals-countdown days through
-  // Aug 8, the Colin tribute shows only on Aug 9 — after that nothing shows again.
+  // Aug 8, the Colin tribute runs Aug 8–9 — after that nothing shows again.
   function phase() {
     var now = Date.now();
     if (now >= Date.parse(COLIN_AFTER) && now < Date.parse(COLIN_END)) return "colin";
@@ -803,7 +807,7 @@
       return;
     }
     // The Finals countdown / Championship Mode popup was retired at the user's
-    // request — only the Colin Besel tribute (Aug 9) still auto-shows.
+    // request — only the Colin Besel tribute (Aug 8–9) still auto-shows.
   }
 
   // A gold button beside the settings gear that reopens whichever temporary
@@ -814,7 +818,7 @@
   var HEART_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M12 21s-7.5-4.9-10-9.2C.6 9 1.6 5.6 4.6 4.7 6.7 4 8.8 4.9 12 8c3.2-3.1 5.3-4 7.4-3.3 3 0.9 4 4.3 2.6 7.1C19.5 16.1 12 21 12 21z"/></svg>';
   // Once the tribute has been revealed it stays one tap away for a full day, so
   // it can be shown to family or reopened to save the image — even after the
-  // Aug 9 window itself closes. After that it retires for good.
+  // tribute window itself closes. After that it retires for good.
   var COLIN_REOPEN_MS = 24 * 3600 * 1000;
   function colinReopenActive() {
     var t = +(lget("cad-cm-colin-seen") || 0);
