@@ -312,7 +312,14 @@
   // the mobile layout still adapts and nothing overflows sideways
   function applyFontSize(scale) {
     const s = String(scale || "1");
-    document.documentElement.style.zoom = s === "1" ? "" : s;
+    const de = document.documentElement;
+    de.style.zoom = s === "1" ? "" : s;
+    // zoom shrinks the layout viewport but NOT vw/vh units or media queries, so
+    // publish the scale: `calc(<n>vw / var(--fs))` converts a visual-pixel size
+    // into the layout units the zoomed page actually has, and [data-fs] lets the
+    // CSS tighten up where the breakpoints can no longer see the real width.
+    de.style.setProperty("--fs", s);
+    if (s === "1") de.removeAttribute("data-fs"); else de.setAttribute("data-fs", s);
     try { s === "1" ? localStorage.removeItem("cad-fontsize") : localStorage.setItem("cad-fontsize", s); } catch (e) {}
   }
   window.CadFontSize = applyFontSize;
@@ -1042,7 +1049,7 @@
       document.getElementById("standTitle").innerHTML =
         `${esc(classLabel)} Standings <span class="sub">each corps' most recent score · your favorites are starred</span>`;
       document.getElementById("standings").innerHTML = `
-        <table class="t standings"><thead><tr><th>#</th><th>Corps · last event</th><th class="num">Score</th><th class="num col-high">3-show avg</th><th class="num col-high">Season high</th><th class="num">vs prev</th><th class="col-trend">Trend</th></tr></thead><tbody>
+        <div class="tscroll"><table class="t standings"><thead><tr><th>#</th><th>Corps · last event</th><th class="num">Score</th><th class="num col-high">3-show avg</th><th class="num col-high">Season high</th><th class="num">vs prev</th><th class="col-trend">Trend</th></tr></thead><tbody>
         ${sorted.map(r => h`<tr${FAVS.has(r.corps) ? ' class="favrow"' : ""}>
           <td class="rank">${r.rank}</td>
           <td><span class="corpscell">${corpsLogo(r.corps, 26)}<span class="corpscell-body"><span class="corpscell-name">${corpsLink(r.corps)}${LIVE.corpsLive(r.corps) ? LIVE_BADGE : ""}${showClassTags ? `<span class="classbadge ${r.class === "Open Class" ? "open" : "world"}" title="${esc(r.class)}">${r.class === "Open Class" ? "Open" : "World"}</span>` : ""}</span><div class="lastev">${esc(fmtDateY(r.date))} · ${esc(r.event)}</div></span></span></td>
@@ -1051,7 +1058,7 @@
           <td class="num col-high" data-tip="${esc(`${score3(r.high)} — ${r.high_event || ""} · ${fmtDateY(r.high_date) || ""}`)}">${score3(r.high)}</td>
           <td class="num">${deltaHtml(r.delta)}</td>
           <td class="col-trend"><span class="sparkcell" data-trend="${r.trend.map(t => t[1]).join(",")}"></span></td>
-        </tr>`).join("")}</tbody></table>`;
+        </tr>`).join("")}</tbody></table></div>`;
       document.querySelectorAll(".sparkcell").forEach(elm => {
         sparkline(elm, elm.dataset.trend.split(",").map(Number).filter(n => !isNaN(n)), "#97a2b3");
       });
