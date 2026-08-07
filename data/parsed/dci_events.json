@@ -596239,6 +596239,190 @@
   "source": "competitionsuite"
  },
  {
+  "url": "https://www.dci.org/scores/final-scores/2026-dci-world-championship-prelims/",
+  "slug": "2026-dci-world-championship-prelims",
+  "year": 2026,
+  "name": "DCI World Championship Prelims",
+  "date": "2026-08-06",
+  "date_display": "August 6, 2026",
+  "location": "Indianapolis, IN",
+  "recap_url": "https://www.dci.org/scores/recap/2026-dci-world-championship-prelims/",
+  "classes": [
+   {
+    "class": "World Class",
+    "results": [
+     {
+      "place": 1,
+      "corps": "Bluecoats",
+      "score": 98.3
+     },
+     {
+      "place": 2,
+      "corps": "Blue Devils",
+      "score": 97.025
+     },
+     {
+      "place": 3,
+      "corps": "Carolina Crown",
+      "score": 96.475
+     },
+     {
+      "place": 4,
+      "corps": "Boston Crusaders",
+      "score": 95.438
+     },
+     {
+      "place": 5,
+      "corps": "Santa Clara Vanguard",
+      "score": 94.563
+     },
+     {
+      "place": 6,
+      "corps": "Blue Stars",
+      "score": 93.2
+     },
+     {
+      "place": 7,
+      "corps": "Phantom Regiment",
+      "score": 93.063
+     },
+     {
+      "place": 8,
+      "corps": "The Cavaliers",
+      "score": 92.088
+     },
+     {
+      "place": 9,
+      "corps": "Colts",
+      "score": 89.938
+     },
+     {
+      "place": 10,
+      "corps": "Spirit of Atlanta",
+      "score": 88.7
+     },
+     {
+      "place": 11,
+      "corps": "Troopers",
+      "score": 88.688
+     },
+     {
+      "place": 12,
+      "corps": "Pacific Crest",
+      "score": 87.35
+     },
+     {
+      "place": 13,
+      "corps": "Blue Knights",
+      "score": 86.913
+     },
+     {
+      "place": 14,
+      "corps": "Madison Scouts",
+      "score": 86.55
+     },
+     {
+      "place": 15,
+      "corps": "Crossmen",
+      "score": 84.363
+     },
+     {
+      "place": 16,
+      "corps": "Music City",
+      "score": 83.975
+     },
+     {
+      "place": 17,
+      "corps": "The Academy",
+      "score": 83.363
+     },
+     {
+      "place": 18,
+      "corps": "Blue Devils B",
+      "score": 81.525
+     },
+     {
+      "place": 19,
+      "corps": "Spartans",
+      "score": 81.125
+     },
+     {
+      "place": 20,
+      "corps": "The Battalion",
+      "score": 80.6
+     },
+     {
+      "place": 21,
+      "corps": "Seattle Cascades",
+      "score": 79.738
+     },
+     {
+      "place": 22,
+      "corps": "Gold",
+      "score": 79.425
+     },
+     {
+      "place": 23,
+      "corps": "Genesis",
+      "score": 77.438
+     },
+     {
+      "place": 24,
+      "corps": "Memphis Blues",
+      "score": 77.225
+     },
+     {
+      "place": 25,
+      "corps": "River City Rhythm",
+      "score": 75.0
+     },
+     {
+      "place": 26,
+      "corps": "Columbians",
+      "score": 73.6
+     },
+     {
+      "place": 27,
+      "corps": "Colt Cadets",
+      "score": 73.35
+     },
+     {
+      "place": 28,
+      "corps": "Raiders",
+      "score": 71.05
+     },
+     {
+      "place": 29,
+      "corps": "Les Stentors",
+      "score": 69.8
+     },
+     {
+      "place": 30,
+      "corps": "7th Regiment",
+      "score": 69.475
+     },
+     {
+      "place": 31,
+      "corps": "Eclipse",
+      "score": 67.4
+     },
+     {
+      "place": 32,
+      "corps": "Heat Wave",
+      "score": 64.45
+     },
+     {
+      "place": 33,
+      "corps": "Mercedes Marching Band",
+      "score": 61.8
+     }
+    ]
+   }
+  ],
+  "recap": [],
+  "source": "competitionsuite"
+ },
+ {
   "url": "https://www.dci.org/scores/final-scores/2026-drums-across-nebraska/",
   "slug": "2026-drums-across-nebraska",
   "year": 2026,
