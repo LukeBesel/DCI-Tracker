@@ -508,11 +508,13 @@
     return fetch("data/seasons/" + COLIN.year + ".json?cb=" + Date.now(), { headers: { "cache-control": "no-cache" } })
       .then(function (r) { return r.json(); })
       .then(function (evs) {
-        var rows = [];
+        var rows = [], myClass = "";
         (evs || []).forEach(function (ev) {
           (ev.classes || []).forEach(function (cls) {
             (cls.results || []).forEach(function (r) {
-              if (r.corps === COLIN.corps) rows.push({ date: ev.date, loc: ev.location, place: r.place, score: r.score });
+              if (r.corps !== COLIN.corps) return;
+              myClass = myClass || cls.class;
+              rows.push({ date: ev.date, loc: ev.location, place: r.place, score: r.score });
             });
           });
         });
@@ -522,10 +524,27 @@
         var cities = rows.map(function (r) { return r.loc; }).filter(Boolean);
         var first = scores[0], last = scores[scores.length - 1];
         var days = Math.round((Date.parse(rows[rows.length - 1].date) - Date.parse(rows[0].date)) / 864e5) + 1;
+        // where they stand right now: every corps in their class ranked by their
+        // most recent score — the same standing the Scoreboard shows
+        var latest = {};
+        (evs || []).forEach(function (ev) {
+          (ev.classes || []).forEach(function (cls) {
+            if (cls.class !== myClass) return;
+            (cls.results || []).forEach(function (r) {
+              if (r.score == null) return;
+              var cur = latest[r.corps];
+              if (!cur || (ev.date || "") >= cur.date) latest[r.corps] = { date: ev.date || "", score: r.score };
+            });
+          });
+        });
+        var board = Object.keys(latest).map(function (n) { return { corps: n, score: latest[n].score }; })
+          .sort(function (a, b) { return b.score - a.score; });
+        var idx = board.findIndex(function (x) { return x.corps === COLIN.corps; });
         return {
           shows: rows.length, days: days, miles: milesFor([COLIN.home].concat(cities)),
           gained: +(last - first).toFixed(3), first: first, last: last,
           high: Math.max.apply(null, scores),
+          rank: idx >= 0 ? idx + 1 : null, ofN: board.length, cls: myClass,
           wins: rows.filter(function (r) { return r.place === 1; }).length,
           cities: new Set(cities).size,
           states: new Set(cities.map(function (c) { return c.split(",").pop().trim(); })).size
@@ -539,6 +558,7 @@
       ["Miles traveled", "≈ " + s.miles.toLocaleString()],
       ["Points gained", "+" + s.gained.toFixed(1)],
       ["Highest score", s.high.toFixed(3)],
+      ["Current rank", s.rank ? ordinal(s.rank) + (s.ofN ? " of " + s.ofN : "") : "—"],
       ["Cities visited", String(s.cities)],
       ["States crossed", String(s.states)]
     ];
@@ -559,11 +579,17 @@
         ["Miles traveled", "≈ " + rnd(6000, 9000).toLocaleString()],
         ["Points gained", "+" + (12 + Math.random() * 14).toFixed(1)],
         ["Highest score", (88 + Math.random() * 9).toFixed(3)],
+        ["Current rank", ordinal(rnd(1, 12)) + " of 22"],
         ["Cities visited", String(rnd(12, 20))],
         ["States crossed", String(rnd(8, 14))]
       ],
       line: "Miles of memories and a whole lot of heart — one unforgettable summer on the road. 🎺 (preview with sample numbers)"
     };
+  }
+  function ordinal(n) {
+    if (n == null) return "—";
+    var s = ["th", "st", "nd", "rd"], v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
   }
   var SHARE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M8 7l4-4 4 4M4 13v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6"/></svg>';
   function slugify(s) { return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""); }
@@ -625,20 +651,23 @@
     g.fillStyle = "rgba(255,255,255,.72)"; g.font = "700 28px " + FONT;
     g.fillText(ellip(COLIN.corps + " · DCI World Championships", W - PAD * 2), PAD, 316);
     // stat tiles, two columns
-    var tiles = (data.tiles || []).slice(0, 8);
-    var gap = 18, tW = (W - PAD * 2 - gap) / 2, tH = 132, top = 366;
+    var tiles = (data.tiles || []).slice(0, 10);
+    // 5 rows of tiles need to be shorter to leave room for the instruments and
+    // the closing line
+    var rowsN = Math.ceil(tiles.length / 2), tall = rowsN < 5;
+    var gap = tall ? 18 : 14, tH = tall ? 132 : 116, tW = (W - PAD * 2 - gap) / 2, top = 366;
     tiles.forEach(function (t, i) {
       var col = i % 2, row = Math.floor(i / 2);
       var x = PAD + col * (tW + gap), y = top + row * (tH + gap);
       round(x, y, tW, tH, 20); g.fillStyle = "rgba(255,255,255,.09)"; g.fill();
       round(x, y, tW, tH, 20); g.lineWidth = 2; g.strokeStyle = "rgba(255,255,255,.16)"; g.stroke();
-      g.fillStyle = th.accent; round(x + 20, y + 20, 34, 5, 2.5); g.fill();
-      g.fillStyle = "#fff"; g.font = "900 42px " + FONT;
-      g.fillText(ellip(t[1], tW - 40), x + 20, y + 84);
+      g.fillStyle = th.accent; round(x + 20, y + 18, 34, 5, 2.5); g.fill();
+      g.fillStyle = "#fff"; g.font = "900 " + (tall ? 42 : 38) + "px " + FONT;
+      g.fillText(ellip(t[1], tW - 40), x + 20, y + (tall ? 84 : 74));
       g.fillStyle = "rgba(255,255,255,.72)"; g.font = "700 19px " + FONT;
-      g.fillText(ellip(String(t[0]).toUpperCase(), tW - 40), x + 20, y + 114);
+      g.fillText(ellip(String(t[0]).toUpperCase(), tW - 40), x + 20, y + tH - 18);
     });
-    var y = top + Math.ceil(tiles.length / 2) * (tH + gap) + 36;
+    var y = top + rowsN * (tH + gap) + 36;
     // instrument chips
     var inst = COLIN.instruments || [];
     if (inst.length) {
