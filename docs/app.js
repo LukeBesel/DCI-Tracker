@@ -702,41 +702,66 @@
   });
   const COMBINABLE_SCORE_CLASSES = new Set(["World Class", "Open Class"]);
 
+  /* Each class's standings are built independently, so a corps' row only knows
+     that class's history. Corps routinely cross classes in one season (Open
+     Class corps run World Class prelims at Championships), which left their row
+     reading "—" for vs-prev, a season high equal to that single score, and an
+     empty sparkline. Stitch every class's history for a corps together so the
+     delta, 3-show average, season high and trend describe their ACTUAL season —
+     while the row itself (score, date, event, ranking) stays true to the class
+     being shown. */
+  function stitchSeasonHistory(standings, rows) {
+    const hist = new Map(), best = new Map();
+    Object.values(standings || {}).forEach(block => (block.rows || []).forEach(r => {
+      const h = hist.get(r.corps) || [];
+      (r.trend || []).forEach(t => h.push(t));
+      hist.set(r.corps, h);
+      const b = best.get(r.corps);
+      if (r.high != null && (!b || r.high > b.high))
+        best.set(r.corps, { high: r.high, high_event: r.high_event, high_date: r.high_date });
+    }));
+    return rows.map(r => {
+      const all = hist.get(r.corps);
+      if (!all || !all.length) return r;
+      // one point per date; this row's own show wins its date
+      const byDate = new Map();
+      all.forEach(([d, s]) => { const cur = byDate.get(d); if (cur == null || s > cur) byDate.set(d, s); });
+      if (r.date) byDate.set(r.date, r.score);
+      const trend = [...byDate.entries()].sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+      if (trend.length <= (r.trend || []).length) return r; // nothing new to add
+      const i = trend.findIndex(t => t[0] === r.date);
+      const prev = i > 0 ? trend[i - 1][1] : null;
+      const b = best.get(r.corps) || {};
+      return { ...r, trend,
+        prev_score: prev != null ? prev : r.prev_score,
+        delta: prev != null ? +(r.score - prev).toFixed(3) : r.delta,
+        high: b.high != null ? b.high : r.high,
+        high_event: b.high != null ? b.high_event : r.high_event,
+        high_date: b.high != null ? b.high_date : r.high_date };
+    });
+  }
+
   function combinedStandings(standings, selected) {
-    if (selected.length === 1) return standings[selected[0]];
-    // a corps can compete in more than one selected class (Open Class corps also
-    // run World Class prelims at Championships), so the same name shows up once
-    // per class. Collapse each corps to ONE row — their most recent result — and
-    // stitch the two classes' histories together so "vs prev" and the trend
-    // measure their actual last outing, not "first show in this class".
+    // one row per corps: their most recent result across the selected classes,
+    // so a corps that ran two classes never appears twice
     const groups = new Map();
     selected.forEach(cls => (standings[cls].rows || []).forEach(r => {
       const g = groups.get(r.corps) || [];
       g.push({ ...r, class: cls });
       groups.set(r.corps, g);
     }));
-    const rows = [...groups.values()].map(g => {
-      if (g.length === 1) return g[0];
-      const latest = g.slice().sort((a, b) => (b.date || "").localeCompare(a.date || "")
-        || (b.score ?? -Infinity) - (a.score ?? -Infinity))[0];
-      // merge both classes' [date, score] trends, newest last, one point per date
-      const seen = new Set(), trend = [];
-      g.flatMap(r => r.trend || []).slice()
-        .sort((a, b) => (a[0] || "").localeCompare(b[0] || ""))
-        .forEach(t => { if (!seen.has(t[0])) { seen.add(t[0]); trend.push(t); } });
-      const prev = trend.length > 1 ? trend[trend.length - 2][1] : null;
-      const hi = g.reduce((m, r) => (r.high != null && r.high > (m.high ?? -Infinity)) ? r : m, g[0]);
-      return { ...latest, trend,
-        delta: prev != null ? +(latest.score - prev).toFixed(3) : null,
-        high: hi.high, high_event: hi.high_event, high_date: hi.high_date };
-    }).sort((a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity) || a.corps.localeCompare(b.corps))
+    const picked = [...groups.values()].map(g => g.length === 1 ? g[0]
+      : g.slice().sort((a, b) => (b.date || "").localeCompare(a.date || "")
+        || (b.score ?? -Infinity) - (a.score ?? -Infinity))[0]);
+    const rows = stitchSeasonHistory(standings, picked)
+      .sort((a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity) || a.corps.localeCompare(b.corps))
       .map((r, i) => ({ ...r, rank: i + 1 }));
     const movers = rows.filter(r => Number.isFinite(r.delta))
-      .sort((a, b) => b.delta - a.delta || a.rank - b.rank).slice(0, 3);
+      .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta) || a.rank - b.rank).slice(0, 3);
     const battles = rows.slice(1).map((r, i) => {
       const prev = rows[i];
       return { a: prev.corps, b: r.corps, ra: prev.rank, rb: r.rank,
-        sa: prev.score, sb: r.score, gap: Math.abs(prev.score - r.score) };
+        sa: prev.score, sb: r.score, gap: +Math.abs(prev.score - r.score).toFixed(3) };
     }).sort((a, b) => a.gap - b.gap || a.ra - b.ra);
     return { rows, movers, battles };
   }
@@ -2171,6 +2196,36 @@
     return (rec.events || []).find(e => e.e === evName && (!evDate || e.d === evDate)) || null;
   }
 
+  /* ===== "Caption Winners Card" call-to-action =====
+     The shareable card is the best thing in the captions data, so it gets a
+     loud, obvious entry point — the same treatment the corps page gives its
+     season card — at the TOP of every captions block. */
+  const CAP_CTA_INNER =
+    '<span class="capcta-ic">🏆</span>' +
+    '<span class="capcta-t"><b>Caption Winners Card</b>' +
+    "<span>See who took GE · Visual · Music — and by how much</span></span>" +
+    '<span class="capcta-go">Open →</span>';
+  const capCta = (attrs = "") => `<button type="button" class="capcta"${attrs}>${CAP_CTA_INNER}</button>`;
+  // `info` may be a function so the button can read the currently-picked show
+  function wireCapCta(btn, info) {
+    if (!btn) return;
+    const note = msg => `<span class="capcta-ic">🏆</span><span class="capcta-t"><b>${esc(msg)}</b></span>`;
+    btn.onclick = () => {
+      if (!window.CadWrapped || !window.CadWrapped.captionsCard) return;
+      const i = typeof info === "function" ? info() : info;
+      if (!i) return;
+      btn.disabled = true;
+      btn.innerHTML = note("Creating card…");
+      const restore = () => { btn.disabled = false; btn.innerHTML = CAP_CTA_INNER; };
+      window.CadWrapped.captionsCard(i).then(ok => {
+        if (ok) return restore();
+        btn.disabled = false;
+        btn.innerHTML = note("No caption sheet for this show yet");
+        setTimeout(() => { if (btn.isConnected) restore(); }, 1900);
+      }).catch(restore);
+    };
+  }
+
   // Hierarchical sheet: caption group → judge sub-caption → sub-scores.
   // Rank sits under every value; gold marks each column's leader. Tap a
   // caption, judge, or column header to re-rank the sheet by it.
@@ -2326,11 +2381,16 @@
         }).join("")}</tr>`).join("")}
         </tbody></table></div>${CAP_KEY_NOTE}`;
     };
-    // the full official sheet beats the summary — show it whenever it parsed
-    const capSection = (cls, ci) => recByClass.has(cls)
-      ? h`<h3 class="evcls" style="margin-top:14px">Official Recap <span class="kicker">every judge, every caption · rank under each score · gold marks the leader · tap a judge or column to sort</span></h3>
-         <div class="rcmount" data-cls="${esc(cls)}"></div>`
-      : capTable(cls, ci);
+    // the full official sheet beats the summary — show it whenever it parsed.
+    // The shareable card leads the block so it's the first thing you see.
+    const capSection = (cls, ci) => {
+      const sheet = recByClass.has(cls)
+        ? h`<h3 class="evcls" style="margin-top:14px">Official Recap <span class="kicker">every judge, every caption · rank under each score · gold marks the leader · tap a judge or column to sort</span></h3>
+           <div class="rcmount" data-cls="${esc(cls)}"></div>`
+        : capTable(cls, ci);
+      if (!sheet) return "";
+      return `<div class="capctawrap">${capCta(` data-cls="${esc(cls)}"`)}</div>` + sheet;
+    };
 
     app.innerHTML = h`
       <div class="crumbs"><a href="#/events?y=${year}">Shows</a> / <a href="#/events?y=${year}">${year}</a> / ${esc(ev.name)}</div>
@@ -2342,19 +2402,12 @@
         <div class="tscroll"><table class="t"><thead><tr><th>#</th><th>Corps</th><th class="num">Score</th></tr></thead><tbody class="evres" data-ci="${ci}">
         ${c.results.map(r => `<tr><td class="rank">${r.place ?? "—"}</td><td>${corpsLink(r.corps)}</td><td class="num score">${score3(r.score)}</td></tr>`).join("")}
         </tbody></table></div>
-        ${capSection(c.class, ci)}
-        ${(recByClass.has(c.class) || capByClass.has(c.class)) ? `<button class="tab capcardbtn" data-cls="${esc(c.class)}" style="margin-top:12px">🏆 Caption winners card</button>` : ""}</div>`).join("")}
+        ${capSection(c.class, ci)}</div>`).join("")}
       ${ev.recap_url ? `<p style="font-size:12.5px;color:var(--muted)"><a href="${encodeURI(ev.recap_url)}" target="_blank" rel="noopener">Official recap on DCI.org ↗</a></p>` : ""}
       ${ev.location ? `<p style="font-size:12.5px;color:var(--muted)"><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((ev.name || "") + " " + ev.location)}" target="_blank" rel="noopener">Venue map ↗</a></p>` : ""}`;
     wireShare("evShare", `${ev.name} · Cadence`);
-    document.querySelectorAll(".capcardbtn").forEach(btn => btn.onclick = () => {
-      if (!window.CadWrapped || !window.CadWrapped.captionsCard) return;
-      const orig = btn.innerHTML; btn.disabled = true; btn.textContent = "Creating…";
-      window.CadWrapped.captionsCard({ year: +year, date: ev.date, event: ev.name, cls: btn.dataset.cls })
-        .then(ok => { btn.disabled = false; btn.innerHTML = orig;
-          if (!ok) { btn.innerHTML = "No caption card available"; setTimeout(() => { if (btn.isConnected) btn.innerHTML = orig; }, 1800); } })
-        .catch(() => { btn.disabled = false; btn.innerHTML = orig; });
-    });
+    document.querySelectorAll(".capcta").forEach(btn => wireCapCta(btn,
+      () => ({ year: +year, date: ev.date, event: ev.name, cls: btn.dataset.cls })));
     document.querySelectorAll(".rcmount").forEach(m => {
       const rc = recByClass.get(m.dataset.cls);
       if (rc) renderRecapSheet(m, rc);
@@ -2410,6 +2463,7 @@
       <div class="card">
         <h2 id="showCmpTitle">Show Recap <span class="sub">the official judge-by-judge sheet — rank under each score, gold marks each caption's leader</span></h2>
         <div class="filters" style="margin:2px 0 8px"><div id="showSel"></div><div id="showCorpsSel"></div></div>
+        <div class="capctawrap">${capCta(' id="showCapCta"')}</div>
         <div id="showCmpBody"><div class="empty">Pick a show above.</div></div>
       </div>
       <div class="secdiv" id="capSeasonDiv"></div>
@@ -2445,6 +2499,14 @@
         <p class="capkey">* one or more recap rows for that night couldn't be fully verified — the winner shown leads among verified scores</p>
       </div>`;
 
+
+    // the card follows whatever show + class is picked above it
+    wireCapCta(document.getElementById("showCapCta"), () => {
+      const v = ssShow && ssShow.get();
+      if (!v) return null;
+      const [d, evName] = String(v).split("|");
+      return { year, date: d, event: evName, cls };
+    });
 
     let rows = [];
     let recapsYr = []; // judge-level sheets for the picked year
@@ -2487,6 +2549,8 @@
       }
       shows.sort((a, b) => b.d.localeCompare(a.d));
       const corpsSel = document.getElementById("showCorpsSel");
+      const ctaWrap = document.querySelector("#showCapCta") && document.querySelector("#showCapCta").parentElement;
+      if (ctaWrap) ctaWrap.hidden = !shows.length; // nothing to card up without a sheet
       if (!shows.length) {
         body.innerHTML = "<div class='empty'>No verified recaps for this class yet.</div>";
         if (ssShow) ssShow.setOptions([]);

@@ -221,6 +221,25 @@ th[data-sort] { cursor: pointer; user-select: none; }
 .capwins .cw-main { font-weight: 650; }
 .capwins .cw-main b { text-transform: uppercase; letter-spacing: .4px; }
 
+/* "Caption Winners Card" call-to-action — the loud entry point to the
+   shareable card, mirroring how the corps page surfaces its season card */
+.capctawrap { margin: 14px 0 10px; }
+.capctawrap[hidden] { display: none; }
+.capcta {
+  display: flex; align-items: center; gap: 13px; width: 100%; text-align: left;
+  font: inherit; cursor: pointer; padding: 13px 15px; border-radius: 14px;
+  color: var(--text-primary); background: var(--accent-wash);
+  border: 1px solid var(--gold);
+}
+.capcta:hover { filter: brightness(1.03); border-color: var(--gold); }
+.capcta:disabled { opacity: .7; cursor: default; }
+.capcta-ic { flex: none; font-size: 23px; line-height: 1; }
+.capcta-t { min-width: 0; }
+.capcta-t b { display: block; font-size: 15px; font-weight: 800; letter-spacing: -.1px; }
+.capcta-t span { display: block; font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.capcta-go { margin-left: auto; flex: none; font-size: 13px; font-weight: 800; color: var(--link); white-space: nowrap; }
+@media (max-width: 430px) { .capcta-go { display: none; } }
+
 .rjump { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 8px; }
 .rjbtn {
   border: 1px solid var(--baseline); background: var(--surface-1); color: var(--text-secondary);
