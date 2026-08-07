@@ -222,9 +222,14 @@
       ".cm-tline{font-size:14px;line-height:1.6;color:rgba(255,255,255,.8);margin:0 0 18px;}",
       ".cm-tx{position:absolute;top:14px;right:14px;width:34px;height:34px;border:0;border-radius:50%;background:rgba(255,255,255,.16);color:#fff;font-size:20px;line-height:1;cursor:pointer;display:grid;place-items:center;z-index:5;}",
       ".cm-tx:hover{background:rgba(255,255,255,.28);}",
-      ".cm-tbtn{display:block;width:100%;border:0;border-radius:999px;padding:15px 18px;font:inherit;font-size:16.5px;font-weight:800;cursor:pointer;background:var(--tbacc,#d81f26);color:#fff;box-shadow:0 8px 22px rgba(0,0,0,.45);}",
+      ".cm-tactions{display:flex;flex-direction:column;gap:9px;}",
+      ".cm-tbtn{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;border:0;border-radius:999px;padding:15px 18px;font:inherit;font-size:16.5px;font-weight:800;cursor:pointer;background:var(--tbacc,#d81f26);color:#fff;box-shadow:0 8px 22px rgba(0,0,0,.45);}",
+      ".cm-tbtn svg{width:18px;height:18px;flex:none;}",
       ".cm-tbtn:hover{filter:brightness(1.08);}",
       ".cm-tbtn:active{transform:translateY(1px);}",
+      ".cm-tbtn:disabled{opacity:.7;cursor:default;}",
+      ".cm-tclose{display:block;width:100%;border:1px solid rgba(255,255,255,.24);border-radius:999px;padding:13px 18px;font:inherit;font-size:15px;font-weight:800;cursor:pointer;background:rgba(255,255,255,.08);color:#fff;}",
+      ".cm-tclose:hover{background:rgba(255,255,255,.16);}",
       // full-screen activation message
       ".cm-activated{position:absolute;z-index:5;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;pointer-events:none;}",
       ".cm-act-title{font-size:34px;line-height:1.05;font-weight:900;letter-spacing:-.5px;color:#fff;text-shadow:0 3px 22px rgba(0,0,0,.6);animation:cm-rise .5s cubic-bezier(.2,.9,.3,1.2) both;}",
@@ -536,7 +541,7 @@
     if (s.wins) tiles.push(["1st-place shows", String(s.wins)]);
     var line = s.days + " days · " + s.cities + " cities · ≈" + s.miles.toLocaleString() + " miles — from a " +
       s.first.toFixed(2) + " on night one to a " + s.last.toFixed(2) + " to close it out. " +
-      "One unforgettable summer. We’re so proud of you, Colin. 🎺❤️";
+      "One unforgettable summer.";
     return { tiles: tiles, line: line };
   }
   // Representative but nameless: the SAME tile labels as the real tribute so the
@@ -556,8 +561,16 @@
       line: "Miles of memories and a whole lot of heart — one unforgettable summer on the road. 🎺 (preview with sample numbers)"
     };
   }
-  // the tribute wears the corps' own colours, the same way the corps page hero does
-  function tributeVars() {
+  var SHARE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M8 7l4-4 4 4M4 13v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6"/></svg>';
+  function slugify(s) { return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""); }
+  function hexArr(s) {
+    s = String(s || "").replace("#", "");
+    if (s.length === 3) s = s.split("").map(function (c) { return c + c; }).join("");
+    var n = parseInt(s, 16) || 0; return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  function mixArr(a, b, t) { return a.map(function (v, i) { return Math.round(v + (b[i] - v) * t); }); }
+  function rgbStr(a) { return "rgb(" + a.join(",") + ")"; }
+  function tributeColors() {
     var bar = "#1b1b1e", accent = "#d81f26"; // Phantom black & red
     try {
       if (window.CadCorps && window.CadCorps.vars) {
@@ -565,16 +578,103 @@
         if (v && v.bar) { bar = v.bar; accent = v.accent || accent; }
       }
     } catch (e) {}
-    var hex = function (s) {
-      s = String(s || "").replace("#", "");
-      if (s.length === 3) s = s.split("").map(function (c) { return c + c; }).join("");
-      var n = parseInt(s, 16) || 0; return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    return { bar: bar, accent: accent };
+  }
+
+  /* The same card as a 1080×1350 image, so it can be saved or shared. Mirrors
+     the on-screen layout: corps gradient, accent glow, accent-barred stat tiles,
+     instrument chips, and the closing line. */
+  function drawTribute(data, opts) {
+    opts = opts || {};
+    var W = 1080, H = 1350, PAD = 84;
+    var cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+    var g = cv.getContext("2d");
+    var FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+    var th = tributeColors(), bar = hexArr(th.bar), acc = hexArr(th.accent);
+    var grad = g.createLinearGradient(0, 0, W * 0.35, H);
+    grad.addColorStop(0, rgbStr(mixArr(bar, [255, 255, 255], .10)));
+    grad.addColorStop(1, rgbStr(mixArr(bar, [6, 7, 10], .55)));
+    g.fillStyle = grad; g.fillRect(0, 0, W, H);
+    var rg = g.createRadialGradient(W * 0.88, -H * 0.05, 0, W * 0.88, -H * 0.05, W * 1.05);
+    rg.addColorStop(0, "rgba(" + acc.join(",") + ",.42)");
+    rg.addColorStop(1, "rgba(" + acc.join(",") + ",0)");
+    g.fillStyle = rg; g.fillRect(0, 0, W, H);
+    var round = function (x, y, w, h, r) {
+      g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r);
+      g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
     };
-    var mix = function (a, b, t) { return a.map(function (v, i) { return Math.round(v + (b[i] - v) * t); }); };
-    var b = hex(bar), a = hex(accent);
-    return "--tb1:rgb(" + mix(b, [255, 255, 255], .10).join(",") + ");" +
-      "--tb2:rgb(" + mix(b, [6, 7, 10], .55).join(",") + ");" +
-      "--tbacc:" + accent + ";--tbglow:rgba(" + a[0] + "," + a[1] + "," + a[2] + ",.42)";
+    var ellip = function (t, max) {
+      t = String(t == null ? "" : t);
+      if (g.measureText(t).width <= max) return t;
+      while (t.length > 1 && g.measureText(t + "…").width > max) t = t.slice(0, -1);
+      return t + "…";
+    };
+    g.textBaseline = "alphabetic"; g.textAlign = "left";
+    g.fillStyle = th.accent; g.font = "800 29px " + FONT; g.fillText("C A D E N C E", PAD, 108);
+    g.fillStyle = "rgba(255,255,255,.6)"; g.textAlign = "right";
+    g.fillText(COLIN.year + " SEASON", W - PAD, 108); g.textAlign = "left";
+    // headline
+    g.fillStyle = th.accent; g.font = "800 27px " + FONT;
+    g.fillText(opts.mock ? "PREVIEW · SAMPLE NUMBERS" : "CONGRATULATIONS · " + COLIN.year + " SEASON", PAD, 196);
+    g.fillStyle = "#fff"; g.font = "900 72px " + FONT;
+    g.fillText(ellip(opts.mock ? "What a Season!" : COLIN.name, W - PAD * 2), PAD, 272);
+    g.fillStyle = "rgba(255,255,255,.72)"; g.font = "700 28px " + FONT;
+    g.fillText(ellip(COLIN.corps + " · DCI World Championships", W - PAD * 2), PAD, 316);
+    // stat tiles, two columns
+    var tiles = (data.tiles || []).slice(0, 8);
+    var gap = 18, tW = (W - PAD * 2 - gap) / 2, tH = 132, top = 366;
+    tiles.forEach(function (t, i) {
+      var col = i % 2, row = Math.floor(i / 2);
+      var x = PAD + col * (tW + gap), y = top + row * (tH + gap);
+      round(x, y, tW, tH, 20); g.fillStyle = "rgba(255,255,255,.09)"; g.fill();
+      round(x, y, tW, tH, 20); g.lineWidth = 2; g.strokeStyle = "rgba(255,255,255,.16)"; g.stroke();
+      g.fillStyle = th.accent; round(x + 20, y + 20, 34, 5, 2.5); g.fill();
+      g.fillStyle = "#fff"; g.font = "900 42px " + FONT;
+      g.fillText(ellip(t[1], tW - 40), x + 20, y + 84);
+      g.fillStyle = "rgba(255,255,255,.72)"; g.font = "700 19px " + FONT;
+      g.fillText(ellip(String(t[0]).toUpperCase(), tW - 40), x + 20, y + 114);
+    });
+    var y = top + Math.ceil(tiles.length / 2) * (tH + gap) + 36;
+    // instrument chips
+    var inst = COLIN.instruments || [];
+    if (inst.length) {
+      g.fillStyle = "rgba(255,255,255,.6)"; g.font = "800 19px " + FONT;
+      g.fillText("INSTRUMENTS MARCHED", PAD, y); y += 30;
+      var cx = PAD;
+      g.font = "800 25px " + FONT;
+      inst.forEach(function (n) {
+        var w = g.measureText(n).width + 40;
+        if (cx + w > W - PAD) { cx = PAD; y += 56; }
+        round(cx, y, w, 46, 23); g.fillStyle = "rgba(255,255,255,.1)"; g.fill();
+        round(cx, y, w, 46, 23); g.lineWidth = 2; g.strokeStyle = "rgba(255,255,255,.24)"; g.stroke();
+        g.fillStyle = "#fff"; g.font = "800 25px " + FONT;
+        g.fillText(n, cx + 20, y + 31);
+        cx += w + 12;
+      });
+      y += 100;
+    }
+    // closing line, wrapped
+    if (data.line) {
+      g.fillStyle = "rgba(255,255,255,.82)"; g.font = "600 27px " + FONT;
+      var words = String(data.line).split(" "), ln = "";
+      words.forEach(function (wd) {
+        var t = ln ? ln + " " + wd : wd;
+        if (g.measureText(t).width > W - PAD * 2 && ln) { g.fillText(ln, PAD, y); y += 38; ln = wd; }
+        else ln = t;
+      });
+      if (ln) { g.fillText(ln, PAD, y); y += 38; }
+    }
+    g.fillStyle = "rgba(255,255,255,.5)"; g.font = "700 24px " + FONT; g.textAlign = "center";
+    g.fillText("lukebesel.github.io/DCI-Tracker", W / 2, H - 52); g.textAlign = "left";
+    return cv;
+  }
+
+  // the tribute wears the corps' own colours, the same way the corps page hero does
+  function tributeVars() {
+    var th = tributeColors(), b = hexArr(th.bar), a = hexArr(th.accent);
+    return "--tb1:" + rgbStr(mixArr(b, [255, 255, 255], .10)) + ";" +
+      "--tb2:" + rgbStr(mixArr(b, [6, 7, 10], .55)) + ";" +
+      "--tbacc:" + th.accent + ";--tbglow:rgba(" + a[0] + "," + a[1] + "," + a[2] + ",.42)";
   }
   function openColin(opts) {
     opts = opts || {};
@@ -611,8 +711,25 @@
         : "";
       body.innerHTML = '<div class="cm-tstats">' + tiles + "</div>" + inst +
         (data.line ? '<p class="cm-tline">' + esc(data.line) + "</p>" : "") +
-        '<button class="cm-tbtn" id="cm-done" type="button">' + (opts.mock ? "Close preview" : "So proud of you ❤️") + "</button>";
+        '<div class="cm-tactions">' +
+        '<button class="cm-tbtn" id="cm-share" type="button">' + SHARE_SVG + " Save / share image</button>" +
+        '<button class="cm-tclose" id="cm-done" type="button">' + (opts.mock ? "Close preview" : "Close") + "</button>" +
+        "</div>";
       body.querySelector("#cm-done").addEventListener("click", close);
+      var sb = body.querySelector("#cm-share");
+      sb.addEventListener("click", function () {
+        if (!window.CadWrapped || !window.CadWrapped.openViewer) return;
+        var orig = sb.innerHTML;
+        sb.disabled = true; sb.textContent = "Creating…";
+        try {
+          var cv = drawTribute(data, opts);
+          window.CadWrapped.openViewer([{ canvas: cv,
+            filename: "cadence-" + slugify(opts.mock ? "season" : COLIN.name) + "-" + COLIN.year + ".png",
+            title: (opts.mock ? "Season" : COLIN.name) + " · " + COLIN.year,
+            caption: (opts.mock ? "" : COLIN.name + " · ") + COLIN.corps + " · " + COLIN.year }]);
+        } catch (e) {}
+        sb.disabled = false; sb.innerHTML = orig;
+      });
       bursts.push(confetti({ parent: overlay, count: 220, duration: 3800, big: true,
         colors: opts.mock ? null : ["#d81f26", "#ffffff", "#f0b429", "#b3121b", "#7a0d14"] }));
     }
@@ -681,7 +798,7 @@
     if (ph === "colin") {                                // after Finals: reveal the tribute once
       if (lget("cad-cm-colin-seen")) return;
       try { sessionStorage.setItem("cad-cm-session", "1"); } catch (e) {}
-      lset("cad-cm-colin-seen", "1");
+      lset("cad-cm-colin-seen", String(Date.now()));     // timestamp → keeps the reopen button for a day
       openColin({ mock: false });
       return;
     }
@@ -695,16 +812,24 @@
   // are over. During either window it always resets to the current information.
   var TROPHY_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M17 5h3v2a3 3 0 0 1-3 3.5M7 5H4v2a3 3 0 0 0 3 3.5"/></svg>';
   var HEART_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M12 21s-7.5-4.9-10-9.2C.6 9 1.6 5.6 4.6 4.7 6.7 4 8.8 4.9 12 8c3.2-3.1 5.3-4 7.4-3.3 3 0.9 4 4.3 2.6 7.1C19.5 16.1 12 21 12 21z"/></svg>';
+  // Once the tribute has been revealed it stays one tap away for a full day, so
+  // it can be shown to family or reopened to save the image — even after the
+  // Aug 9 window itself closes. After that it retires for good.
+  var COLIN_REOPEN_MS = 24 * 3600 * 1000;
+  function colinReopenActive() {
+    var t = +(lget("cad-cm-colin-seen") || 0);
+    return t > 1e12 && Date.now() - t < COLIN_REOPEN_MS; // ignore the old "1" flag
+  }
   function injectTopButton() {
     var mock = mockPreviewActive();
     var ph = phase();
     // only the Colin tribute keeps a reopen button now (the Finals countdown was
     // retired); dev-preview still shows it for testing
-    if (!mock && ph !== "colin" && lget("cad-cm-dev") !== "1") return;
+    if (!mock && ph !== "colin" && !colinReopenActive() && lget("cad-cm-dev") !== "1") return;
     var bar = document.querySelector("header.topbar");
     if (!bar || document.getElementById("cm-topbtn")) return;
     injectStyles();
-    var isColin = !mock && ph === "colin";
+    var isColin = !mock && (ph === "colin" || colinReopenActive());
     var btn = document.createElement("button");
     btn.id = "cm-topbtn";
     btn.type = "button";
@@ -716,7 +841,7 @@
     btn.addEventListener("click", function () {
       try { sessionStorage.setItem("cad-cm-session", "1"); } catch (e) {}
       if (mockPreviewActive()) openColin({ mock: true });
-      else if (phase() === "colin") openColin({ mock: false });
+      else if (phase() === "colin" || colinReopenActive()) openColin({ mock: false });
       else open(modeForDate(todayET()));
     });
   }
