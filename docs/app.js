@@ -14,6 +14,55 @@
     try { return await p; } catch (e) { cache.delete(path); throw e; }
   }
 
+  // ---- live-show detection: which corps / shows are performing RIGHT NOW ----
+  // Reads the published schedule (per-corps ET performance times) + today's
+  // posted scores. A corps is "live" from ~15 min before its slot until ~90 min
+  // after, unless its score for today is already in. DCI championship venues run
+  // on Eastern time and August is EDT (UTC-4).
+  const LIVE = (() => {
+    let cache = null, cacheAt = 0;
+    const etToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date());
+    function slotMs(dateISO, timeStr) {
+      const m = /(\d{1,2}):(\d{2})\s*([ap])\.?m/i.exec(String(timeStr || ""));
+      if (!m) return null;
+      let h = (+m[1]) % 12; if (/p/i.test(m[3])) h += 12;
+      const [y, mo, d] = dateISO.split("-").map(Number);
+      return Date.UTC(y, mo - 1, d, h + 4, +m[2]); // ET slot → UTC (EDT = UTC-4)
+    }
+    async function refresh() {
+      const now = Date.now();
+      if (cache && now - cacheAt < 45000) return cache;
+      const today = etToday();
+      let up = [], season = null;
+      try { up = await data("upcoming.json"); } catch (e) {}
+      try { season = await data(`seasons/${+today.slice(0, 4)}.json`); } catch (e) {}
+      const scoredToday = new Set();
+      (season || []).forEach(e => { if (e.date === today) (e.classes || []).forEach(c => (c.results || []).forEach(r => { if (r.score != null) scoredToday.add(r.corps); })); });
+      const corpsLive = new Set(), showLive = new Set();
+      (up || []).forEach(ev => {
+        if (ev.date !== today || !Array.isArray(ev.schedule)) return;
+        const lineup = new Set(ev.lineup || []);
+        let first = Infinity, last = -Infinity;
+        ev.schedule.forEach(pair => {
+          const label = pair && pair[1];
+          if (!lineup.has(label)) return; // only real corps slots (skip gates/intermission)
+          const t = slotMs(ev.date, pair[0]); if (t == null) return;
+          first = Math.min(first, t); last = Math.max(last, t);
+          if (now >= t - 15 * 60000 && now <= t + 90 * 60000 && !scoredToday.has(label)) corpsLive.add(label);
+        });
+        if (first !== Infinity && now >= first - 15 * 60000 && now <= last + 90 * 60000) showLive.add(ev.name);
+      });
+      cache = { corpsLive, showLive, today }; cacheAt = now;
+      return cache;
+    }
+    return {
+      refresh,
+      corpsLive: n => !!(cache && cache.corpsLive.has(n)),
+      showLive: ev => !!(cache && ev && cache.showLive.has(ev.name)),
+    };
+  })();
+  const LIVE_BADGE = '<span class="pill live" title="Performing now — scores landing"><span class="livedot"></span>LIVE</span>';
+
   const score3 = v => v == null ? "—" : (+v).toFixed(3);
   const h = (strings, ...vals) => strings.map((s, i) => s + (vals[i] == null ? "" : vals[i])).join("");
 
@@ -793,6 +842,8 @@
     if (stale()) return;
     await ensureLogos();
     if (stale()) return;
+    await LIVE.refresh().catch(() => {});
+    if (stale()) return;
     const classes = sortClasses(Object.keys(rk.standings || {}));
     if (!classes.length) {
       app.innerHTML = `<div class="card"><div class="empty">No scores yet for ${rk.season} — check back after the first show.</div></div>`;
@@ -890,11 +941,13 @@
     const trendShareBtn = document.getElementById("trendShare");
     if (trendShareBtn) trendShareBtn.onclick = () => {
       if (!window.CadWrapped || !window.CadWrapped.standingsCard) return;
-      const top = block.rows.slice(0, 10).map(r => ({
+      // share exactly what's charted right now (the selected corps, in rank order)
+      const picked = block.rows.filter(r => trendPick.has(r.corps));
+      const rows = (picked.length ? picked : block.rows).map(r => ({
         corps: r.corps, color: corpsColor(r.corps), rank: r.rank, last: r.score,
         trend: (r.trend || []).filter(t => t[1] != null).map(t => [dayOfSeason(t[0]), t[1]]),
       }));
-      window.CadWrapped.standingsCard({ year: rk.season, cls: classLabel, rows: top });
+      window.CadWrapped.standingsCard({ year: rk.season, cls: classLabel, rows });
     };
     drawTrend();
 
@@ -908,7 +961,7 @@
         <table class="t standings"><thead><tr><th>#</th><th>Corps · last event</th><th class="num">Score</th><th class="num col-high">3-show avg</th><th class="num col-high">Season high</th><th class="num">vs prev</th><th class="col-trend">Trend</th></tr></thead><tbody>
         ${sorted.map(r => h`<tr${FAVS.has(r.corps) ? ' class="favrow"' : ""}>
           <td class="rank">${r.rank}</td>
-          <td><span class="corpscell">${corpsLogo(r.corps, 26)}<span class="corpscell-body">${corpsLink(r.corps)}${showClassTags ? `<span class="classbadge ${r.class === "Open Class" ? "open" : "world"}" title="${esc(r.class)}">${r.class === "Open Class" ? "Open" : "World"}</span>` : ""}<div class="lastev">${esc(fmtDateY(r.date))} · ${esc(r.event)}</div></span></span></td>
+          <td><span class="corpscell">${corpsLogo(r.corps, 26)}<span class="corpscell-body"><span class="corpscell-name">${corpsLink(r.corps)}${LIVE.corpsLive(r.corps) ? LIVE_BADGE : ""}${showClassTags ? `<span class="classbadge ${r.class === "Open Class" ? "open" : "world"}" title="${esc(r.class)}">${r.class === "Open Class" ? "Open" : "World"}</span>` : ""}</span><div class="lastev">${esc(fmtDateY(r.date))} · ${esc(r.event)}</div></span></span></td>
           <td class="num score">${score3(r.score)}</td>
           <td class="num col-high" data-tip="Average of the last ${Math.min(3, r.trend.length)} shows — smooths out one judging panel">${score3(r.trend.slice(-3).reduce((a, t) => a + t[1], 0) / Math.min(3, r.trend.length))}</td>
           <td class="num col-high" data-tip="${esc(`${score3(r.high)} — ${r.high_event || ""} · ${fmtDateY(r.high_date) || ""}`)}">${score3(r.high)}</td>
@@ -1271,6 +1324,8 @@
       data("champions.json").catch(() => ({})),
       data("profiles.json").catch(() => ({}))]);
     if (stale() || !mount()) return;
+    await LIVE.refresh().catch(() => {});
+    if (stale() || !mount()) return;
     const prof = profs[slug];
     const perfs = detail.performances;
     const titles = [];
@@ -1321,7 +1376,7 @@
           ${corpsLogo(detail.name, 74, prof && prof.img)}
           <div class="corpshero-id">
             <div class="corpshero-kicker">${esc(primaryCls || "Drum Corps")}${titles.length ? ` · ${titles.length} title${titles.length > 1 ? "s" : ""}` : ""}</div>
-            <div class="corpshero-name">${esc(detail.name)}</div>
+            <div class="corpshero-name">${esc(detail.name)}${LIVE.corpsLive(detail.name) ? " " + LIVE_BADGE : ""}</div>
             <div class="corpshero-sub" id="heroSub"></div>
           </div>
         </div>
@@ -1772,6 +1827,8 @@
       return;
     }
     if (stale() || !mount()) return;
+    await LIVE.refresh().catch(() => {});
+    if (stale() || !mount()) return;
 
     // running season: the schedule's future events join the list, marked
     // "upcoming" — the season page is the one place with the whole summer
@@ -1832,7 +1889,6 @@
       <div id="evcount" class="kicker" style="margin:-6px 0 10px"></div>
       ${recordStrip}
       <div id="evlist"></div>`;
-    const todayISO = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date());
 
     const list = document.getElementById("evlist");
 
@@ -1892,13 +1948,12 @@
         idxs.length === events.length ? "" : `${idxs.length} of ${events.length} events match`;
       list.innerHTML = shownIdxs.map(([ev, i]) => {
         const winner = eventWinner(ev);
-        const live = ev.date === todayISO; // today's show — in progress / scores landing
-        const liveBadge = live ? '<span class="pill live"><span class="livedot"></span>LIVE</span>' : "";
+        const live = LIVE.showLive(ev); // currently performing (schedule window, scores not in)
         return h`<div class="evrow card${live ? " evlive" : ""}" data-i="${i}">
           <button class="evhead" aria-expanded="false">
             <span class="evwhen">${fmtDate2(ev.date, ev.date_display)}</span>
-            <span class="evmain"><b>${PINS.has(pinKeyOf(ev)) ? "📌 " : ""}${esc(ev.name)}${liveBadge}${ev.has_recap ? ' <span class="pill evpill">recap</span>' : ""}</b><span class="evloc">${esc(ev.location || "")}</span></span>
-            <span class="evwin">${live && ev.future ? '<span class="pill live"><span class="livedot"></span>waiting for scores</span>' : ev.future ? '<span class="pill">upcoming</span>' : winner ? h`${esc(winner.corps)}<b>${score3(winner.score)}</b>` : ""}</span>
+            <span class="evmain"><b>${PINS.has(pinKeyOf(ev)) ? "📌 " : ""}${esc(ev.name)}${live ? " " + LIVE_BADGE : ""}${ev.has_recap ? ' <span class="pill evpill">recap</span>' : ""}</b><span class="evloc">${esc(ev.location || "")}</span></span>
+            <span class="evwin">${live ? "" : ev.future ? '<span class="pill">upcoming</span>' : winner ? h`${esc(winner.corps)}<b>${score3(winner.score)}</b>` : ""}</span>
             <span class="caret">▸</span>
           </button>
           <div class="evbody" hidden></div>

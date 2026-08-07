@@ -490,6 +490,10 @@ a.tile:hover { text-decoration: none; }
 .msel-opt:hover { background: var(--surface-2); }
 .msel-opt input { accent-color: var(--accent); margin: 0; flex: none; }
 .msel-opt .hint { margin-left: auto; color: var(--muted); font-size: 11px; padding-left: 10px; }
+/* Shows: the season picker only holds a 4-digit year — keep it compact, not full-width */
+#evYearSel { flex: 0 0 auto; }
+#evYearSel .msel-btn { min-width: 0; max-width: none; width: auto; }
+#evYearSel .msel-panel { min-width: 130px; }
 
 /* corps directory add-to-compare */
 .addcell { width: 34px; }
@@ -685,6 +689,7 @@ a.tile:hover { text-decoration: none; }
 .corpscell { display: flex; align-items: center; gap: 10px; }
 .corpscell .corpslogo { margin-top: 1px; }
 .corpscell-body { min-width: 0; }
+.corpscell-name { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .classbadge {
   display: inline-block; margin-left: 6px; padding: 1px 5px; vertical-align: 1px;
   border: 1px solid var(--border); border-radius: 999px; color: var(--text-secondary);

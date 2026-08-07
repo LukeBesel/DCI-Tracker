@@ -342,7 +342,7 @@
     g.fillStyle = "#fff"; g.font = "900 52px " + FONT; g.fillText("Season Progression", PAD, 196);
     g.fillStyle = accent; g.font = "800 27px " + FONT; g.fillText((info.cls || "").toUpperCase(), PAD, 234);
 
-    var rows = (info.rows || []).filter(function (r) { return r.trend && r.trend.length; }).slice(0, 10);
+    var rows = (info.rows || []).filter(function (r) { return r.trend && r.trend.length; }).slice(0, 14);
     if (!rows.length) {
       g.fillStyle = "rgba(255,255,255,.6)"; g.font = "600 30px " + FONT; g.fillText("Not enough scores yet.", PAD, 400);
       return cv;
@@ -373,10 +373,13 @@
       g.fillStyle = "#fff"; g.font = "800 15px " + FONT; g.textAlign = "center"; g.textBaseline = "middle";
       g.fillText(String(r.rank), ex, ey + 1); g.textAlign = "left"; g.textBaseline = "alphabetic";
     });
-    // legend: 2 columns × 5
-    var lgTop = cyTop + chh + 62, colW = cw / 2, rowH = 54;
+    // legend: 2 balanced columns (up to 7 each), row height shrinks to fit them all
+    var perCol = Math.ceil(rows.length / 2);
+    var lgTop = cyTop + chh + 62, colW = cw / 2;
+    var rowH = Math.min(54, Math.floor((H - 130 - lgTop) / Math.max(perCol, 1)));
     rows.forEach(function (r, i) {
-      var lx = cx + (i < 5 ? 0 : 1) * colW, ly = lgTop + (i % 5) * rowH;
+      var col = i < perCol ? 0 : 1, idx = i < perCol ? i : i - perCol;
+      var lx = cx + col * colW, ly = lgTop + idx * rowH;
       g.fillStyle = "rgba(255,255,255,.5)"; g.font = "800 24px " + FONT; g.fillText(r.rank + ".", lx, ly);
       g.fillStyle = r.color || accent; roundRect(g, lx + 44, ly - 18, 20, 20, 5); g.fill();
       g.fillStyle = "#fff"; g.font = "700 26px " + FONT; g.fillText(ellip(g, r.corps, colW - 200), lx + 78, ly);
