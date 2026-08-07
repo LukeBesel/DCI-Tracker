@@ -264,6 +264,15 @@ th[data-sort] { cursor: pointer; user-select: none; }
 
 /* filters/tabs */
 .filters { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0 0 14px; }
+/* collapsible Shows filter panel — stack the controls so it reads cleanly.
+   `.filters` sets display:flex, which would override the `hidden` attribute, so
+   collapse it explicitly (this is why the old panel never actually hid). */
+.fpanel { flex-direction: column; align-items: stretch; gap: 10px; }
+.fpanel[hidden] { display: none; }
+.fpanel > *, .fpanel .msel, .fpanel .msel-btn { width: 100%; max-width: none; }
+/* section header + expander buttons in the Shows list */
+.evsectlabel { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin: 16px 2px 8px; }
+.evsection { display: block; width: 100%; margin: 2px 0 12px; font-weight: 700; }
 .tab {
   border: 1px solid var(--baseline); background: var(--surface-1); color: var(--text-secondary);
   border-radius: 8px; padding: 7px 14px; font-size: 14px; font-family: inherit; cursor: pointer;

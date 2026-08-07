@@ -1815,8 +1815,6 @@
   }
 
   function eventBodyHtml(ev, year, i) {
-    const pk = pinKeyOf(ev);
-    const pinBtn = `<button type="button" class="tab evpin" data-pin="${esc(pk)}" style="float:right;margin:0 0 8px 10px;padding:4px 12px;font-size:12px">${PINS.has(pk) ? "📌 Unpin" : "📌 Pin to top"}</button>`;
     if (ev.future) {
       const mapLink = (ev.location
         ? `<p style="font-size:12.5px;color:var(--muted);margin:8px 0 0"><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((ev.name || "") + " " + ev.location)}" target="_blank" rel="noopener">Venue map ↗</a></p>`
@@ -1831,7 +1829,7 @@
         const kick = sameZone
           ? `${ev.lineup.length} corps · ${abbr ? "local time (" + abbr + ")" : "venue time"}`
           : `${ev.lineup.length} corps · shown in your time — venue is on ${abbr}`;
-        return h`${pinBtn}<h3 class="evcls">Schedule <span class="kicker">${kick}</span></h3>
+        return h`<h3 class="evcls">Schedule <span class="kicker">${kick}</span></h3>
           <table class="t"><tbody class="evsched" data-i="${i}">
           ${scheduleRowsHtml(ev)}
           </tbody></table>
@@ -1839,17 +1837,17 @@
           ${mapLink}`;
       }
       return (ev.lineup || []).length
-        ? h`${pinBtn}<h3 class="evcls">Scheduled Lineup <span class="kicker">${ev.lineup.length} corps</span></h3>
+        ? h`<h3 class="evcls">Scheduled Lineup <span class="kicker">${ev.lineup.length} corps</span></h3>
             <table class="t"><tbody>
             ${ev.lineup.map(c => { const live = LIVE.corpsLive(c);
               return `<tr${live ? ' class="evlive"' : ""}><td>${corpsLink(c)}${live ? " " + LIVE_BADGE : ""}</td><td class="num" style="color:var(--muted)">${live ? "" : "upcoming"}</td></tr>`; }).join("")}
             </tbody></table>
             <div class="predictmount"></div>
             ${mapLink}`
-        : `${pinBtn}<div class='empty'>Lineup not announced yet.</div>${mapLink}`;
+        : `<div class='empty'>Lineup not announced yet.</div>${mapLink}`;
     }
     return h`
-      ${pinBtn}${(ev.classes || []).map(c => h`
+      ${(ev.classes || []).map(c => h`
         <h3 class="evcls">${esc(c.label || c.class)} <span class="kicker">${c.results.length} corps</span></h3>
         <table class="t"><tbody>
         ${c.results.map(r => `<tr><td class="rank">${r.place ?? "—"}</td><td>${corpsLink(r.corps)}</td><td class="num score">${score3(r.score)}</td></tr>`).join("")}
@@ -1871,7 +1869,10 @@
     let year = +params.y && years.includes(+params.y) ? +params.y : years[0];
     app.innerHTML = `
       <h1 class="page">Shows <span class="kicker" id="evCount"></span></h1>
-      <div class="filters"><div id="evYearSel"></div></div>
+      <div class="filters" style="justify-content:space-between;align-items:center">
+        <div id="evYearSel"></div>
+        <button class="tab" id="fToggle" aria-expanded="false">Filters ▾</button>
+      </div>
       <div id="seasonMount"><div class="loading">Loading…</div></div>`;
     let gen = 0;
     async function load() {
@@ -1949,16 +1950,13 @@
     const cnt = document.getElementById("evCount");
     if (cnt) cnt.textContent = `· ${year} — ${events.filter(e => !e.future).length} events${events.some(e => e.future) ? `, ${events.filter(e => e.future).length} upcoming` : ""}`;
     mount().innerHTML = h`
-      <div class="filters" style="justify-content:space-between;align-items:center">
-        <button class="tab" id="fToggle" aria-expanded="false">Filters ▾</button>
-        <button class="tab" id="toggleAll">Expand All ▾</button>
-      </div>
-      <div class="filters" id="fPanel" hidden>
+      <div class="filters fpanel" id="fPanel" hidden>
         <div id="fCls"></div>
         <div id="fCorps"></div>
         <input class="ctrl" id="fQ" placeholder="Search event or city…">
+        <button class="tab" id="toggleAll">Expand all ▾</button>
       </div>
-      <div id="evcount" class="kicker" style="margin:-6px 0 10px"></div>
+      <div id="evcount" class="kicker" style="margin:0 0 10px"></div>
       ${recordStrip}
       <div id="evlist"></div>`;
 
@@ -1997,77 +1995,78 @@
       return true;
     }
 
+    function rowHtml([ev, i]) {
+      const winner = eventWinner(ev);
+      const live = LIVE.showLive(ev); // currently performing (schedule window, scores not in)
+      return h`<div class="evrow card${live ? " evlive" : ""}" data-i="${i}">
+        <button class="evhead" aria-expanded="false">
+          <span class="evwhen">${fmtDate2(ev.date, ev.date_display)}</span>
+          <span class="evmain"><b>${esc(ev.name)}<span class="evhdr-live">${live ? " " + LIVE_BADGE : ""}</span>${ev.has_recap ? ' <span class="pill evpill">recap</span>' : ""}</b><span class="evloc">${esc(ev.location || "")}</span></span>
+          <span class="evwin">${live ? "" : ev.future ? '<span class="pill">upcoming</span>' : winner ? h`${esc(winner.corps)}<b>${score3(winner.score)}</b>` : ""}</span>
+          <span class="caret">▸</span>
+        </button>
+        <div class="evbody" hidden></div>
+      </div>`;
+    }
+    const sectionBtn = (sec, label, open) =>
+      `<button type="button" class="tab evsection" data-sec="${sec}">${esc(label)} ${open ? "▴" : "▾"}</button>`;
+
     function render() {
       const cls = fClsVal;
       const q = document.getElementById("fQ").value.trim().toLowerCase();
-      // pinned events ride above everything and ignore the filters
-      const idxs = events.map((ev, i) => [ev, i])
-        .filter(([ev]) => PINS.has(pinKeyOf(ev)) || matches(ev, cls, q));
-      // reading order for "what's happening": pinned shows, the next few
-      // upcoming, then the most recent results, back through the season
-      idxs.sort(([a], [b]) => {
-        const pa = PINS.has(pinKeyOf(a)), pb = PINS.has(pinKeyOf(b));
-        if (pa !== pb) return pa ? -1 : 1;
-        if (!!a.future !== !!b.future) return a.future ? -1 : 1;
-        const cmpd = (a.date || "").localeCompare(b.date || "");
-        return a.future ? cmpd : -cmpd;
-      });
-      const futureN = idxs.filter(([e]) => e.future && !PINS.has(pinKeyOf(e))).length;
-      const upCap = upOpen ? Infinity : 5;
-      let upSeen = 0;
-      const shownIdxs = idxs.filter(([e]) => PINS.has(pinKeyOf(e)) || !e.future || upSeen++ < upCap);
-      document.getElementById("evcount").textContent =
-        idxs.length === events.length ? "" : `${idxs.length} of ${events.length} events match`;
-      list.innerHTML = shownIdxs.map(([ev, i]) => {
-        const winner = eventWinner(ev);
-        const live = LIVE.showLive(ev); // currently performing (schedule window, scores not in)
-        return h`<div class="evrow card${live ? " evlive" : ""}" data-i="${i}">
-          <button class="evhead" aria-expanded="false">
-            <span class="evwhen">${fmtDate2(ev.date, ev.date_display)}</span>
-            <span class="evmain"><b>${PINS.has(pinKeyOf(ev)) ? "📌 " : ""}${esc(ev.name)}<span class="evhdr-live">${live ? " " + LIVE_BADGE : ""}</span>${ev.has_recap ? ' <span class="pill evpill">recap</span>' : ""}</b><span class="evloc">${esc(ev.location || "")}</span></span>
-            <span class="evwin">${live ? "" : ev.future ? '<span class="pill">upcoming</span>' : winner ? h`${esc(winner.corps)}<b>${score3(winner.score)}</b>` : ""}</span>
-            <span class="caret">▸</span>
-          </button>
-          <div class="evbody" hidden></div>
-        </div>`;
-      }).join("") || "<div class='card'><div class='empty'>No events match those filters.</div></div>";
-      if (futureN > upCap) {
-        const btn = document.createElement("button");
-        btn.className = "tab";
-        btn.style.cssText = "display:block;margin:2px auto 12px";
-        btn.textContent = `Show all ${futureN} upcoming ▾`;
-        btn.onclick = () => { upOpen = true; render(); };
-        // right after the last visible upcoming row — pinned rows shift the
-        // list, so a fixed position lands mid-block
-        let pos = 0;
-        shownIdxs.forEach(([e], k) => { if (e.future) pos = k + 1; });
-        list.insertBefore(btn, list.children[pos] || null);
+      const matched = events.map((ev, i) => [ev, i]).filter(([ev]) => matches(ev, cls, q));
+      const filtering = !!(cls || corpsPick.size || q);
+      const isCurrentYear = +year === new Date().getFullYear();
+      const today = LIVE.today() || new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date());
+      // a show is "finished" once its day is past, or (today) once it has results
+      // and is no longer live — those drop to the results section below
+      const finished = ([ev]) => ev.date < today || (ev.date === today && !ev.future && !LIVE.showLive(ev));
+
+      const cnt = document.getElementById("evcount");
+      let html;
+      if (filtering || !isCurrentYear) {
+        // filtered / past-season browse: a single flat list, newest first
+        const sorted = matched.slice().sort(([a], [b]) =>
+          (b.date || "").localeCompare(a.date || "") || a.name.localeCompare(b.name));
+        html = sorted.map(rowHtml).join("");
+        cnt.textContent = filtering ? `${matched.length} of ${events.length} events match` : "";
+      } else {
+        // the "what's on" view: the next show-day up front, then a tap-to-open
+        // stack of the rest of the upcoming shows, then recent results right
+        // beneath them (so last night's scores are one glance away), then the
+        // rest of the season behind one more button.
+        const unfinished = matched.filter(e => !finished(e))
+          .sort(([a], [b]) => (a.date || "").localeCompare(b.date || ""));
+        const past = matched.filter(finished)
+          .sort(([a], [b]) => (b.date || "").localeCompare(a.date || ""));
+        const curDate = unfinished.length ? unfinished[0][0].date : null;
+        const current = unfinished.filter(([ev]) => ev.date === curDate);
+        const upcoming = unfinished.filter(([ev]) => ev.date !== curDate);
+        const recent = past.slice(0, 2), older = past.slice(2);
+        const plur = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+        html =
+          (current.length ? current.map(rowHtml).join("")
+            : `<div class="card"><div class="empty">No upcoming shows — the season's a wrap.</div></div>`) +
+          (upcoming.length ? sectionBtn("up", `${plur(upcoming.length, "more upcoming show")}`, upOpen)
+            + (upOpen ? upcoming.map(rowHtml).join("") : "") : "") +
+          (recent.length ? `<div class="evsectlabel">Recent results</div>` + recent.map(rowHtml).join("") : "") +
+          (older.length ? sectionBtn("past", `${plur(older.length, "earlier show")}`, pastOpen)
+            + (pastOpen ? older.map(rowHtml).join("") : "") : "");
+        cnt.textContent = "";
       }
+      list.innerHTML = html || "<div class='card'><div class='empty'>No events match those filters.</div></div>";
+      list.querySelectorAll(".evsection").forEach(b => b.onclick = () => {
+        if (b.dataset.sec === "up") upOpen = !upOpen; else pastOpen = !pastOpen;
+        render();
+      });
       list.querySelectorAll(".evrow").forEach(row => {
         row.querySelector(".evhead").onclick = () => toggle(row);
       });
-      // pinned shows open ready-to-read
-      list.querySelectorAll(".evrow").forEach(row => {
-        const ev = events[+row.dataset.i];
-        if (ev && PINS.has(pinKeyOf(ev))) toggle(row, true);
-      });
+      if (allOpen) list.querySelectorAll(".evrow").forEach(row => toggle(row, true));
     }
-    // pin/unpin from inside an event card; the card stays open where it lands
-    list.addEventListener("click", e => {
-      const bt = e.target.closest(".evpin");
-      if (!bt) return;
-      const row = bt.closest(".evrow");
-      const i = row ? row.dataset.i : null;
-      PINS.toggle(bt.dataset.pin);
-      render();
-      if (i != null) {
-        const again = list.querySelector(`.evrow[data-i="${i}"]`);
-        if (again) toggle(again, true);
-      }
-    });
 
     let allOpen = false;
-    let upOpen = false;
+    let upOpen = false, pastOpen = false;
     // filters survive tab switches for the session
     let savedF = {};
     try { savedF = JSON.parse(sessionStorage.getItem("cad-shows-f") || "{}"); } catch (e) {}
@@ -2102,10 +2101,12 @@
       onChange: () => { persistF(); allOpen = false; syncToggle(); render(); },
     });
     const toggleBtn = document.getElementById("toggleAll");
-    function syncToggle() { toggleBtn.textContent = allOpen ? "Collapse All ▴" : "Expand All ▾"; }
+    function syncToggle() { toggleBtn.textContent = allOpen ? "Collapse all ▴" : "Expand all ▾"; }
     toggleBtn.onclick = () => {
       allOpen = !allOpen;
-      list.querySelectorAll(".evrow").forEach(r => toggle(r, allOpen));
+      upOpen = pastOpen = allOpen; // reveal (or hide) every section too
+      render();                    // repaint reveals the sections; render opens the bodies when allOpen
+      if (!allOpen) list.querySelectorAll(".evrow").forEach(r => toggle(r, false));
       syncToggle();
     };
     // filters collapse behind a toggle — default is just the show list
