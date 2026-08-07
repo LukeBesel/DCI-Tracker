@@ -33,9 +33,13 @@ DATE_PAT = re.compile(
     r"(January|February|March|April|May|June|July|August|September|October|November|December)"
     r"\s+(\d{1,2}),?\s+(\d{4})")
 NON_PERFORMANCE = re.compile(
-    r"gates open|welcome|national anthem|intermission|scores? announced|"
-    r"age.?out recognition|encore|award|color guard|honor guard|pledge|"
-    r"opening ceremon|closing ceremon|drum major|meeting|clinic|autograph", re.I)
+    r"gates? open|doors? open|will call|box office|welcome|national anthem|intermission|"
+    r"scores? announced|age.?out recognition|encore|award|color guard|honor guard|pledge|"
+    r"opening ceremon|closing ceremon|drum major|meeting|clinic|autograph|"
+    # venue/seating logistics and round markers DCI mixes into the lineup table
+    r"loge|terrace|reserved seating|takes effect|levels? open|lot opens?|parking|retreat|"
+    r"(?:semi.?finals?|quarter.?finals?|finals?|prelims?|competition|show|program)\s*"
+    r"(?:begins?|resumes?|concludes?|starts?|ends?)|lunch|dinner|\bbreak\b", re.I)
 
 
 def iso_from_display(disp: str) -> str | None:

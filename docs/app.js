@@ -18,9 +18,13 @@
   // Reads the published schedule (per-corps ET performance times) + today's
   // posted scores. A corps is "live" for a tight window around its slot (15 min
   // either side — roughly on-deck through walk-off), unless its score for today
-  // is already in. DCI championship venues run on Eastern time; August is EDT
-  // (UTC-4).
+  // is already in. A whole show goes dark the moment its full results land, even
+  // if the clock is still inside the window. DCI championship venues run on
+  // Eastern time; August is EDT (UTC-4).
   const LIVE_PAD = 15 * 60000; // 15-min cushion on each side of a performance slot
+  // logistics rows the schedule scrape sometimes leaves in the lineup — never a
+  // performing corps, so they must not carry a LIVE pill or stretch the window
+  const NON_CORPS = /gates?\s*open|doors?\s*open|will\s*call|box\s*office|welcome|national\s*anthem|opening\s*ceremon|closing\s*ceremon|intermission|scores?\s*announced|awards?|retreat|encore|age.?out|honor\s*guard|pledge|drum\s*major|autograph|loge|terrace|reserved\s*seating|takes\s*effect|levels?\s*open|lot\s*opens?|parking|(semi.?finals?|quarter.?finals?|finals?|prelims?|competition|show|program)\s*(begins?|resumes?|concludes?|starts?|ends?)|lunch|dinner|\bbreak\b/i;
   const LIVE = (() => {
     let cache = null, cacheAt = 0;
     const etToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date());
@@ -38,29 +42,55 @@
       let up = [], season = null;
       try { up = await data("upcoming.json"); } catch (e) {}
       try { season = await data(`seasons/${+today.slice(0, 4)}.json`); } catch (e) {}
-      const scoredToday = new Set();
-      (season || []).forEach(e => { if (e.date === today) (e.classes || []).forEach(c => (c.results || []).forEach(r => { if (r.score != null) scoredToday.add(r.corps); })); });
-      const corpsLive = new Set(), showLive = new Set();
+      const scoredToday = new Set();      // corps names with a score posted today
+      const scoredByShow = {};            // event name → how many corps have scored
+      (season || []).forEach(e => {
+        if (e.date !== today) return;
+        let n = 0;
+        (e.classes || []).forEach(c => (c.results || []).forEach(r => {
+          if (r.score != null) { scoredToday.add(r.corps); n++; }
+        }));
+        scoredByShow[e.name] = (scoredByShow[e.name] || 0) + n;
+      });
+      const corpsLive = new Set(), showLive = new Set(), complete = new Set();
       (up || []).forEach(ev => {
         if (ev.date !== today || !Array.isArray(ev.schedule)) return;
         const lineup = new Set(ev.lineup || []);
-        let first = Infinity, last = -Infinity;
-        ev.schedule.forEach(pair => {
-          const label = pair && pair[1];
-          if (!lineup.has(label)) return; // only real corps slots (skip gates/intermission)
+        // real performing corps (logistics rows dropped) drive completeness + the
+        // per-corps pills used on the scoreboard / corps pages
+        const realSlots = ev.schedule.filter(p => p && lineup.has(p[1]) && !NON_CORPS.test(p[1]));
+        const realCorps = new Set(realSlots.map(p => p[1]));
+        // the instant every performing corps has a score the whole show is done —
+        // corps AND logistics rows all go dark, wherever the clock sits
+        if (realCorps.size && (scoredByShow[ev.name] || 0) >= realCorps.size) { complete.add(ev.name); return; }
+        realSlots.forEach(pair => {
           const t = slotMs(ev.date, pair[0]); if (t == null) return;
-          first = Math.min(first, t); last = Math.max(last, t);
-          if (now >= t - LIVE_PAD && now <= t + LIVE_PAD && !scoredToday.has(label)) corpsLive.add(label);
+          if (now >= t - LIVE_PAD && now <= t + LIVE_PAD && !scoredToday.has(pair[1])) corpsLive.add(pair[1]);
         });
-        if (first !== Infinity && now >= first - LIVE_PAD && now <= last + LIVE_PAD) showLive.add(ev.name);
+        // the show stays live across its whole schedule — first slot to last,
+        // logistics rows included — until it completes above
+        const times = ev.schedule.map(p => slotMs(ev.date, p[0])).filter(t => t != null);
+        if (times.length) {
+          const first = Math.min(...times), last = Math.max(...times);
+          if (now >= first - LIVE_PAD && now <= last + LIVE_PAD) showLive.add(ev.name);
+        }
       });
-      cache = { corpsLive, showLive, today }; cacheAt = now;
+      cache = { corpsLive, showLive, complete, scored: scoredToday, today }; cacheAt = now;
       return cache;
     }
     return {
       refresh,
       corpsLive: n => !!(cache && cache.corpsLive.has(n)),
       showLive: ev => !!(cache && ev && cache.showLive.has(ev.name)),
+      // a show whose full results are in — nothing about it is live any more
+      isComplete: name => !!(cache && cache.complete.has(name)),
+      scored: n => !!(cache && cache.scored.has(n)),
+      // is a specific schedule slot inside its ±15-min live window right now?
+      // (corps and logistics rows alike — the caller gates on show-completeness)
+      slotLiveAt: (dateISO, timeStr) => {
+        const t = slotMs(dateISO, timeStr);
+        return t != null && Date.now() >= t - LIVE_PAD && Date.now() <= t + LIVE_PAD;
+      },
       today: () => cache && cache.today,
       // signature of the current live sets — lets a view repaint only on change
       sig: () => cache ? [...cache.corpsLive].sort().join("|") + "#" + [...cache.showLive].sort().join("|") : "",
@@ -674,7 +704,18 @@
 
   function combinedStandings(standings, selected) {
     if (selected.length === 1) return standings[selected[0]];
-    const rows = selected.flatMap(cls => (standings[cls].rows || []).map(r => ({ ...r, class: cls })))
+    // a corps can compete in more than one selected class (Open Class corps also
+    // run World Class prelims at Championships), so the same name shows up once
+    // per class. Keep each corps ONCE — their most recent result across the
+    // selected classes (ties → the higher score) — so the board never repeats.
+    const byCorps = new Map();
+    selected.forEach(cls => (standings[cls].rows || []).forEach(r => {
+      const cur = byCorps.get(r.corps);
+      const newer = !cur || (r.date || "") > (cur.date || "")
+        || ((r.date || "") === (cur.date || "") && (r.score ?? -Infinity) > (cur.score ?? -Infinity));
+      if (newer) byCorps.set(r.corps, { ...r, class: cls });
+    }));
+    const rows = [...byCorps.values()]
       .sort((a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity) || a.corps.localeCompare(b.corps))
       .map((r, i) => ({ ...r, rank: i + 1 }));
     const movers = rows.filter(r => Number.isFinite(r.delta))
@@ -1762,11 +1803,14 @@
     const tz = venueZone(ev.location);
     const sameZone = !tz || tz === Intl.DateTimeFormat().resolvedOptions().timeZone;
     const abbr = tz ? tzAbbr(tz, ev.date ? new Date(ev.date + "T12:00:00") : new Date()) : "";
+    const done = LIVE.isComplete(ev.name); // scores all in → nothing here is live
     return (ev.schedule || []).map(([t, entry]) => {
-      const isCorps = (ev.lineup || []).includes(entry);
+      const isCorps = (ev.lineup || []).includes(entry) && !NON_CORPS.test(entry);
       const shown = sameZone ? t : (localizeVenueTime(t, ev.date, tz) || t);
-      const live = isCorps && LIVE.corpsLive(entry);
-      return `<tr${live ? ' class="evlive"' : ""}><td class="num" style="color:var(--muted);white-space:nowrap"${shown !== t ? ` title="${esc(t)} ${esc(abbr)} at the venue"` : ""}>${esc(shown || "")}</td><td>${isCorps ? corpsLink(entry) + (live ? " " + LIVE_BADGE : "") : `<span style="color:var(--muted)">${esc(entry)}</span>`}</td></tr>`;
+      // any slot inside its ±15-min window is live — corps and logistics rows
+      // alike — until the show completes, and a corps that already scored drops
+      const live = !done && LIVE.slotLiveAt(ev.date, t) && !(isCorps && LIVE.scored(entry));
+      return `<tr${live ? ' class="evlive"' : ""}><td class="num" style="color:var(--muted);white-space:nowrap"${shown !== t ? ` title="${esc(t)} ${esc(abbr)} at the venue"` : ""}>${esc(shown || "")}</td><td>${isCorps ? corpsLink(entry) : `<span style="color:var(--muted)">${esc(entry)}</span>`}${live ? " " + LIVE_BADGE : ""}</td></tr>`;
     }).join("");
   }
 
@@ -1980,7 +2024,7 @@
         return h`<div class="evrow card${live ? " evlive" : ""}" data-i="${i}">
           <button class="evhead" aria-expanded="false">
             <span class="evwhen">${fmtDate2(ev.date, ev.date_display)}</span>
-            <span class="evmain"><b>${PINS.has(pinKeyOf(ev)) ? "📌 " : ""}${esc(ev.name)}${live ? " " + LIVE_BADGE : ""}${ev.has_recap ? ' <span class="pill evpill">recap</span>' : ""}</b><span class="evloc">${esc(ev.location || "")}</span></span>
+            <span class="evmain"><b>${PINS.has(pinKeyOf(ev)) ? "📌 " : ""}${esc(ev.name)}<span class="evhdr-live">${live ? " " + LIVE_BADGE : ""}</span>${ev.has_recap ? ' <span class="pill evpill">recap</span>' : ""}</b><span class="evloc">${esc(ev.location || "")}</span></span>
             <span class="evwin">${live ? "" : ev.future ? '<span class="pill">upcoming</span>' : winner ? h`${esc(winner.corps)}<b>${score3(winner.score)}</b>` : ""}</span>
             <span class="caret">▸</span>
           </button>
@@ -2084,16 +2128,19 @@
     // Self-stops once the Shows view is torn down.
     const todayET = LIVE.today() || new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date());
     if (events.some(e => Array.isArray(e.schedule) && e.schedule.length && e.date === todayET)) {
-      let sig = LIVE.sig();
       const tick = setInterval(async () => {
         if (stale() || !document.body.contains(list)) { clearInterval(tick); return; }
         await LIVE.refresh(true).catch(() => {});
-        const now = LIVE.sig();
-        if (now === sig) return; // nothing changed → no repaint
-        sig = now;
-        list.querySelectorAll("tbody.evsched").forEach(tb => {
-          const ev = events[+tb.dataset.i];
-          if (ev) tb.innerHTML = scheduleRowsHtml(ev);
+        // keep every row's header LIVE badge honest (drops when a show completes),
+        // and repaint any open running order so the pills track the clock
+        list.querySelectorAll(".evrow").forEach(row => {
+          const ev = events[+row.dataset.i]; if (!ev) return;
+          const on = LIVE.showLive(ev);
+          const hdr = row.querySelector(".evhdr-live");
+          if (hdr) hdr.innerHTML = on ? " " + LIVE_BADGE : "";
+          row.classList.toggle("evlive", on);
+          const tb = row.querySelector("tbody.evsched");
+          if (tb && !row.querySelector(".evbody").hidden) tb.innerHTML = scheduleRowsHtml(ev);
         });
       }, 30000);
     }
