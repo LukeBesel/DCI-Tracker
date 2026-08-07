@@ -515,74 +515,6 @@
   "_seen": "2026-08-07"
  },
  {
-  "url": "https://www.dci.org/events/2026-northwest-youth-music-games-portland/",
-  "name": "Northwest Youth Music Games Portland",
-  "location": "Portland, OR",
-  "date_display": "July 1, 2026",
-  "date": "2026-07-01",
-  "lineup": [
-   "One More Time Around Marching Band",
-   "Gems",
-   "Impulse",
-   "Columbians",
-   "The Battalion",
-   "Santa Clara Vanguard",
-   "Seattle Cascades"
-  ],
-  "schedule": [
-   [
-    "6:00 PM",
-    "Gates Open"
-   ],
-   [
-    "7:15 PM",
-    "One More Time Around Marching Band"
-   ],
-   [
-    "7:30 PM",
-    "Welcome & National Anthem"
-   ],
-   [
-    "7:40 PM",
-    "Gems"
-   ],
-   [
-    "7:52 PM",
-    "Impulse"
-   ],
-   [
-    "8:07 PM",
-    "Columbians"
-   ],
-   [
-    "8:22 PM",
-    "The Battalion"
-   ],
-   [
-    "8:37 PM",
-    "Intermission"
-   ],
-   [
-    "8:52 PM",
-    "Santa Clara Vanguard"
-   ],
-   [
-    "9:10 PM",
-    "Seattle Cascades"
-   ],
-   [
-    "9:28 PM",
-    "Encore - Seattle Cascades - Seattle, WA"
-   ],
-   [
-    "9:35 PM",
-    "Scores Announced"
-   ]
-  ],
-  "bag_policy": "There is no bag policy for this event.",
-  "_seen": "2026-08-07"
- },
- {
   "url": "https://www.dci.org/events/2026-midcal-showcase/",
   "name": "MidCal Showcase",
   "location": "Camarillo, CA",
@@ -732,79 +664,6 @@
    ]
   ],
   "bag_policy": "There is no enforced bag policy for this event. For security and efficiency, all attendees are encouraged to keep all personal items to a minimum.",
-  "_seen": "2026-08-07"
- },
- {
-  "url": "https://www.dci.org/events/2026-dci-capital-classic/",
-  "name": "DCI Capital Classic",
-  "location": "Sacramento, CA",
-  "date_display": "July 3, 2026",
-  "date": "2026-07-03",
-  "lineup": [
-   "Sparta Ignite",
-   "Golden Empire",
-   "Impulse",
-   "Gold",
-   "Mandarins Alumni Corps",
-   "Seattle Cascades",
-   "The Academy",
-   "Santa Clara Vanguard",
-   "Bluecoats"
-  ],
-  "schedule": [
-   [
-    "4:00 PM",
-    "Gates Open"
-   ],
-   [
-    "6:30 PM",
-    "Welcome & National Anthem"
-   ],
-   [
-    "6:40 PM",
-    "Sparta Ignite"
-   ],
-   [
-    "6:52 PM",
-    "Golden Empire"
-   ],
-   [
-    "7:07 PM",
-    "Impulse"
-   ],
-   [
-    "7:22 PM",
-    "Gold"
-   ],
-   [
-    "7:37 PM",
-    "Mandarins Alumni Corps"
-   ],
-   [
-    "7:52 PM",
-    "Intermission"
-   ],
-   [
-    "8:22 PM",
-    "Seattle Cascades"
-   ],
-   [
-    "8:40 PM",
-    "The Academy"
-   ],
-   [
-    "8:58 PM",
-    "Santa Clara Vanguard"
-   ],
-   [
-    "9:16 PM",
-    "Bluecoats"
-   ],
-   [
-    "9:41 PM",
-    "Scores Announced"
-   ]
-  ],
   "_seen": "2026-08-07"
  },
  {
@@ -1453,6 +1312,156 @@
   "_seen": "2026-08-07"
  },
  {
+  "url": "https://www.dci.org/events/2026-cavalcade-of-brass/",
+  "name": "Cavalcade of Brass",
+  "location": "Lisle, IL",
+  "date_display": "July 10, 2026",
+  "date": "2026-07-10",
+  "lineup": [
+   "Rosemont King Cobras",
+   "Sound of Sun Prairie",
+   "Northern Lights",
+   "Eclipse",
+   "Spartans",
+   "Crossmen",
+   "Troopers",
+   "Phantom Regiment",
+   "The Cavaliers"
+  ],
+  "schedule": [
+   [
+    "6:30 PM",
+    "Gates Open"
+   ],
+   [
+    "7:30 PM",
+    "Welcome & National Anthem"
+   ],
+   [
+    "7:40 PM",
+    "Rosemont King Cobras"
+   ],
+   [
+    "7:50 PM",
+    "Sound of Sun Prairie"
+   ],
+   [
+    "8:00 PM",
+    "Northern Lights"
+   ],
+   [
+    "8:12 PM",
+    "Eclipse"
+   ],
+   [
+    "8:29 PM",
+    "Spartans"
+   ],
+   [
+    "8:46 PM",
+    "Crossmen"
+   ],
+   [
+    "9:03 PM",
+    "Intermission"
+   ],
+   [
+    "9:20 PM",
+    "Troopers"
+   ],
+   [
+    "9:37 PM",
+    "Phantom Regiment"
+   ],
+   [
+    "9:54 PM",
+    "The Cavaliers"
+   ],
+   [
+    "10:11 PM",
+    "Encore - The Cavaliers - Rosemont, IL"
+   ],
+   [
+    "10:19 PM",
+    "Scores Announced"
+   ]
+  ],
+  "bag_policy": "Spectators are welcome to bring one bag into the Sports Complex provided the bag is softsided and its dimensions do not exceed 12 inches by 12 inches by 8 inches. The Sports Complex and its staff reserves the right to inspect bags brought into The Sports Complex.",
+  "_seen": "2026-08-07"
+ },
+ {
+  "url": "https://www.dci.org/events/2026-music-on-the-march/",
+  "name": "Music on the March",
+  "location": "Dubuque, IA",
+  "date_display": "July 10, 2026",
+  "date": "2026-07-10",
+  "lineup": [
+   "Conquest",
+   "Colt Cadets",
+   "River City Rhythm",
+   "Genesis",
+   "Madison Scouts",
+   "Blue Knights",
+   "Blue Stars",
+   "Colts"
+  ],
+  "schedule": [
+   [
+    "5:30 PM",
+    "Gates Open"
+   ],
+   [
+    "7:00 PM",
+    "Welcome & National Anthem"
+   ],
+   [
+    "7:10 PM",
+    "Conquest"
+   ],
+   [
+    "7:22 PM",
+    "Colt Cadets"
+   ],
+   [
+    "7:39 PM",
+    "River City Rhythm"
+   ],
+   [
+    "7:56 PM",
+    "Genesis"
+   ],
+   [
+    "8:13 PM",
+    "Intermission"
+   ],
+   [
+    "8:33 PM",
+    "Madison Scouts"
+   ],
+   [
+    "8:50 PM",
+    "Blue Knights"
+   ],
+   [
+    "9:07 PM",
+    "Blue Stars"
+   ],
+   [
+    "9:24 PM",
+    "Colts"
+   ],
+   [
+    "9:41 PM",
+    "Encore - Colts - Dubuque, IA"
+   ],
+   [
+    "10:06 PM",
+    "Scores Announced"
+   ]
+  ],
+  "_seen": "2026-08-07"
+ },
+ {
   "url": "https://www.dci.org/events/2026-western-corps-connection/",
   "name": "Western Corps Connection",
   "location": "Walnut, CA",
@@ -1886,8 +1895,7 @@
    "Golden Empire",
    "Impulse",
    "Gold",
-   "Blue Devils B",
-   "Retreat"
+   "Blue Devils B"
   ],
   "schedule": [
    [
@@ -5170,8 +5178,7 @@
    "Memphis Blues",
    "Blue Devils B",
    "Gold",
-   "The Battalion",
-   "Retreat"
+   "The Battalion"
   ],
   "schedule": [
    [
@@ -5480,11 +5487,8 @@
    "Cincinnati Tradition",
    "Hawthorne Caballeros",
    "Atlanta CV",
-   "Loge and Terrace Levels Open",
    "Bushwackers",
-   "Reading Buccaneers",
-   "Reserved Seating Takes Effect",
-   "DCI World Championships Semifinals Begins"
+   "Reading Buccaneers"
   ],
   "schedule": [
    [
@@ -5770,10 +5774,7 @@
   "location": "Indianapolis, IN",
   "date_display": "August 8, 2026",
   "date": "2026-08-08",
-  "lineup": [
-   "All-Age Class Finals Begins",
-   "Competition Resumes"
-  ],
+  "lineup": [],
   "schedule": [
    [
     "9:00 AM",
@@ -5811,9 +5812,7 @@
   "date": "2026-08-08",
   "lineup": [
    "INpact & BANDtastic Band",
-   "U.S. Marine Drum & Bugle Corps",
-   "World Championship Finals Begins",
-   "Competition Resumes"
+   "U.S. Marine Drum & Bugle Corps"
   ],
   "schedule": [
    [
