@@ -1513,6 +1513,8 @@
       <div class="card"><h2 id="corpsChartTitle"></h2><div class="chartwrap" id="corpsChart"></div></div>
       <div class="card" style="margin-top:14px"><h2 id="perfTitle">Performance Log</h2>
         <div id="perfTable"></div></div>
+      <div class="card" style="margin-top:14px"><h2>Championships <span class="sub">each year's last score & championship finish</span></h2>
+        <div id="corpChampTable"></div></div>
       <div class="grid cols-tiles" style="margin-top:14px">
         <div class="tile click" id="tilePerfs" role="button" title="Open the full performance log">
           <div class="label">Performances</div><div class="value">${perfs.length}</div>
@@ -1653,10 +1655,37 @@
           <td class="m-hide"><span class="pill">${esc(p.cls || "")}</span></td>
           <td class="num">${p.p ?? "—"}</td><td class="num score">${score3(p.s)}</td>
           <td class="num">${p.s == null ? '<span class="delta flat">—</span>' : deltaHtml(deltaByPerf.get(p))}</td></tr>`).join("")}</tbody></table></div>`;
-      collapseRows(document.getElementById("perfRows"), 5, "performances");
+      collapseRows(document.getElementById("perfRows"), 3, "performances");
+    }
+
+    // Championships table: one row per year — the season's last score and where
+    // they finished at the World Championships (their latest championship round
+    // that year: Finals when they made it, else Semifinals / Prelims). Newest
+    // first; the last three years show, the rest expand.
+    function renderCorpChamps() {
+      const roundOf = ev => /semi/i.test(ev) ? "Semifinals" : /quarter/i.test(ev) ? "Quarterfinals"
+        : /prelim/i.test(ev) ? "Prelims" : /final/i.test(ev) ? "Finals" : "";
+      const rows = years.slice().reverse().map(y => {
+        const ps = (byYear.get(y) || []).filter(p => p.s != null)
+          .slice().sort((a, b) => (a.d || "").localeCompare(b.d || ""));
+        if (!ps.length) return null;
+        const last = ps[ps.length - 1];
+        const champs = ps.filter(p => /world championship/i.test(p.ev || "") && p.p != null);
+        const fin = champs.length ? champs[champs.length - 1] : null;
+        return { y, last, fin };
+      }).filter(Boolean);
+      document.getElementById("corpChampTable").innerHTML = `<div class="tscroll"><table class="t">
+        <thead><tr><th>Year</th><th class="num">Last score</th><th>Championship finish</th></tr></thead>
+        <tbody id="corpChampRows">${rows.map(r => h`<tr>
+          <td><a href="#/season/${r.y}"><b>${r.y}</b></a></td>
+          <td class="num score">${score3(r.last.s)}</td>
+          <td>${r.fin ? h`<b>${ordinal(r.fin.p)}</b> <span class="kicker">· ${roundOf(r.fin.ev || "")}${r.fin.cls ? ` · ${esc(r.fin.cls)}` : ""}</span>` : '<span style="color:var(--muted)">—</span>'}</td>
+        </tr>`).join("")}</tbody></table></div>`;
+      collapseRows(document.getElementById("corpChampRows"), 3, "years");
     }
     renderChart();
     renderPerfs();
+    renderCorpChamps();
     renderHero();
 
     // stat tiles double as drill-downs
