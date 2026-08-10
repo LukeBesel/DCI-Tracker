@@ -135,6 +135,49 @@ main { max-width: 1180px; margin: 0 auto; padding: 22px 18px 60px; min-height: 7
 
 /* layout */
 .grid { display: grid; gap: 14px; }
+/* desktop pairing: stacks on phones, sits side-by-side on wide screens */
+.dsk2 { display: grid; gap: 14px; }
+.dsk2 > *, .rk-grid > * { min-width: 0; } /* wide tables scroll inside, never stretch the track */
+/* Scoreboard shell: single column on phones (chart → standings → move → battle,
+   same as always); on wide screens the chart takes the left with the Move and
+   Battle cards beside it, and the standings stretch across beneath */
+.rk-grid { display: grid; gap: 14px; align-items: start; }
+@media (min-width: 1000px) {
+  .dsk2 { grid-template-columns: 1fr 1fr; align-items: start; }
+  .dsk2.w75 { grid-template-columns: 7fr 5fr; }
+  .dsk2 > .setcard { margin-bottom: 0; max-width: none; }
+  .rk-grid {
+    grid-template-columns: 8fr 4fr;
+    grid-template-areas: "trend move" "trend battle" "trend ." "stand stand";
+    grid-template-rows: auto auto 1fr auto;
+  }
+  .rk-trend { grid-area: trend; }
+  .rk-stand { grid-area: stand; }
+  .rk-move { grid-area: move; }
+  .rk-battle { grid-area: battle; }
+  /* Corps page: identity on the left, the season chart on the right, the log
+     and championships side by side under them, tiles + profile full width */
+  #corpsDetail {
+    display: grid; gap: 14px; align-items: start;
+    grid-template-columns: minmax(360px, 5fr) 7fr;
+    grid-template-areas: "hero chart" "filters chart" "perf champs" "tiles tiles" "prof prof";
+    grid-template-rows: auto 1fr auto auto auto;
+  }
+  #corpsDetail > * { margin: 0 !important; }
+  #corpsDetail > .corpshero { grid-area: hero; }
+  /* the hero shares the row with the chart now — 2×2 tiles fit its width */
+  #corpsDetail > .corpshero .corpshero-stats { grid-template-columns: repeat(2, 1fr); }
+  #corpsDetail > .corps-filters { grid-area: filters; align-self: end; }
+  #corpsDetail > .corps-chart { grid-area: chart; }
+  #corpsDetail > .corps-perf { grid-area: perf; }
+  #corpsDetail > .corps-champs { grid-area: champs; }
+  #corpsDetail > .corps-tiles { grid-area: tiles; }
+  #corpsDetail > .corps-prof { grid-area: prof; }
+  /* Shows: two show cards per row; section labels and expanders span both */
+  #evlist { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+  #evlist .evrow { margin-bottom: 0; }
+  #evlist .evsectlabel, #evlist .evsection, #evlist > .card { grid-column: 1 / -1; }
+}
 /* grid tracks default to min-width:auto, so a wide table (or a long corps name)
    stretches the track and pushes the whole page sideways — most visible at the
    Large/Larger text sizes. Let tracks shrink and scroll their own content. */

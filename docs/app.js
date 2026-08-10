@@ -953,20 +953,18 @@
     app.innerHTML = h`
       <h1 class="page">${esc(String(rk.season))} Scoreboard</h1>
       <div class="filters"><div id="clsSel"></div></div>
-      <div class="card">
-        <h2 id="trendTitle">Season Progression <span class="sub" id="trendSub">score by date · top 12</span></h2>
-        <div class="filters" style="margin:2px 0 8px"><div id="trendCorpsSel"></div><button class="tab" id="trendReset" hidden>Top 12</button><button class="tab" id="trendShare" title="Share this progression as an image">${SHARE_SVG} Share</button></div>
-        <div class="chartwrap" id="trendChart"></div>
-      </div>
-      <div class="grid cols-2" style="margin-top:14px">
-        <div class="card">
+      <div class="rk-grid">
+        <div class="card rk-trend">
+          <h2 id="trendTitle">Season Progression <span class="sub" id="trendSub">score by date · top 12</span></h2>
+          <div class="filters" style="margin:2px 0 8px"><div id="trendCorpsSel"></div><button class="tab" id="trendReset" hidden>Top 12</button><button class="tab" id="trendShare" title="Share this progression as an image">${SHARE_SVG} Share</button></div>
+          <div class="chartwrap" id="trendChart"></div>
+        </div>
+        <div class="card rk-stand">
           <h2 id="standTitle"></h2>
           <div id="standings"></div>
         </div>
-        <div style="display:grid;gap:14px;align-content:start">
-          <div class="card" id="moveCard"></div>
-          <div class="card" id="battleCard"></div>
-        </div>
+        <div class="card rk-move" id="moveCard"></div>
+        <div class="card rk-battle" id="battleCard"></div>
       </div>`;
 
     const previousSelection = new Set(selected);
@@ -1509,13 +1507,13 @@
 
     mount().innerHTML = h`
       ${heroHtml}
-      <div class="filters"><div id="yearSel2"></div></div>
-      <div class="card"><h2 id="corpsChartTitle"></h2><div class="chartwrap" id="corpsChart"></div></div>
-      <div class="card" style="margin-top:14px"><h2 id="perfTitle">Performance Log</h2>
+      <div class="filters corps-filters"><div id="yearSel2"></div></div>
+      <div class="card corps-chart"><h2 id="corpsChartTitle"></h2><div class="chartwrap" id="corpsChart"></div></div>
+      <div class="card corps-perf" style="margin-top:14px"><h2 id="perfTitle">Performance Log</h2>
         <div id="perfTable"></div></div>
-      <div class="card" style="margin-top:14px"><h2>Championships <span class="sub">each year's last score & championship finish</span></h2>
+      <div class="card corps-champs" style="margin-top:14px"><h2>Championships <span class="sub">each year's last score & championship finish</span></h2>
         <div id="corpChampTable"></div></div>
-      <div class="grid cols-tiles" style="margin-top:14px">
+      <div class="grid cols-tiles corps-tiles" style="margin-top:14px">
         <div class="tile click" id="tilePerfs" role="button" title="Open the full performance log">
           <div class="label">Performances</div><div class="value">${perfs.length}</div>
           <div class="sub">${years.length} seasons · see every show →</div></div>
@@ -1529,7 +1527,7 @@
           <div class="label">Caption Scores</div><div class="value">GE · VIS · MUS</div>
           <div class="sub">judge-by-judge breakdowns →</div></a>
       </div>
-      ${profHtml ? `<div style="margin-top:14px">${profHtml}</div>` : ""}`;
+      ${profHtml ? `<div class="corps-prof" style="margin-top:14px">${profHtml}</div>` : ""}`;
 
     // hero action buttons — favorite (in-place rank), share, and season card
     const fb = document.getElementById("corpFav");
@@ -2508,14 +2506,16 @@
         <div id="capKey"></div>
         <div id="capCls"></div>
       </div>
-      <div class="card" style="margin-top:14px">
-        <h2 id="capChartTitle"></h2>
-        <div class="filters" style="margin:2px 0 8px"><div id="capCorpsSel"></div><button class="tab" id="capReset" hidden>Top 8</button></div>
-        <div class="chartwrap" id="capChart"></div>
-      </div>
-      <div class="card" style="margin-top:14px">
-        <h2 id="capBoardTitle"></h2>
-        <div id="capBoard"></div>
+      <div class="dsk2 w75" style="margin-top:14px">
+        <div class="card">
+          <h2 id="capChartTitle"></h2>
+          <div class="filters" style="margin:2px 0 8px"><div id="capCorpsSel"></div><button class="tab" id="capReset" hidden>Top 8</button></div>
+          <div class="chartwrap" id="capChart"></div>
+        </div>
+        <div class="card">
+          <h2 id="capBoardTitle"></h2>
+          <div id="capBoard"></div>
+        </div>
       </div>
       <div class="card" style="margin-top:14px">
         <h2 id="spotTitle">Corps Spotlight</h2>
@@ -3434,16 +3434,17 @@
         <button class="tab" id="installOpen" type="button" style="font-weight:800;padding:11px 20px;font-size:14.5px">Show me how →</button>
       </div>` : ""}
 
-      <div class="card setcard">
-        <h2>Appearance</h2>
-        <p class="setnote">Pick a light or dark look — or follow your device.</p>
-        <div class="seg" id="themeSeg">${segBtn("auto", "Auto")}${segBtn("light", "Light")}${segBtn("dark", "Dark")}</div>
-      </div>
-
-      <div class="card setcard">
-        <h2>Text size</h2>
-        <p class="setnote">Make everything a little easier to read.</p>
-        <div class="seg" id="fsSeg">${fsBtn("1", "Default")}${fsBtn("1.1", "Large")}${fsBtn("1.2", "Larger")}</div>
+      <div class="dsk2">
+        <div class="card setcard">
+          <h2>Appearance</h2>
+          <p class="setnote">Pick a light or dark look — or follow your device.</p>
+          <div class="seg" id="themeSeg">${segBtn("auto", "Auto")}${segBtn("light", "Light")}${segBtn("dark", "Dark")}</div>
+        </div>
+        <div class="card setcard">
+          <h2>Text size</h2>
+          <p class="setnote">Make everything a little easier to read.</p>
+          <div class="seg" id="fsSeg">${fsBtn("1", "Default")}${fsBtn("1.1", "Large")}${fsBtn("1.2", "Larger")}</div>
+        </div>
       </div>
 
       <div class="card setcard">
