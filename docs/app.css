@@ -142,7 +142,11 @@ main { max-width: 1180px; margin: 0 auto; padding: 22px 18px 60px; min-height: 7
    same as always); on wide screens the chart takes the left with the Move and
    Battle cards beside it, and the standings stretch across beneath */
 .rk-grid { display: grid; gap: 14px; align-items: start; }
-@media (min-width: 1000px) {
+/* Wide layouts kick in at 700px so a phone turned sideways (≈670–930px) gets
+   the two-column arrangements instead of a stretched single column — the
+   641–999px range used to be a dead zone that looked like neither phone nor
+   desktop. Portrait tablets land here too. */
+@media (min-width: 700px) {
   .dsk2 { grid-template-columns: 1fr 1fr; align-items: start; }
   .dsk2.w75 { grid-template-columns: 7fr 5fr; }
   .dsk2 > .setcard { margin-bottom: 0; max-width: none; }
