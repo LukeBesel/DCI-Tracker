@@ -561,8 +561,9 @@ a.tile:hover { text-decoration: none; }
     radial-gradient(farthest-side at 100% 50%, rgba(22,35,61,0.22), transparent) right/14px 100% no-repeat scroll;
 }
 .tscroll.dense table { font-size: 12.5px; white-space: nowrap; }
-/* off-season home module: This Day in DCI History + season countdown */
-.offszn { margin: 0 0 14px; }
+/* off-season module: This Day in DCI History + season countdown — sits at
+   the very bottom of the Scoreboard, after the standings grid */
+.offszn { margin: 14px 0 0; }
 .otd { margin-top: 2px; }
 .otd-row {
   display: flex; gap: 10px; align-items: baseline; padding: 7px 2px;
