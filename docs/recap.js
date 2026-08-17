@@ -384,6 +384,7 @@
       ".rc-clsh{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);background:var(--surface-2);padding:8px 13px;}",
       ".rc-row{display:flex;align-items:center;gap:10px;padding:7px 13px;font-size:13.5px;}",
       ".rc-row+.rc-row{border-top:1px solid var(--border);}",
+      ".rc-row.rc-fav{background:var(--accent-wash);font-weight:650;}",
       ".rc-pl{flex:0 0 22px;text-align:center;font-weight:800;color:var(--muted);font-variant-numeric:tabular-nums;}",
       ".rc-medcol{flex:0 0 22px;text-align:center;}",
       ".rc-cn{flex:1;color:var(--text-primary);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}",
@@ -500,13 +501,19 @@
     return '<div class="rc-sech">Top of the show' + (top.cls ? ' · <span class="rc-sechcls">' + esc(top.cls) + "</span>" : "") + "</div>" +
       '<div class="rc-podium">' + pods + "</div>";
   }
+  function favSet() {
+    try { return new Set(JSON.parse(localStorage.getItem("cad-favs") || "[]")); }
+    catch (e) { return new Set(); }
+  }
   function leaderboardHtml(recap) {
+    var favs = favSet();
     return recap.classes.map(function (c) {
       var rows = c.results.map(function (r) {
         var pl = r.place >= 1 && r.place <= 3 ? '<span class="rc-medcol">' + MEDALS[r.place - 1] + "</span>" : '<span class="rc-pl">' + (r.place || "") + "</span>";
-        return '<div class="rc-row">' + pl +
+        var fav = favs.has(r.corps);
+        return '<div class="rc-row' + (fav ? " rc-fav" : "") + '">' + pl +
           '<span class="rc-dot" style="background:' + accent(r.corps) + '"></span>' +
-          '<span class="rc-cn">' + esc(r.corps) + '</span><span class="rc-sc">' + fmt(r.score) + "</span></div>";
+          '<span class="rc-cn">' + (fav ? "★ " : "") + esc(r.corps) + '</span><span class="rc-sc">' + fmt(r.score) + "</span></div>";
       }).join("");
       return '<div class="rc-cls"><div class="rc-clsh">' + esc(c.cls) + " · " + c.results.length + " corps</div>" + rows + "</div>";
     }).join("");

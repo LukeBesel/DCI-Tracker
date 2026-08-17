@@ -2691,8 +2691,11 @@
     return { repaint: paint };
   }
 
-  async function viewEvent(year, idx, stale) {
+  async function viewEvent(year, idx, stale, qs) {
     setNav("events");
+    // ?c=<corps> — set by score-alert deep links: emphasize that corps' row
+    // and bring it into view so a tapped notification lands on the result
+    const focus = (() => { try { return new URLSearchParams(qs || "").get("c") || ""; } catch (e) { return ""; } })();
     const events = await data(`seasons/${year}.json`);
     if (stale()) return;
     const ev = events[+idx];
@@ -2759,7 +2762,7 @@
       ${(ev.classes || []).map((c, ci) => h`
         <div class="card" style="margin-bottom:14px"><h2>${esc(c.label || c.class)}</h2>
         <div class="tscroll"><table class="t"><thead><tr><th>#</th><th>Corps</th><th class="num">Score</th></tr></thead><tbody class="evres" data-ci="${ci}">
-        ${c.results.map(r => `<tr><td class="rank">${r.place ?? "—"}</td><td>${corpsLink(r.corps)}</td><td class="num score">${score3(r.score)}</td></tr>`).join("")}
+        ${c.results.map(r => `<tr${FAVS.has(r.corps) || r.corps === focus ? ` class="favrow"${r.corps === focus ? ' data-focus="1"' : ""}` : ""}><td class="rank">${r.place ?? "—"}</td><td>${corpsLink(r.corps)}</td><td class="num score">${score3(r.score)}</td></tr>`).join("")}
         </tbody></table></div>
         ${capSection(c.class, ci)}</div>`).join("")}
       ${ev.recap_url ? `<p style="font-size:12.5px;color:var(--muted)"><a href="${encodeURI(ev.recap_url)}" target="_blank" rel="noopener">Official recap on DCI.org ↗</a></p>` : ""}
@@ -2772,6 +2775,17 @@
       if (rc) renderRecapSheet(m, rc);
     });
     document.querySelectorAll(".evres, .evcap").forEach(tb => collapseRows(tb, 5, "corps"));
+    // deep-linked corps: expand its table if the collapse hid it, then bring
+    // the row into view (instant — no animation to fight reduced-motion)
+    const focusRow = focus && document.querySelector('tr[data-focus="1"]');
+    if (focusRow) {
+      if (focusRow.classList.contains("hid")) {
+        const wrap = (focusRow.closest(".tscroll") || {}).nextElementSibling;
+        const btn = wrap && wrap.querySelector && wrap.querySelector("button");
+        if (btn) btn.click();
+      }
+      setTimeout(() => { try { focusRow.scrollIntoView({ block: "center" }); } catch (e) {} }, 60);
+    }
     // tap a caption header to re-rank the sheet by that caption
     document.querySelectorAll(".capsort").forEach(table => {
       table.querySelectorAll("th[data-sort]").forEach(th => th.onclick = () => {
@@ -4041,14 +4055,15 @@
   // falling back to that year's Shows list if the data hasn't caught up yet.
   async function viewGo(qs) {
     const p = new URLSearchParams(qs || "");
-    const y = p.get("y"), d = p.get("d"), e = p.get("e");
+    const y = p.get("y"), d = p.get("d"), e = p.get("e"), c = p.get("c");
     if (!y) { location.replace("#/"); return; }
     try {
       const events = await data(`seasons/${y}.json`);
       let idx = -1;
       if (e) idx = events.findIndex(ev => ev.date === d && ev.name === e);
       if (idx < 0 && d) idx = events.findIndex(ev => ev.date === d);
-      if (idx >= 0) { location.replace(`#/event/${y}/${idx}`); return; }
+      // carry the alert's corps through so the event page lands on their row
+      if (idx >= 0) { location.replace(`#/event/${y}/${idx}${c ? `?c=${encodeURIComponent(c)}` : ""}`); return; }
     } catch (err) {}
     location.replace(`#/events?y=${y}`);
   }
@@ -4165,7 +4180,7 @@
     // shared links never break.
     [/^#\/(?:stats|data)$/, () => { location.replace("#/captions"); }],
     [/^#\/season\/(\d{4})$/, m => { location.replace(`#/events?y=${m[1]}`); }],
-    [/^#\/event\/(\d{4})\/(\d+)$/, (m, st) => viewEvent(m[1], m[2], st)],
+    [/^#\/event\/(\d{4})\/(\d+)(?:\?(.*))?$/, (m, st) => viewEvent(m[1], m[2], st, m[3])],
     [/^#\/captions(?:\?(.*))?$/, (m, st) => viewCaptions(m[1], st)],
     [/^#\/records$/, viewRecords],
     [/^#\/settings$/, viewSettings],
