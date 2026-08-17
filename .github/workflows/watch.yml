@@ -77,6 +77,7 @@ jobs:
                 sleep $((5 * i)); continue
               fi
               python scraper/build_data.py
+              python scraper/validate_data.py || { echo "::warning::build failed validation — not publishing this cycle"; return 1; }
               git add -A data docs/data
               git diff --cached --quiet || git commit -m "Live scores: $(date -u '+%Y-%m-%d %H:%M UTC')"
               if git push; then

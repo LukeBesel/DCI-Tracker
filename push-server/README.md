@@ -9,10 +9,10 @@ Push to every subscriber the moment new DCI scores land. Subscribers with
 1. Go to [railway.app](https://railway.app) → **New Project → Deploy from GitHub repo** → pick `LukeBesel/DCI-Tracker`.
 2. In the service settings, set **Root Directory** to `push-server`. Railway detects Node and runs `npm start` automatically.
 3. (Recommended) **Settings → Volumes → Add volume**, mount path anywhere (e.g. `/data`) — this keeps the VAPID keys and subscriber list across redeploys. Without a volume, set `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` env vars once (the values are printed by the first boot log) so keys never rotate.
-4. **Settings → Networking → Generate Domain.** The app expects
-   `https://cadence-push-production.up.railway.app` — either name the domain
-   that, or update `PUSH_SERVER` at the top of the push block in
-   `docs/index.html` to whatever URL Railway gives you.
+4. **Settings → Networking → Generate Domain.** The app currently expects
+   `https://cadenceapp.up.railway.app` — either keep that domain, or update
+   `RELAY_URL` in `docs/lib/config.js` (the single place the app reads it)
+   to whatever URL Railway gives you.
 
 That's it. `GET /` shows a status JSON (subscriber count, last check, pushes sent).
 
@@ -24,6 +24,15 @@ That's it. `GET /` shows a status JSON (subscriber count, last check, pushes sen
 | `POLL_SECONDS` | `120` | how often to check for new scores |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | auto-generated | pin push identity |
 | `VAPID_SUBJECT` | `mailto:lucasbesel41@gmail.com` | Web Push contact |
+| `ALLOWED_ORIGINS` | the `SITE_URL` origin + localhost dev ports | comma-separated origins allowed to call the POST endpoints from a browser — extend after a custom-domain move |
+| `ASK_ENABLED` | off | must be `1` **and** `ANTHROPIC_API_KEY` set before `/ask` answers anything — a key alone never turns the assistant on |
+
+## Monitoring
+
+`GET /healthz` is the stable monitoring contract — `{ok, service, version,
+uptimeSec, push, ask, lastCheck}` and nothing sensitive. `GET /status` adds
+operational counters (subscribers, pushes sent, recent errors). The repo's
+`monitor.yml` workflow checks `/healthz` on a schedule.
 
 ## API
 

@@ -69,7 +69,10 @@ else
 fi
 
 run "build site data" python scraper/build_data.py
+run "validate site data" python scraper/validate_data.py
 
 echo "finished=$(date -u +'%F %T UTC')" >> "$REPORT"
 cat "$REPORT"
-test -f docs/data/meta.json
+# the exit code is the gate: a missing or invalid build must fail the run so
+# callers (update.yml, watch.yml) never publish a broken docs/data
+test -f docs/data/meta.json && python scraper/validate_data.py > /dev/null

@@ -1,4 +1,4 @@
-/* DCI Tracker SPA — Rankings · Corps (compare) · Seasons · Database */
+/* Cadence SPA — Scoreboard · Shows · Corps · Stats (hash-routed, no build) */
 (function () {
   const app = document.getElementById("app");
   const { lineChart, sparkline, PALETTE, esc } = window.CCViz;
@@ -21,20 +21,12 @@
   // is already in. A whole show goes dark the moment its full results land, even
   // if the clock is still inside the window. DCI championship venues run on
   // Eastern time; August is EDT (UTC-4).
-  const LIVE_PAD = 15 * 60000; // 15-min cushion on each side of a performance slot
-  // logistics rows the schedule scrape sometimes leaves in the lineup — never a
-  // performing corps, so they must not carry a LIVE pill or stretch the window
-  const NON_CORPS = /gates?\s*open|doors?\s*open|will\s*call|box\s*office|welcome|national\s*anthem|opening\s*ceremon|closing\s*ceremon|intermission|scores?\s*announced|awards?|retreat|encore|age.?out|honor\s*guard|pledge|drum\s*major|autograph|loge|terrace|reserved\s*seating|takes\s*effect|levels?\s*open|lot\s*opens?|parking|(semi.?finals?|quarter.?finals?|finals?|prelims?|competition|show|program)\s*(begins?|resumes?|concludes?|starts?|ends?)|lunch|dinner|\bbreak\b/i;
+  // The decision rules live in docs/lib/live-core.js (pure + unit-tested);
+  // this module owns the fetching, 30-second cache, and lookup API.
   const LIVE = (() => {
+    const CORE = window.CadLiveCore;
     let cache = null, cacheAt = 0;
     const etToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date());
-    function slotMs(dateISO, timeStr) {
-      const m = /(\d{1,2}):(\d{2})\s*([ap])\.?m/i.exec(String(timeStr || ""));
-      if (!m) return null;
-      let h = (+m[1]) % 12; if (/p/i.test(m[3])) h += 12;
-      const [y, mo, d] = dateISO.split("-").map(Number);
-      return Date.UTC(y, mo - 1, d, h + 4, +m[2]); // ET slot → UTC (EDT = UTC-4)
-    }
     async function refresh(force) {
       const now = Date.now();
       if (!force && cache && now - cacheAt < 30000) return cache;
@@ -42,40 +34,7 @@
       let up = [], season = null;
       try { up = await data("upcoming.json"); } catch (e) {}
       try { season = await data(`seasons/${+today.slice(0, 4)}.json`); } catch (e) {}
-      const scoredToday = new Set();      // corps names with a score posted today
-      const scoredByShow = {};            // event name → how many corps have scored
-      (season || []).forEach(e => {
-        if (e.date !== today) return;
-        let n = 0;
-        (e.classes || []).forEach(c => (c.results || []).forEach(r => {
-          if (r.score != null) { scoredToday.add(r.corps); n++; }
-        }));
-        scoredByShow[e.name] = (scoredByShow[e.name] || 0) + n;
-      });
-      const corpsLive = new Set(), showLive = new Set(), complete = new Set();
-      (up || []).forEach(ev => {
-        if (ev.date !== today || !Array.isArray(ev.schedule)) return;
-        const lineup = new Set(ev.lineup || []);
-        // real performing corps (logistics rows dropped) drive completeness + the
-        // per-corps pills used on the scoreboard / corps pages
-        const realSlots = ev.schedule.filter(p => p && lineup.has(p[1]) && !NON_CORPS.test(p[1]));
-        const realCorps = new Set(realSlots.map(p => p[1]));
-        // the instant every performing corps has a score the whole show is done —
-        // corps AND logistics rows all go dark, wherever the clock sits
-        if (realCorps.size && (scoredByShow[ev.name] || 0) >= realCorps.size) { complete.add(ev.name); return; }
-        realSlots.forEach(pair => {
-          const t = slotMs(ev.date, pair[0]); if (t == null) return;
-          if (now >= t - LIVE_PAD && now <= t + LIVE_PAD && !scoredToday.has(pair[1])) corpsLive.add(pair[1]);
-        });
-        // the show stays live across its whole schedule — first slot to last,
-        // logistics rows included — until it completes above
-        const times = ev.schedule.map(p => slotMs(ev.date, p[0])).filter(t => t != null);
-        if (times.length) {
-          const first = Math.min(...times), last = Math.max(...times);
-          if (now >= first - LIVE_PAD && now <= last + LIVE_PAD) showLive.add(ev.name);
-        }
-      });
-      cache = { corpsLive, showLive, complete, scored: scoredToday, today }; cacheAt = now;
+      cache = { ...CORE.compute(up, season, today, now), today }; cacheAt = now;
       return cache;
     }
     return {
@@ -87,10 +46,7 @@
       scored: n => !!(cache && cache.scored.has(n)),
       // is a specific schedule slot inside its ±15-min live window right now?
       // (corps and logistics rows alike — the caller gates on show-completeness)
-      slotLiveAt: (dateISO, timeStr) => {
-        const t = slotMs(dateISO, timeStr);
-        return t != null && Date.now() >= t - LIVE_PAD && Date.now() <= t + LIVE_PAD;
-      },
+      slotLiveAt: (dateISO, timeStr) => CORE.slotLiveAt(dateISO, timeStr, Date.now()),
       today: () => cache && cache.today,
       // signature of the current live sets — lets a view repaint only on change
       sig: () => cache ? [...cache.corpsLive].sort().join("|") + "#" + [...cache.showLive].sort().join("|") : "",
@@ -393,6 +349,168 @@
     const fav = FAVS.has(name);
     return `<a href="#/corps/${slugOf(name)}"${fav ? ' class="favname"' : ""}>${fav ? "★ " : ""}${esc(name)}</a>`;
   }
+
+  /* ===== first-run onboarding: "Who do you follow?" =====
+     One skippable sheet, shown once. Picking corps just drives the existing
+     ★ favorites store — no separate preference model. After a pick, offers
+     score alerts (existing CadPush) behind an explicit tap, never an
+     automatic permission prompt. Reopenable any time from Settings. */
+  const CadOnboard = (() => {
+    const KEY = "cad-onboard";           // versioned: bump the value to re-run
+    const DONE_VAL = "1";
+    const storageOK = (() => {
+      try { localStorage.setItem("cad-t", "1"); localStorage.removeItem("cad-t"); return true; }
+      catch (e) { return false; }
+    })();
+    const seen = () => { try { return localStorage.getItem(KEY) === DONE_VAL; } catch (e) { return true; } };
+    const markSeen = () => { try { localStorage.setItem(KEY, DONE_VAL); } catch (e) {} };
+    // Claim the first-visit popup slot NOW, at script-eval time — recap.js and
+    // install.js load after app.js and check these before auto-popping, so
+    // onboarding goes first and their nudges wait for a later visit.
+    const due = storageOK && !seen() && !FAVS.list().length;
+    if (due) {
+      try { sessionStorage.setItem("cad-rc-session", "1"); } catch (e) {}
+      try {
+        const cur = +(localStorage.getItem("cad-install-snooze") || 0);
+        if (cur < Date.now() + 864e5) localStorage.setItem("cad-install-snooze", String(Date.now() + 864e5));
+      } catch (e) {}
+    }
+
+    let ov = null, lastFocus = null, onClose = null;
+    function close() {
+      if (!ov) return;
+      ov.remove(); ov = null;
+      document.documentElement.style.overflow = "";
+      if (lastFocus && lastFocus.isConnected) { try { lastFocus.focus(); } catch (e) {} }
+      // the Following strip may need to appear/refresh with the new stars
+      if ((location.hash || "#/") === "#/") route();
+      const cb = onClose; onClose = null;
+      if (cb) { try { cb(); } catch (e) {} }
+    }
+
+    function chipHtml(name) {
+      const on = FAVS.has(name);
+      return `<button type="button" class="ob-chip${on ? " on" : ""}" data-corps="${esc(name)}"
+        aria-pressed="${on}">${corpsLogo(name, 22)}<span class="ob-chip-n">${esc(name)}</span></button>`;
+    }
+
+    async function open(replay, closedCb) {
+      if (ov) return;
+      onClose = closedCb || null;
+      let rk;
+      try { rk = await data("rankings.json"); } catch (e) { if (!replay) markSeen(); return; }
+      const groups = sortClasses(Object.keys(rk.standings || {}))
+        .map(c => ({ cls: c, rows: (rk.standings[c].rows || []).slice().sort((a, b) => a.rank - b.rank) }))
+        .filter(g => g.rows.length);
+      if (!groups.length) { if (!replay) markSeen(); return; }
+
+      lastFocus = document.activeElement;
+      ov = document.createElement("div");
+      ov.className = "ob-ov";
+      ov.innerHTML = `
+        <div class="ob-sheet" role="dialog" aria-modal="true" aria-labelledby="obTitle">
+          <h2 id="obTitle">Who do you follow?</h2>
+          <p class="ob-sub">Star your corps — the scoreboard and score alerts get personalized around them.</p>
+          <input class="ctrl ob-search" type="search" placeholder="Search corps…" aria-label="Search corps">
+          <div class="ob-list">${groups.map(g =>
+            `<div class="ob-cls">${esc(g.cls)}</div><div class="ob-grid">${g.rows.map(r => chipHtml(r.corps)).join("")}</div>`).join("")}
+          </div>
+          <div class="ob-foot">
+            <button type="button" class="tab" id="obSkip">${replay ? "Close" : "Skip"}</button>
+            <button type="button" class="tab on" id="obDone">Done</button>
+          </div>
+        </div>`;
+      document.body.appendChild(ov);
+      document.documentElement.style.overflow = "hidden";
+      const sheet = ov.querySelector(".ob-sheet");
+      const doneBtn = ov.querySelector("#obDone");
+      const paintDone = () => {
+        const n = FAVS.list().length;
+        doneBtn.textContent = n ? `Done · following ${n}` : "Done";
+      };
+      paintDone();
+      ov.addEventListener("click", e => {
+        if (e.target === ov) { finish(); return; }              // backdrop = skip
+        const chip = e.target.closest(".ob-chip");
+        if (chip) {
+          FAVS.toggle(chip.dataset.corps);
+          chip.classList.toggle("on");
+          chip.setAttribute("aria-pressed", chip.classList.contains("on"));
+          paintDone();
+        }
+      });
+      ov.querySelector(".ob-search").addEventListener("input", e => {
+        const q = e.target.value.trim().toLowerCase();
+        ov.querySelectorAll(".ob-chip").forEach(c => {
+          c.hidden = !!q && !c.dataset.corps.toLowerCase().includes(q);
+        });
+        ov.querySelectorAll(".ob-cls").forEach(hd => {
+          const grid = hd.nextElementSibling;
+          const any = grid && [...grid.children].some(c => !c.hidden);
+          hd.hidden = !any; if (grid) grid.hidden = !any;
+        });
+      });
+      ov.addEventListener("keydown", e => { if (e.key === "Escape") finish(); });
+      ov.querySelector("#obSkip").onclick = finish;
+      doneBtn.onclick = async () => {
+        if (!replay) markSeen();
+        // contextual alerts offer — only when it could actually work and the
+        // user just chose someone to follow. Never triggers the permission
+        // prompt itself; that stays behind its own explicit tap below.
+        const favs = FAVS.list();
+        const P = window.CadPush;
+        let show = false;
+        if (favs.length && P) {
+          try {
+            // status() waits on serviceWorker.ready — race it so an
+            // environment with no service worker can't hang the sheet
+            const st = await Promise.race([P.status(), new Promise(r => setTimeout(() => r("unknown"), 1200))]);
+            show = st !== "on" && st !== "unknown"
+              && (!("Notification" in window) || Notification.permission !== "denied");
+          } catch (e) {}
+        }
+        if (!show) { close(); return; }
+        sheet.innerHTML = `
+          <h2 id="obTitle">Want a ping when ${esc(favs[0])} scores post?</h2>
+          <p class="ob-sub">Score alerts are free and sent the moment results land — your starred
+            corps lead the notification. You can turn them off any time in Settings.</p>
+          <div class="ob-foot">
+            <button type="button" class="tab" id="obLater">Not now</button>
+            <button type="button" class="tab on" id="obAlerts">Turn on score alerts</button>
+          </div>
+          <p class="ob-note" id="obNote" role="status"></p>`;
+        sheet.querySelector("#obLater").onclick = close;
+        sheet.querySelector("#obAlerts").onclick = async () => {
+          const note = sheet.querySelector("#obNote");
+          note.textContent = "Setting up…";
+          try {
+            const r = await P.enable();
+            if (r && r.ok) {
+              note.textContent = "Alerts are on — a test ping lands in ~15 seconds.";
+              setTimeout(close, 2200);
+            } else {
+              note.textContent = (r && r.reason) || "Notifications weren't allowed — you can change that in your browser settings.";
+            }
+          } catch (e) { note.textContent = "Couldn't reach the alert server — try again from Settings later."; }
+        };
+      };
+      try { sheet.focus({ preventScroll: true }); } catch (e) {}
+      sheet.setAttribute("tabindex", "-1");
+      sheet.focus();
+      function finish() { if (!replay) markSeen(); close(); }
+    }
+
+    function maybeShow() {
+      if (!storageOK || seen()) return;
+      if (FAVS.list().length) { markSeen(); return; }   // existing users: never nag
+      if (document.querySelector(".sr-overlay,.rc-overlay,.ar-overlay,.in-ov,.ob-ov")) return;
+      // take this session's popup slot so the recap catch-up waits for the
+      // next visit instead of stacking on top of onboarding
+      try { sessionStorage.setItem("cad-rc-session", "1"); } catch (e) {}
+      open(false);
+    }
+    return { maybeShow, open };
+  })();
   // ---- inline icon set — the nav's stroke style, sized for running text ----
   const icoSvg = (paths, size = 15) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px">${paths}</svg>`;
   const ICO_TROPHY = '<path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M7 5H4v2a3 3 0 0 0 3 3"/><path d="M17 5h3v2a3 3 0 0 1-3 3"/>';
@@ -451,22 +569,8 @@
     if (wc) (wc.results || []).forEach(r => { if (r.score != null) m.set(r.corps, r.score); });
     return m;
   }
-  // exact spot = 3 pts, off by one = 1 pt. Graded only over the corps you
-  // actually called that competed, so a partial pick isn't crushed by the
-  // full-field size (and a scratched corps just doesn't count).
-  function scorePred(predOrder, actual) {
-    const pos = new Map(actual.map((c, i) => [c, i]));
-    let pts = 0, exact = 0, graded = 0;
-    predOrder.forEach((corps, i) => {
-      const ap = pos.get(corps);
-      if (ap == null) return;
-      graded++;
-      const d = Math.abs(ap - i);
-      if (d === 0) { pts += 3; exact++; } else if (d === 1) pts += 1;
-    });
-    const max = graded * 3;
-    return { pts, max, exact, n: graded, pct: max ? Math.round(pts / max * 100) : 0 };
-  }
+  // grading rules live in docs/lib/season-utils.js (pure + unit-tested)
+  const scorePred = window.CadSeasonUtils.scorePred;
   // Render the prediction UI into a mount div: the scored result if the show
   // is in, otherwise the tap-to-rank card (or the locked pick). Self-contained
   // — manages its own re-renders and click handling.
@@ -711,36 +815,7 @@
      delta, 3-show average, season high and trend describe their ACTUAL season —
      while the row itself (score, date, event, ranking) stays true to the class
      being shown. */
-  function stitchSeasonHistory(standings, rows) {
-    const hist = new Map(), best = new Map();
-    Object.values(standings || {}).forEach(block => (block.rows || []).forEach(r => {
-      const h = hist.get(r.corps) || [];
-      (r.trend || []).forEach(t => h.push(t));
-      hist.set(r.corps, h);
-      const b = best.get(r.corps);
-      if (r.high != null && (!b || r.high > b.high))
-        best.set(r.corps, { high: r.high, high_event: r.high_event, high_date: r.high_date });
-    }));
-    return rows.map(r => {
-      const all = hist.get(r.corps);
-      if (!all || !all.length) return r;
-      // one point per date; this row's own show wins its date
-      const byDate = new Map();
-      all.forEach(([d, s]) => { const cur = byDate.get(d); if (cur == null || s > cur) byDate.set(d, s); });
-      if (r.date) byDate.set(r.date, r.score);
-      const trend = [...byDate.entries()].sort((a, b) => String(a[0]).localeCompare(String(b[0])));
-      if (trend.length <= (r.trend || []).length) return r; // nothing new to add
-      const i = trend.findIndex(t => t[0] === r.date);
-      const prev = i > 0 ? trend[i - 1][1] : null;
-      const b = best.get(r.corps) || {};
-      return { ...r, trend,
-        prev_score: prev != null ? prev : r.prev_score,
-        delta: prev != null ? +(r.score - prev).toFixed(3) : r.delta,
-        high: b.high != null ? b.high : r.high,
-        high_event: b.high != null ? b.high_event : r.high_event,
-        high_date: b.high != null ? b.high_date : r.high_date };
-    });
-  }
+  const stitchSeasonHistory = window.CadSeasonUtils.stitchSeasonHistory;
 
   function combinedStandings(standings, selected) {
     // one row per corps: their most recent result across the selected classes,
@@ -920,6 +995,135 @@
     };
   }
 
+  /* ===== "Following" strip — the starred corps, pinned atop the Scoreboard.
+     Compact by design: one row per favorite with the facts a fan checks first
+     (rank, latest score and movement, LIVE state, next show when one is
+     verified). Never duplicates the standings table below it. */
+  const ord = n => { const s = ["th", "st", "nd", "rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
+  const followSeen = {
+    read() { try { return JSON.parse(localStorage.getItem("cad-follow-seen") || "{}") || {}; } catch (e) { return {}; } },
+    write(m) { try { localStorage.setItem("cad-follow-seen", JSON.stringify(m)); } catch (e) {} },
+  };
+  async function renderFollowStrip(mount, rk) {
+    if (!mount) return;
+    const favs = FAVS.list();
+    if (!favs.length) {
+      // onboarding was skipped — one quiet, dismissible pointer, never a big card
+      let dismissed = true;
+      try { dismissed = !!localStorage.getItem("cad-follow-hint") || localStorage.getItem("cad-onboard") !== "1"; } catch (e) {}
+      mount.innerHTML = dismissed ? "" : `
+        <div class="folhint">★ Star a corps to pin it here —
+          <button type="button" class="linklike" id="folPick">choose favorites</button>
+          <button type="button" class="folhint-x" aria-label="Dismiss">×</button></div>`;
+      const pick = mount.querySelector("#folPick");
+      if (pick) pick.onclick = () => CadOnboard.open(true);
+      const x = mount.querySelector(".folhint-x");
+      if (x) x.onclick = () => { try { localStorage.setItem("cad-follow-hint", "1"); } catch (e) {} mount.innerHTML = ""; };
+      return;
+    }
+    // latest row per favorite across every class (a corps that moved between
+    // classes keeps its most recent result)
+    const rows = new Map();
+    for (const [cls, block] of Object.entries(rk.standings || {})) {
+      for (const r of block.rows || []) {
+        if (!favs.includes(r.corps)) continue;
+        const prev = rows.get(r.corps);
+        if (!prev || (r.date || "") > (prev.date || "")) rows.set(r.corps, { ...r, cls });
+      }
+    }
+    // next verified appearance, when the upcoming feed has one (off-season:
+    // usually nothing — the line simply doesn't render; never fabricated)
+    let nexts = new Map();
+    try {
+      const up = await data("upcoming.json");
+      const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date());
+      for (const name of favs) {
+        const ev = (up || []).find(e => (e.date || "") >= today && !e.kind
+          && ((e.lineup || []).includes(name) || e.corps === name));
+        if (ev) nexts.set(name, ev);
+      }
+    } catch (e) {}
+    const seen = followSeen.read();
+    let seeded = false;
+    const cards = favs.map(name => {
+      const r = rows.get(name);
+      if (!r) {
+        return `<a class="fol-card" href="#/corps/${slugOf(name)}">${corpsLogo(name, 30)}
+          <span class="fol-main"><b>${esc(name)}</b>
+          <span class="fol-sub">No ${esc(String(rk.season))} scores yet</span></span></a>`;
+      }
+      const cur = `${r.date}|${r.score}`;
+      let isNew = false;
+      if (seen[name] == null) { seen[name] = cur; seeded = true; }        // first sight: seed silently
+      else if (seen[name] !== cur) isNew = true;
+      const live = LIVE.corpsLive(r.corps);
+      const nx = nexts.get(name);
+      const rankBit = r.rank ? `${ord(r.rank)} · ${esc(r.cls.replace(" Class", ""))}` : esc(r.cls);
+      return `<a class="fol-card" href="#/corps/${slugOf(name)}" data-fol="${esc(name)}" data-cur="${esc(cur)}">
+        ${corpsLogo(name, 30)}
+        <span class="fol-main">
+          <span class="fol-top"><b>${esc(name)}</b>${live ? " " + LIVE_BADGE : ""}${isNew ? ' <span class="fol-new">New score</span>' : ""}<span class="fol-rank">${rankBit}</span></span>
+          <span class="fol-sub">${score3(r.score)}${r.delta != null ? " " + deltaHtml(r.delta) : ""} · ${esc(fmtDate(r.date))} · ${esc(r.event || "")}</span>
+          ${nx ? `<span class="fol-sub fol-next">Next · ${esc(fmtDate(nx.date))} — ${esc(nx.name || "")}</span>` : ""}
+        </span></a>`;
+    });
+    if (seeded) followSeen.write(seen);
+    mount.innerHTML = `<div class="folwrap"><div class="folhead">Following</div>
+      <div class="folgrid">${cards.join("")}</div></div>`;
+    mount.querySelectorAll("[data-fol]").forEach(a => a.addEventListener("click", () => {
+      const m = followSeen.read();
+      m[a.dataset.fol] = a.dataset.cur;
+      followSeen.write(m);
+    }));
+  }
+
+  const daysSinceLastScore = rk => window.CadSeasonUtils.daysSinceLastScore(rk, Date.now());
+
+  /* ===== off-season home module: This Day in DCI History + season countdown.
+     Renders only between seasons, and only what's true: history rows come
+     from the committed onthisday index; the countdown appears only once a
+     real future show is in the verified upcoming feed. */
+  async function renderOffseasonHome(mount, rk) {
+    if (!mount) return;
+    if (daysSinceLastScore(rk) <= 7) { mount.innerHTML = ""; return; }
+    const etNow = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date());
+    let next = null;
+    try {
+      const up = await data("upcoming.json");
+      next = (up || []).filter(e => !e.kind && (e.date || "") >= etNow)
+        .sort((a, b) => (a.date || "").localeCompare(b.date || ""))[0] || null;
+    } catch (e) {}
+    let items = [];
+    try {
+      const r = await fetch("onthisday.json", { cache: "no-cache" });
+      if (r.ok) items = ((await r.json())[etNow.slice(5)] || []).slice(0, 4);
+    } catch (e) {}
+    if (!next && !items.length) { mount.innerHTML = ""; return; }
+    const nextSeason = (+rk.season || new Date().getFullYear()) + 1;
+    const nextLine = next
+      ? (() => {
+          const days = Math.max(0, Math.ceil((new Date(next.date + "T12:00:00") - Date.now()) / 86400000));
+          return `Next season starts <b>${esc(fmtDateY(next.date))}</b> — ${esc(next.name || "")}${days ? ` · in ${days} day${days === 1 ? "" : "s"}` : " · today"}`;
+        })()
+      : `The ${nextSeason} tour schedule hasn't been announced yet — it'll appear here the moment it posts.`;
+    const dateLabel = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", month: "long", day: "numeric" }).format(new Date());
+    const rowHtml = e => {
+      const loc = (e.loc || "").replace(/\s*DCI$/, "");
+      const what = e.k === 3 ? "won the DCI World Championship"
+        : e.k === 2 ? `won ${esc(e.e || "")}` : `topped ${esc(e.e || "")}`;
+      const clsBit = e.cls && e.cls !== "World Class" ? ` · ${esc(e.cls)}` : "";
+      return `<a class="otd-row" href="#/events?y=${e.y}">
+        <span class="otd-y">${e.y}</span>
+        <span class="otd-t"><b>${esc(e.c || "")}</b> ${what}${e.s != null ? ` — ${score3(e.s)}` : ""}${loc ? ` · ${esc(loc)}` : ""}${clsBit}</span></a>`;
+    };
+    mount.innerHTML = `
+      <div class="card offszn">
+        ${items.length ? `<h2>This Day in DCI History <span class="sub">${esc(dateLabel)}</span></h2>
+        <div class="otd">${items.map(rowHtml).join("")}</div>` : ""}
+        <p class="offnext">${nextLine}</p>
+      </div>`;
+  }
+
   /* ============ RANKINGS (home) ============ */
   async function viewRankings(_m, stale) {
     setNav("rankings");
@@ -946,6 +1150,8 @@
     const selectedSet = new Set(selected);
     app.innerHTML = h`
       <h1 class="page">${esc(String(rk.season))} Scoreboard</h1>
+      <div id="followMount"></div>
+      <div id="offSznMount"></div>
       <div class="filters"><div id="clsSel"></div></div>
       <div class="rk-grid">
         <div class="card rk-trend">
@@ -960,6 +1166,9 @@
         <div class="card rk-move" id="moveCard"></div>
         <div class="card rk-battle" id="battleCard"></div>
       </div>`;
+
+    renderFollowStrip(document.getElementById("followMount"), rk); // async, never blocks the board
+    renderOffseasonHome(document.getElementById("offSznMount"), rk);
 
     const previousSelection = new Set(selected);
     multiSelect(document.getElementById("clsSel"), {
@@ -1038,11 +1247,7 @@
       // keep true ranking order — favorites are starred/highlighted in place,
       // not pulled to the top
       const sorted = block.rows.slice().sort((a, b) => a.rank - b.rank);
-      // a quiet week after the last score = season's over (the tour never goes
-      // more than a few days dark mid-season); frame the board as final
-      // instead of implying more scores are coming
-      const newest = sorted.reduce((m, r) => (r.date > m ? r.date : m), "");
-      const seasonOver = newest && Date.now() - new Date(newest + "T12:00:00") > 7 * 86400000;
+      const seasonOver = daysSinceLastScore(rk) > 7;
       document.getElementById("standTitle").innerHTML =
         `${esc(classLabel)} Standings <span class="sub">${seasonOver
           ? `final scores of the ${rk.season} season · your favorites are starred`
@@ -1984,8 +2189,10 @@
     let lastSeen = "";
     try { lastSeen = localStorage.getItem("cad-news-seen") || ""; } catch (e) {}
     const PRI = { auditions: 0, announcement: 1, news: 2 };
+    // your starred corps' announcements surface first within each day
+    const fv = x => (x.corps && FAVS.has(x.corps) ? 0 : 1);
     const sorted = items.slice().sort((a, b) =>
-      (b.date || "").localeCompare(a.date || "") || (PRI[a.kind] ?? 9) - (PRI[b.kind] ?? 9));
+      (b.date || "").localeCompare(a.date || "") || fv(a) - fv(b) || (PRI[a.kind] ?? 9) - (PRI[b.kind] ?? 9));
     const isNew = x => x.date && lastSeen && x.date > lastSeen;
     const anyNew = !lastSeen || sorted.some(isNew) || articles.some(isNew);
     const kindPill = k => k === "auditions" ? '<span class="pill kpill kaud">Auditions</span>'
@@ -2444,8 +2651,11 @@
     return { repaint: paint };
   }
 
-  async function viewEvent(year, idx, stale) {
+  async function viewEvent(year, idx, stale, qs) {
     setNav("events");
+    // ?c=<corps> — set by score-alert deep links: emphasize that corps' row
+    // and bring it into view so a tapped notification lands on the result
+    const focus = (() => { try { return new URLSearchParams(qs || "").get("c") || ""; } catch (e) { return ""; } })();
     const events = await data(`seasons/${year}.json`);
     if (stale()) return;
     const ev = events[+idx];
@@ -2510,9 +2720,9 @@
       <p class="lede">${esc(fmtDateY(ev.date) || ev.date_display || "")}${ev.location ? " · " + esc(ev.location) : ""}${ev.url ? h` · <a href="${encodeURI(ev.url)}" target="_blank" rel="noopener">source ↗</a>` : ""}</p>
       <button id="evShare" class="favtoggle" style="margin:0 0 12px" title="Share this show">${SHARE_SVG} Share</button>
       ${(ev.classes || []).map((c, ci) => h`
-        <div class="card" style="margin-bottom:14px"><h2>${esc(c.label || c.class)}</h2>
+        <div class="card cardgap"><h2>${esc(c.label || c.class)}</h2>
         <div class="tscroll"><table class="t"><thead><tr><th>#</th><th>Corps</th><th class="num">Score</th></tr></thead><tbody class="evres" data-ci="${ci}">
-        ${c.results.map(r => `<tr><td class="rank">${r.place ?? "—"}</td><td>${corpsLink(r.corps)}</td><td class="num score">${score3(r.score)}</td></tr>`).join("")}
+        ${c.results.map(r => `<tr${FAVS.has(r.corps) || r.corps === focus ? ` class="favrow"${r.corps === focus ? ' data-focus="1"' : ""}` : ""}><td class="rank">${r.place ?? "—"}</td><td>${corpsLink(r.corps)}</td><td class="num score">${score3(r.score)}</td></tr>`).join("")}
         </tbody></table></div>
         ${capSection(c.class, ci)}</div>`).join("")}
       ${ev.recap_url ? `<p style="font-size:12.5px;color:var(--muted)"><a href="${encodeURI(ev.recap_url)}" target="_blank" rel="noopener">Official recap on DCI.org ↗</a></p>` : ""}
@@ -2525,6 +2735,17 @@
       if (rc) renderRecapSheet(m, rc);
     });
     document.querySelectorAll(".evres, .evcap").forEach(tb => collapseRows(tb, 5, "corps"));
+    // deep-linked corps: expand its table if the collapse hid it, then bring
+    // the row into view (instant — no animation to fight reduced-motion)
+    const focusRow = focus && document.querySelector('tr[data-focus="1"]');
+    if (focusRow) {
+      if (focusRow.classList.contains("hid")) {
+        const wrap = (focusRow.closest(".tscroll") || {}).nextElementSibling;
+        const btn = wrap && wrap.querySelector && wrap.querySelector("button");
+        if (btn) btn.click();
+      }
+      setTimeout(() => { try { focusRow.scrollIntoView({ block: "center" }); } catch (e) {} }, 60);
+    }
     // tap a caption header to re-rank the sheet by that caption
     document.querySelectorAll(".capsort").forEach(table => {
       table.querySelectorAll("th[data-sort]").forEach(th => th.onclick = () => {
@@ -3513,6 +3734,14 @@
         <button class="tab" id="installOpen" type="button" style="font-weight:800;padding:11px 20px;font-size:14.5px">Show me how →</button>
       </div>` : ""}
 
+      <div class="card setcard">
+        <h2>Favorites</h2>
+        <p class="setnote" id="favSummary">${FAVS.list().length
+          ? `Following ${FAVS.list().map(n => `<b>${esc(n)}</b>`).join(", ")} — starred everywhere, first in score alerts.`
+          : "Star corps to pin them on the Scoreboard and lead your score alerts."}</p>
+        <button class="tab" id="favPick" type="button">Choose favorites</button>
+      </div>
+
       <div class="dsk2">
         <div class="card setcard">
           <h2>Appearance</h2>
@@ -3650,18 +3879,49 @@
     const installOpen = document.getElementById("installOpen");
     if (installOpen) installOpen.addEventListener("click", () => { if (window.CadInstall) window.CadInstall.open(); });
 
+    // favorites picker — same sheet as first-run onboarding; re-render the
+    // page on close so the summary (and alert personalization notes) refresh
+    const favPick = document.getElementById("favPick");
+    if (favPick) favPick.addEventListener("click", () => CadOnboard.open(true, () => {
+      if ((location.hash || "") === "#/settings") route();
+    }));
+
     // notifications
     const pushToggle = document.getElementById("pushToggle");
     const pushStatus = document.getElementById("pushStatus");
+    // is the alert relay answering? Any HTTP response (even 404 from an older
+    // build without /healthz) proves the server is up — only a network-level
+    // failure counts as down. Never blocks the page; 2.5 s cap.
+    async function relayUp() {
+      const base = (window.CadConfig || {}).RELAY_URL;
+      if (!base) return false;
+      try {
+        const ctl = new AbortController();
+        const t = setTimeout(() => ctl.abort(), 2500);
+        const r = await fetch(base + "/healthz", { signal: ctl.signal });
+        clearTimeout(t);
+        return r.status > 0;
+      } catch (e) { return false; }
+    }
     async function paintPush() {
       if (!window.CadPush) { pushStatus.textContent = "Not available"; pushToggle.disabled = true; return; }
       const s = await CadPush.status();
       if (s === "unsupported") { pushStatus.textContent = "Not supported in this browser"; pushToggle.disabled = true; pushToggle.classList.remove("on"); return; }
       if (s === "ios-install") { pushStatus.textContent = "On iPhone, install the app first (Share → Add to Home Screen), then reopen Cadence"; pushToggle.disabled = true; pushToggle.classList.remove("on"); return; }
+      if (s !== "on" && "Notification" in window && Notification.permission === "denied") {
+        pushStatus.textContent = "Blocked — allow notifications for this site in your browser settings, then reopen Cadence";
+        pushToggle.disabled = true; pushToggle.classList.remove("on");
+        return;
+      }
       pushToggle.disabled = false;
       pushToggle.classList.toggle("on", s === "on");
       pushToggle.setAttribute("aria-pressed", s === "on");
       pushStatus.textContent = s === "on" ? "On — you'll get a ping when scores drop" : "Off";
+      // relay trouble is worth a heads-up only when alerts are meant to be on
+      if (s === "on") relayUp().then(up => {
+        if (!up && pushStatus.isConnected && pushToggle.classList.contains("on"))
+          pushStatus.textContent = "On — but the alert server isn't responding right now, so alerts may be delayed";
+      });
     }
     if (pushToggle) pushToggle.addEventListener("click", async () => {
       if (!window.CadPush || pushToggle.disabled) return;
@@ -3699,6 +3959,16 @@
   let askThread = []; // [{ role: "user"|"assistant", content }]
   async function viewAsk(_m, stale) {
     setNav("");
+    // real feature flag, not just a hidden button: the assistant renders an
+    // honest unavailable state until BOTH this flag and the relay's own
+    // server-side gate are switched on
+    if (!(window.CadConfig || {}).ASK_ENABLED) {
+      app.innerHTML = `
+        <h1 class="page">Ask Cadence <span class="kicker">· scores assistant</span></h1>
+        <div class="card"><div class="empty">The scores assistant is switched off right now.<br>
+          Everything else works without it — try the <a href="#/">Scoreboard</a> or <a href="#/stats">Stats</a>.</div></div>`;
+      return;
+    }
     let year = new Date().getUTCFullYear();
     try {
       const meta = await data("meta.json");
@@ -3779,23 +4049,83 @@
   // falling back to that year's Shows list if the data hasn't caught up yet.
   async function viewGo(qs) {
     const p = new URLSearchParams(qs || "");
-    const y = p.get("y"), d = p.get("d"), e = p.get("e");
+    const y = p.get("y"), d = p.get("d"), e = p.get("e"), c = p.get("c");
     if (!y) { location.replace("#/"); return; }
     try {
       const events = await data(`seasons/${y}.json`);
       let idx = -1;
       if (e) idx = events.findIndex(ev => ev.date === d && ev.name === e);
       if (idx < 0 && d) idx = events.findIndex(ev => ev.date === d);
-      if (idx >= 0) { location.replace(`#/event/${y}/${idx}`); return; }
+      // carry the alert's corps through so the event page lands on their row
+      if (idx >= 0) { location.replace(`#/event/${y}/${idx}${c ? `?c=${encodeURIComponent(c)}` : ""}`); return; }
     } catch (err) {}
     location.replace(`#/events?y=${y}`);
+  }
+
+  // About, data sources, non-affiliation, and privacy — the app's honest
+  // self-description. Everything stated here must stay true to the actual
+  // implementation (no accounts, no trackers, relay stores only what /subscribe
+  // is sent). Update this page whenever that reality changes.
+  function viewAbout() {
+    setNav("");
+    const cfg = window.CadConfig || {};
+    const relayHost = (() => { try { return new URL(cfg.RELAY_URL).host; } catch (e) { return null; } })();
+    app.innerHTML = `
+      <h1 class="page">About Cadence</h1>
+      <div class="card cardgap">
+        <h2>What This Is</h2>
+        <p class="abouttxt">Cadence is a free scores dashboard for Drum Corps International (DCI)
+          competition: live season standings, judge-level caption recaps, corps histories, and
+          complete published results back to 1972. It covers DCI's World Class, Open Class, and
+          All-Age divisions. It does not currently cover other circuits.</p>
+        <p class="abouttxt"><b>Cadence is an independent fan project.</b> It is not affiliated with,
+          sponsored by, or endorsed by Drum Corps International, CompetitionSuite, or any corps.
+          All corps names and event names belong to their respective organizations.</p>
+      </div>
+      <div class="card cardgap">
+        <h2>Where the Scores Come From</h2>
+        <p class="abouttxt">Scores are collected from publicly published sources and credited:
+          <a href="https://www.dci.org/scores" target="_blank" rel="noopener">DCI.org</a> (primary, with caption recaps),
+          <a href="https://www.drum-corps.net" target="_blank" rel="noopener">drum-corps.net</a>,
+          <a href="https://downbeatdesigns.com" target="_blank" rel="noopener">Downbeat Designs</a>,
+          CompetitionSuite's public score feeds, and
+          <a href="https://www.soundmachine.org/dci/dcihistory.htm" target="_blank" rel="noopener">The Sound Machine</a> historical archive.
+          Collection is rate-limited and cached to keep load on those sites minimal, and every
+          caption sheet is re-verified arithmetically before it's published here. Scores can be
+          corrected at the source; Cadence picks up corrections on its next update cycle.</p>
+      </div>
+      <div class="card cardgap">
+        <h2>Privacy</h2>
+        <p class="abouttxt">Cadence has no accounts and no sign-in. Your favorites, theme, team
+          colors, text size, predictions, and seen-item markers are stored only in this browser
+          — they never leave your device.</p>
+        <p class="abouttxt">There is no advertising and no behavioral analytics. The app makes no
+          requests to tracking services.</p>
+        <p class="abouttxt"><b>Score alerts</b> are the one optional feature that stores anything
+          off-device: turning them on registers an anonymous browser push endpoint${relayHost ? ` with the
+          alert relay (<span class="mono">${esc(relayHost)}</span>)` : ""} along with your starred corps and
+          class preferences, so notifications can be personalized. No name, email, or identifier
+          is attached. Turning alerts off asks the relay to delete that registration, and you can
+          also revoke notification permission in your browser or device settings at any time. The
+          relay keeps only aggregate counters and recent error messages for troubleshooting; its
+          hosting provider may keep standard server request logs.</p>
+        <p class="abouttxt">External links (venue pages, news articles, GitHub) lead to third-party
+          sites with their own policies. The "Ask Cadence" assistant is currently unavailable.</p>
+      </div>
+      <div class="card">
+        <h2>Contact &amp; Source</h2>
+        <p class="abouttxt">Questions, corrections, or ideas: open an issue on
+          <a href="https://github.com/${SUGGEST_REPO}/issues" target="_blank" rel="noopener">GitHub</a>
+          or use the <a href="#/suggestions">Suggestions</a> page. The full source code is public.</p>
+        <p class="abouttxt" style="margin-bottom:0">Created by Lucas Besel${cfg.RELEASE ? ` · release <span class="mono">${esc(String(cfg.RELEASE))}</span>` : ""}</p>
+      </div>`;
   }
 
   async function viewSuggestions(_m, stale) {
     setNav("");
     app.innerHTML = `
       <h1 class="page">Suggestions <span class="kicker">· help decide what gets built</span></h1>
-      <div class="card" style="margin-bottom:14px">
+      <div class="card cardgap">
         <h2>Have an Idea?</h2>
         <p style="margin:0 0 12px;color:var(--text-secondary)">Missing a stat? Want a new view? Post it below — suggestions are public, and the most-wanted ideas get built first. A free GitHub account is all it takes.</p>
         <a class="tab on" style="display:inline-block;text-decoration:none" href="https://github.com/${SUGGEST_REPO}/issues/new?template=suggestion.yml" target="_blank" rel="noopener">Post a suggestion →</a>
@@ -3839,14 +4169,18 @@
     [/^#\/events(?:\?(.*))?$/, (m, st) => viewEvents(m[1], st)],
     [/^#\/predictions$/, viewPredictions],
     [/^#\/(?:seasons|champions)$/, viewSeasons],
-    [/^#\/data$/, () => { location.replace("#/captions"); }],
+    // Stats hub entry — lands on the captions front page. "#/data" is the
+    // legacy name for the same hub; keep both redirecting forever so old
+    // shared links never break.
+    [/^#\/(?:stats|data)$/, () => { location.replace("#/captions"); }],
     [/^#\/season\/(\d{4})$/, m => { location.replace(`#/events?y=${m[1]}`); }],
-    [/^#\/event\/(\d{4})\/(\d+)$/, (m, st) => viewEvent(m[1], m[2], st)],
+    [/^#\/event\/(\d{4})\/(\d+)(?:\?(.*))?$/, (m, st) => viewEvent(m[1], m[2], st, m[3])],
     [/^#\/captions(?:\?(.*))?$/, (m, st) => viewCaptions(m[1], st)],
     [/^#\/records$/, viewRecords],
     [/^#\/settings$/, viewSettings],
     [/^#\/go(?:\?(.*))?$/, m => viewGo(m[1])],
     [/^#\/ask$/, viewAsk],
+    [/^#\/about$/, viewAbout],
     [/^#\/suggestions$/, viewSuggestions],
     [/^#\/database$/, viewDatabase],
     // legacy routes from earlier versions
@@ -3864,7 +4198,7 @@
   function sectionOf(hash) {
     if (/^#\/(events|event\/|season\/|predictions)/.test(hash)) return "events";
     if (/^#\/corps/.test(hash)) return "corps";
-    if (/^#\/(data|compare|captions|champions|seasons|records|database)/.test(hash)) return "data";
+    if (/^#\/(stats|data|compare|captions|champions|seasons|records|database)/.test(hash)) return "data";
     if (hash === "#/" || hash === "" || hash === "#") return "rankings";
     return null; // suggestions etc. carry no tab memory
   }
@@ -3961,8 +4295,16 @@
       : mins < 180 ? `${mins} min ago`
       : mins < 36 * 60 ? `${Math.round(mins / 60)} h ago`
       : `${Math.round(mins / 1440)} d ago`;
+    // the pipeline rebuilds every ~15 min year-round, so a stamp hours old
+    // means updates have stalled — flag it quietly rather than pretending
+    // the board is current. Cached offline data trips this too, which is
+    // exactly right: it isn't live.
+    const stale = mins > 120;
+    el.classList.toggle("stale", stale);
     el.textContent = `Updated ${ago}`;
-    el.title = `Data from ${s} — refreshes several times an hour — every 3 min on show nights`;
+    el.title = stale
+      ? `Data from ${s} — updates seem delayed right now; scores may lag until the pipeline catches up`
+      : `Data from ${s} — refreshes several times an hour — every 3 min on show nights`;
   }
   setInterval(() => paintUpdated(), 30 * 1000);
 
@@ -4123,6 +4465,8 @@
   data("meta.json").then(m => {
     paintUpdated(m.updated);
     route();
+    // first-run onboarding waits for the first view to paint, never blocks it
+    setTimeout(() => CadOnboard.maybeShow(), 800);
   }).catch(() => {
     firstBuildPending = true;
     document.getElementById("updated").textContent = "awaiting first data build";

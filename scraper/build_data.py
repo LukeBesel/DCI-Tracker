@@ -350,6 +350,20 @@ def build_corps(events):
                     "y": ev["year"], "d": ev.get("date"), "ev": ev.get("name"),
                     "cls": c["class"], "p": r.get("place"), "s": r.get("score"),
                 })
+    # The historical archives spell some corps several ways ("Renegades Sr."
+    # vs "Renegades, Sr.") — variants that slugify identically are the same
+    # corps, and writing them separately made the second overwrite the first's
+    # corps/<slug>.json while the index listed both. Merge them: one slug, one
+    # page, the most-used spelling as the display name.
+    by_slug = defaultdict(list)
+    for corps, plist in perfs.items():
+        by_slug[slugify(corps)].append((corps, plist))
+    merged = {}
+    for slug, variants in by_slug.items():
+        variants.sort(key=lambda v: (-len(v[1]), v[0]))
+        name = variants[0][0]
+        merged[name] = [p for _, pl in variants for p in pl]
+    perfs = merged
     index = []
     for corps, plist in sorted(perfs.items()):
         plist.sort(key=lambda x: (x["y"], x["d"] or ""))
