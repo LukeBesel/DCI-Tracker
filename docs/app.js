@@ -1038,8 +1038,15 @@
       // keep true ranking order — favorites are starred/highlighted in place,
       // not pulled to the top
       const sorted = block.rows.slice().sort((a, b) => a.rank - b.rank);
+      // a quiet week after the last score = season's over (the tour never goes
+      // more than a few days dark mid-season); frame the board as final
+      // instead of implying more scores are coming
+      const newest = sorted.reduce((m, r) => (r.date > m ? r.date : m), "");
+      const seasonOver = newest && Date.now() - new Date(newest + "T12:00:00") > 7 * 86400000;
       document.getElementById("standTitle").innerHTML =
-        `${esc(classLabel)} Standings <span class="sub">each corps' most recent score · your favorites are starred</span>`;
+        `${esc(classLabel)} Standings <span class="sub">${seasonOver
+          ? `final scores of the ${rk.season} season · your favorites are starred`
+          : "each corps' most recent score · your favorites are starred"}</span>`;
       document.getElementById("standings").innerHTML = `
         <div class="tscroll"><table class="t standings"><thead><tr><th>#</th><th>Corps · last event</th><th class="num">Score</th><th class="num col-high">3-show avg</th><th class="num col-high">Season high</th><th class="num">vs prev</th><th class="col-trend">Trend</th></tr></thead><tbody>
         ${sorted.map(r => h`<tr${FAVS.has(r.corps) ? ' class="favrow"' : ""}>
@@ -3892,7 +3899,7 @@
           console.error(e);
           app.innerHTML = firstBuildPending
             ? `<div class="card" style="text-align:center;padding:48px 20px">
-                 <div style="font-size:40px;margin-bottom:10px">🥁</div>
+                 <div style="line-height:0;color:var(--muted);margin-bottom:12px" aria-hidden="true"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 10v4M9.5 7v10M14.5 9.5v5M19 5v14"/></svg></div>
                  <h2 style="margin:0 0 8px">First Data Build in Progress</h2>
                  <p style="color:var(--text-secondary);max-width:52ch;margin:0 auto">Scores are being pulled from DCI.org right now. This page fills in automatically when it finishes.</p>
                </div>`
