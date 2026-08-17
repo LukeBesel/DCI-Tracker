@@ -1164,6 +1164,62 @@
     }));
   }
 
+  // days since the newest posted score across every class (Infinity if none).
+  // The tour never goes more than a few days dark mid-season, so >7 quiet
+  // days = the season is over.
+  function daysSinceLastScore(rk) {
+    let newest = "";
+    for (const b of Object.values(rk.standings || {}))
+      for (const r of b.rows || []) if ((r.date || "") > newest) newest = r.date;
+    if (!newest) return Infinity;
+    return (Date.now() - new Date(newest + "T12:00:00")) / 86400000;
+  }
+
+  /* ===== off-season home module: This Day in DCI History + season countdown.
+     Renders only between seasons, and only what's true: history rows come
+     from the committed onthisday index; the countdown appears only once a
+     real future show is in the verified upcoming feed. */
+  async function renderOffseasonHome(mount, rk) {
+    if (!mount) return;
+    if (daysSinceLastScore(rk) <= 7) { mount.innerHTML = ""; return; }
+    const etNow = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date());
+    let next = null;
+    try {
+      const up = await data("upcoming.json");
+      next = (up || []).filter(e => !e.kind && (e.date || "") >= etNow)
+        .sort((a, b) => (a.date || "").localeCompare(b.date || ""))[0] || null;
+    } catch (e) {}
+    let items = [];
+    try {
+      const r = await fetch("onthisday.json", { cache: "no-cache" });
+      if (r.ok) items = ((await r.json())[etNow.slice(5)] || []).slice(0, 4);
+    } catch (e) {}
+    if (!next && !items.length) { mount.innerHTML = ""; return; }
+    const nextSeason = (+rk.season || new Date().getFullYear()) + 1;
+    const nextLine = next
+      ? (() => {
+          const days = Math.max(0, Math.ceil((new Date(next.date + "T12:00:00") - Date.now()) / 86400000));
+          return `Next season starts <b>${esc(fmtDateY(next.date))}</b> — ${esc(next.name || "")}${days ? ` · in ${days} day${days === 1 ? "" : "s"}` : " · today"}`;
+        })()
+      : `The ${nextSeason} tour schedule hasn't been announced yet — it'll appear here the moment it posts.`;
+    const dateLabel = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", month: "long", day: "numeric" }).format(new Date());
+    const rowHtml = e => {
+      const loc = (e.loc || "").replace(/\s*DCI$/, "");
+      const what = e.k === 3 ? "won the DCI World Championship"
+        : e.k === 2 ? `won ${esc(e.e || "")}` : `topped ${esc(e.e || "")}`;
+      const clsBit = e.cls && e.cls !== "World Class" ? ` · ${esc(e.cls)}` : "";
+      return `<a class="otd-row" href="#/events?y=${e.y}">
+        <span class="otd-y">${e.y}</span>
+        <span class="otd-t"><b>${esc(e.c || "")}</b> ${what}${e.s != null ? ` — ${score3(e.s)}` : ""}${loc ? ` · ${esc(loc)}` : ""}${clsBit}</span></a>`;
+    };
+    mount.innerHTML = `
+      <div class="card offszn">
+        ${items.length ? `<h2>This Day in DCI History <span class="sub">${esc(dateLabel)}</span></h2>
+        <div class="otd">${items.map(rowHtml).join("")}</div>` : ""}
+        <p class="offnext">${nextLine}</p>
+      </div>`;
+  }
+
   /* ============ RANKINGS (home) ============ */
   async function viewRankings(_m, stale) {
     setNav("rankings");
@@ -1191,6 +1247,7 @@
     app.innerHTML = h`
       <h1 class="page">${esc(String(rk.season))} Scoreboard</h1>
       <div id="followMount"></div>
+      <div id="offSznMount"></div>
       <div class="filters"><div id="clsSel"></div></div>
       <div class="rk-grid">
         <div class="card rk-trend">
@@ -1207,6 +1264,7 @@
       </div>`;
 
     renderFollowStrip(document.getElementById("followMount"), rk); // async, never blocks the board
+    renderOffseasonHome(document.getElementById("offSznMount"), rk);
 
     const previousSelection = new Set(selected);
     multiSelect(document.getElementById("clsSel"), {
@@ -1285,11 +1343,7 @@
       // keep true ranking order — favorites are starred/highlighted in place,
       // not pulled to the top
       const sorted = block.rows.slice().sort((a, b) => a.rank - b.rank);
-      // a quiet week after the last score = season's over (the tour never goes
-      // more than a few days dark mid-season); frame the board as final
-      // instead of implying more scores are coming
-      const newest = sorted.reduce((m, r) => (r.date > m ? r.date : m), "");
-      const seasonOver = newest && Date.now() - new Date(newest + "T12:00:00") > 7 * 86400000;
+      const seasonOver = daysSinceLastScore(rk) > 7;
       document.getElementById("standTitle").innerHTML =
         `${esc(classLabel)} Standings <span class="sub">${seasonOver
           ? `final scores of the ${rk.season} season · your favorites are starred`
@@ -2231,8 +2285,10 @@
     let lastSeen = "";
     try { lastSeen = localStorage.getItem("cad-news-seen") || ""; } catch (e) {}
     const PRI = { auditions: 0, announcement: 1, news: 2 };
+    // your starred corps' announcements surface first within each day
+    const fv = x => (x.corps && FAVS.has(x.corps) ? 0 : 1);
     const sorted = items.slice().sort((a, b) =>
-      (b.date || "").localeCompare(a.date || "") || (PRI[a.kind] ?? 9) - (PRI[b.kind] ?? 9));
+      (b.date || "").localeCompare(a.date || "") || fv(a) - fv(b) || (PRI[a.kind] ?? 9) - (PRI[b.kind] ?? 9));
     const isNew = x => x.date && lastSeen && x.date > lastSeen;
     const anyNew = !lastSeen || sorted.some(isNew) || articles.some(isNew);
     const kindPill = k => k === "auditions" ? '<span class="pill kpill kaud">Auditions</span>'

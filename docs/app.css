@@ -560,6 +560,21 @@ a.tile:hover { text-decoration: none; }
     radial-gradient(farthest-side at 100% 50%, rgba(22,35,61,0.22), transparent) right/14px 100% no-repeat scroll;
 }
 .tscroll.dense table { font-size: 12.5px; white-space: nowrap; }
+/* off-season home module: This Day in DCI History + season countdown */
+.offszn { margin: 0 0 14px; }
+.otd { margin-top: 2px; }
+.otd-row {
+  display: flex; gap: 10px; align-items: baseline; padding: 7px 2px;
+  color: var(--text-primary); text-decoration: none; border-top: 1px solid var(--grid);
+  font-size: 13px; line-height: 1.45;
+}
+.otd-row:first-child { border-top: 0; }
+.otd-row:hover { text-decoration: none; background: var(--surface-2); }
+.otd-y { flex: none; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--link); width: 40px; }
+.otd-t { min-width: 0; }
+.offnext { margin: 10px 0 0; font-size: 12.5px; color: var(--muted); }
+.offnext b { color: var(--text-primary); }
+
 /* "Following" strip — starred corps pinned atop the Scoreboard */
 .folwrap { margin: 0 0 14px; }
 .folhead {

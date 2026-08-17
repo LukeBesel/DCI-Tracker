@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Build docs/data/onthisday.json — a compact "This Day in DCI History" index.
+"""Build docs/onthisday.json — a compact "This Day in DCI History" index.
 
 Keyed by "MM-DD" → up to 6 notable entries drawn from every season's events on
 that calendar day, ranked so the biggest moments (World Championship Finals,
-then highest scores) come first. Static history; regenerate when season data
-changes. Reads docs/data/seasons/*.json, writes docs/data/onthisday.json."""
+then highest scores) come first. Static history; regenerate after a season
+ends or a backfill lands new seasons (the app reads it as committed — the
+data pipeline never rebuilds it). Reads docs/data/seasons/*.json, writes
+docs/onthisday.json (NOT docs/data/ — that dir is wiped every build)."""
 import json, glob, os, collections
 
 DOCS = os.path.join(os.path.dirname(__file__), "..", "docs")
