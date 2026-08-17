@@ -1887,6 +1887,17 @@
   }
 
   function eventBodyHtml(ev, year, i) {
+    // off-season entry (camp / auditions): a details card, not a scoreboard
+    if (ev.kind) {
+      const range = ev.end && ev.end !== ev.date
+        ? `${fmtDateY(ev.date)} – ${fmtDateY(ev.end)}` : fmtDateY(ev.date);
+      return h`
+        <div class="offbody">
+          <div>${esc(range)}${ev.location ? " · " + esc(ev.location) : ""}</div>
+          ${ev.corps ? h`<div style="margin-top:6px">Hosted by ${corpsLink(ev.corps)}</div>` : ""}
+          ${ev.url ? `<a class="tab" style="margin-top:10px;display:inline-block" href="${encodeURI(ev.url)}" target="_blank" rel="noopener">Details &amp; registration ↗</a>` : ""}
+        </div>`;
+    }
     if (ev.future) {
       const mapLink = (ev.location
         ? `<p style="font-size:12.5px;color:var(--muted);margin:8px 0 0"><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((ev.name || "") + " " + ev.location)}" target="_blank" rel="noopener">Venue map ↗</a></p>`
@@ -1963,6 +1974,50 @@
     await load();
   }
 
+  /* News & Announcements: DCI.org headlines + the weekly per-corps roundup
+     (auditions, camps, next-season reveals), scraped into news.json. Items
+     newer than the last visit get a NEW pill — the in-app "notification". */
+  function renderNews(mountEl, news) {
+    if (!mountEl) return;
+    const items = (news && news.items) || [];
+    const articles = ((news && news.articles) || []).filter(a => !/corps-news-and-announcements/.test(a.url));
+    if (!items.length && !articles.length) { mountEl.innerHTML = ""; return; }
+    let lastSeen = "";
+    try { lastSeen = localStorage.getItem("cad-news-seen") || ""; } catch (e) {}
+    const PRI = { auditions: 0, announcement: 1, news: 2 };
+    const sorted = items.slice().sort((a, b) =>
+      (b.date || "").localeCompare(a.date || "") || (PRI[a.kind] ?? 9) - (PRI[b.kind] ?? 9));
+    const isNew = x => x.date && lastSeen && x.date > lastSeen;
+    const anyNew = !lastSeen || sorted.some(isNew) || articles.some(isNew);
+    const kindPill = k => k === "auditions" ? '<span class="pill kpill kaud">Auditions</span>'
+      : k === "announcement" ? '<span class="pill kpill kspec">Announcement</span>' : "";
+    const cardHtml = it => h`<div class="newscard">
+        ${it.logo ? `<img class="newslogo" src="${encodeURI(it.logo)}" alt="" loading="lazy" onerror="this.hidden=true">` : ""}
+        <div class="newsbody">
+          <div class="newstop"><b>${esc(it.corps)}</b>${kindPill(it.kind)}${isNew(it) ? '<span class="pill kpill knew">New</span>' : ""}</div>
+          <div class="newstxt">${esc(it.blurb)}</div>
+          ${it.link ? `<a class="newsgo" href="${encodeURI(it.link)}" target="_blank" rel="noopener">See more ↗</a>` : ""}
+        </div>
+      </div>`;
+    const CUT = 4;
+    mountEl.innerHTML = h`<div class="card newswrap">
+      <h2>News &amp; Announcements <span class="sub">auditions, camps &amp; corps news · via DCI.org</span></h2>
+      ${articles.slice(0, 3).map(a => h`<a class="newshl${isNew(a) ? " new" : ""}" href="${encodeURI(a.url)}" target="_blank" rel="noopener"><span class="newshl-d">${esc(fmtDate(a.date))}</span>${esc(a.title)}${isNew(a) ? ' <span class="pill kpill knew">New</span>' : ""}</a>`).join("")}
+      <div class="dsk2 newsgrid">${sorted.slice(0, CUT).map(cardHtml).join("")}</div>
+      ${sorted.length > CUT ? `<div class="dsk2 newsgrid" id="newsMore" hidden>${sorted.slice(CUT).map(cardHtml).join("")}</div>
+        <button class="tab newsmorebtn" type="button">All corps news (${sorted.length}) ▾</button>` : ""}
+    </div>`;
+    const more = mountEl.querySelector(".newsmorebtn");
+    if (more) more.onclick = () => {
+      const p = mountEl.querySelector("#newsMore");
+      p.hidden = !p.hidden;
+      more.textContent = p.hidden ? `All corps news (${sorted.length}) ▾` : "Fewer ▴";
+    };
+    // everything currently listed is now "seen"
+    const maxDate = [...sorted, ...articles].reduce((m, x) => (x.date || "") > m ? x.date : m, "");
+    if (anyNew && maxDate) { try { localStorage.setItem("cad-news-seen", maxDate); } catch (e) {} }
+  }
+
   async function renderSeason(year, stale) {
     const mount = () => document.getElementById("seasonMount");
     let events;
@@ -1978,6 +2033,7 @@
     // running season: the schedule's future events join the list, marked
     // "upcoming" — the season page is the one place with the whole summer
     events = events.slice(); // never mutate the array shared by the data() cache
+    let news = null;
     if (+year === new Date().getFullYear()) {
       const up = await data("upcoming.json").catch(() => []);
       if (stale()) return;
@@ -1988,6 +2044,20 @@
         events.push({ name: u.name, date: u.date, location: u.location,
           lineup: u.lineup || [], schedule: u.schedule, url: u.url, future: true });
       }
+      // off-season calendar: camps / auditions / special events with confirmed
+      // dates. They ride in the same list but are styled apart, so real
+      // competitive shows keep the spotlight.
+      const off = await data("offseason.json").catch(() => []);
+      if (stale()) return;
+      for (const o of off || []) {
+        if (!o.date || !String(o.date).startsWith(String(year))) continue;
+        if (seen.has(o.date + "|" + (o.name || "").toLowerCase())) continue;
+        events.push({ name: o.name, date: o.date, end: o.end, location: o.location,
+          url: o.url, corps: o.corps, kind: o.kind || "camp", future: true });
+      }
+      // corps announcements + DCI headlines, scraped from dci.org/news
+      news = await data("news.json").catch(() => null);
+      if (stale()) return;
     }
 
     // filter option sets from the actual data
@@ -2030,9 +2100,11 @@
       </div>
       <div id="evcount" class="kicker" style="margin:0 0 10px"></div>
       ${recordStrip}
+      <div id="newsMount"></div>
       <div id="evlist"></div>`;
 
     const list = document.getElementById("evlist");
+    renderNews(document.getElementById("newsMount"), news);
 
     function toggle(row, force) {
       const body = row.querySelector(".evbody");
@@ -2053,6 +2125,7 @@
       if (cls && !(ev.classes || []).some(c => c.class === cls)) return false;
       if (corpsPick.size) {
         const featured = (ev.lineup || []).some(c => corpsPick.has(c)) ||
+          (ev.corps && corpsPick.has(ev.corps)) ||
           (ev.classes || []).some(c => (c.results || []).some(r => corpsPick.has(r.corps)));
         if (!featured) return false;
       }
@@ -2067,14 +2140,20 @@
       return true;
     }
 
+    // off-season entries (camps, auditions) carry a `kind`; real shows don't.
+    // Shows keep the strong gold-edged card so competition always stands out.
+    const KIND_PILL = { camp: '<span class="pill kpill kcamp">Camp</span>',
+      auditions: '<span class="pill kpill kaud">Auditions</span>',
+      special: '<span class="pill kpill kspec">Event</span>' };
     function rowHtml([ev, i]) {
       const winner = eventWinner(ev);
       const live = LIVE.showLive(ev); // currently performing (schedule window, scores not in)
-      return h`<div class="evrow card${live ? " evlive" : ""}" data-i="${i}">
+      const off = !!ev.kind;
+      return h`<div class="evrow card ${off ? "evoff" : "evshow"}${live ? " evlive" : ""}" data-i="${i}">
         <button class="evhead" aria-expanded="false">
           <span class="evwhen">${fmtDate2(ev.date, ev.date_display)}</span>
           <span class="evmain"><b>${esc(ev.name)}<span class="evhdr-live">${live ? " " + LIVE_BADGE : ""}</span>${ev.has_recap ? ' <span class="pill evpill">recap</span>' : ""}</b><span class="evloc">${esc(ev.location || "")}</span></span>
-          <span class="evwin">${live ? "" : ev.future ? '<span class="pill">upcoming</span>' : winner ? h`${esc(winner.corps)}<b>${score3(winner.score)}</b>` : ""}</span>
+          <span class="evwin">${off ? (KIND_PILL[ev.kind] || KIND_PILL.special) : live ? "" : ev.future ? '<span class="pill">upcoming</span>' : winner ? h`${esc(winner.corps)}<b>${score3(winner.score)}</b>` : ""}</span>
           <span class="caret">▸</span>
         </button>
         <div class="evbody" hidden></div>
@@ -2119,7 +2198,7 @@
         html =
           (current.length ? current.map(rowHtml).join("")
             : `<div class="card"><div class="empty">No upcoming shows — the season's a wrap.</div></div>`) +
-          (upcoming.length ? sectionBtn("up", `${plur(upcoming.length, "more upcoming show")}`, upOpen)
+          (upcoming.length ? sectionBtn("up", `${plur(upcoming.length, "more upcoming event")}`, upOpen)
             + (upOpen ? upcoming.map(rowHtml).join("") : "") : "") +
           (recent.length ? `<div class="evsectlabel">Recent results</div>` + recent.map(rowHtml).join("") : "") +
           (older.length ? sectionBtn("past", `${plur(older.length, "earlier show")}`, pastOpen)

@@ -977,6 +977,37 @@ def build_upcoming():
     write_json("upcoming.json", rows[:60])
 
 
+def build_news():
+    """docs/data/news.json from the dci.org news scrape, plus the curated
+    off-season calendar (scraper/offseason_events.json → docs/data/offseason.json).
+    Both live under docs/data, which this script wipes each run — so they are
+    (re)written here from their sources every build."""
+    p = PARSED / "dci_news.json"
+    if p.exists():
+        try:
+            d = json.loads(p.read_text())
+            write_json("news.json", {
+                "updated": d.get("updated"),
+                "articles": (d.get("articles") or [])[:20],
+                "items": (d.get("corps_items") or [])[:80],
+            })
+        except Exception as e:  # noqa: BLE001
+            print(f"news.json skipped: {e}")
+    off = ROOT / "scraper" / "offseason_events.json"
+    events = []
+    if off.exists():
+        try:
+            for ev in (json.loads(off.read_text()).get("events") or []):
+                if ev.get("date") and ev.get("name"):
+                    events.append({k: ev[k] for k in
+                                   ("date", "end", "name", "corps", "location", "url", "kind")
+                                   if ev.get(k)})
+        except Exception as e:  # noqa: BLE001
+            print(f"offseason.json skipped: {e}")
+    events.sort(key=lambda e: e["date"])
+    write_json("offseason.json", events)
+
+
 def main():
     # wipe output dir so removed features never leave stale files behind
     if OUT.exists():
@@ -992,6 +1023,7 @@ def main():
     build_recaps(events)
     build_records(events)
     build_upcoming()
+    build_news()
 
     # corps profiles (Wikipedia lead + infobox), when the scraper has run
     prof_p = PARSED / "corps_profiles.json"

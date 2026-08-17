@@ -137,6 +137,7 @@ main { max-width: 1180px; margin: 0 auto; padding: 22px 18px 60px; min-height: 7
 .grid { display: grid; gap: 14px; }
 /* desktop pairing: stacks on phones, sits side-by-side on wide screens */
 .dsk2 { display: grid; gap: 14px; }
+.dsk2[hidden] { display: none; } /* display:grid would defeat the hidden attribute */
 .dsk2 > *, .rk-grid > * { min-width: 0; } /* wide tables scroll inside, never stretch the track */
 /* Scoreboard shell: single column on phones (chart → standings → move → battle,
    same as always); on wide screens the chart takes the left with the Move and
@@ -399,6 +400,34 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14.5px; }
   100% { box-shadow: 0 0 0 0 rgba(224,49,49,0); opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) { .pill.live .livedot { animation: none; } }
+/* event kinds: real shows carry the gold competition edge; off-season entries
+   (camps, auditions) sit quieter with a dashed edge and a colored pill */
+.evrow.evshow { border-left: 3px solid var(--gold); }
+.evrow.evoff { border-left: 3px dashed var(--baseline); }
+.evrow.evoff .evmain b { font-weight: 600; }
+.kpill { text-transform: none; letter-spacing: 0; font-family: inherit; font-weight: 700; }
+.kpill.kcamp { background: rgba(103, 65, 217, .12); color: #6741d9; border-color: rgba(103, 65, 217, .4); }
+.kpill.kaud { background: rgba(12, 133, 153, .12); color: #0c8599; border-color: rgba(12, 133, 153, .4); }
+.kpill.kspec { background: rgba(232, 89, 12, .1); color: #e8590c; border-color: rgba(232, 89, 12, .38); }
+.kpill.knew { background: var(--accent-wash); color: var(--accent-ink); border-color: var(--gold); }
+.offbody { padding: 4px 2px 2px; color: var(--text-secondary); font-size: 13.5px; }
+
+/* News & Announcements */
+.newswrap { margin: 0 0 14px; }
+.newshl { display: flex; align-items: baseline; gap: 10px; padding: 7px 2px; font-weight: 600; border-top: 1px solid var(--grid); }
+.newshl:first-of-type { border-top: 0; }
+.newshl:hover { text-decoration: none; }
+.newshl:hover { background: var(--surface-2); border-radius: 8px; }
+.newshl-d { flex: none; color: var(--muted); font-size: 11.5px; font-weight: 700; }
+.newsgrid { margin-top: 10px; }
+.newscard { display: flex; gap: 11px; align-items: flex-start; background: var(--surface-2); border: 1px solid var(--border); border-radius: 13px; padding: 11px 13px; }
+.newslogo { width: 34px; height: 34px; object-fit: contain; flex: none; border-radius: 8px; background: #fff; padding: 2px; }
+.newsbody { min-width: 0; }
+.newstop { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-bottom: 3px; }
+.newstxt { font-size: 13px; line-height: 1.5; color: var(--text-secondary); }
+.newsgo { display: inline-block; margin-top: 5px; font-size: 12.5px; font-weight: 700; }
+.newsmorebtn { display: block; width: 100%; margin-top: 10px; }
+
 /* the corps performing right now, highlighted in a show's running order */
 tr.evlive > td { background: rgba(224,49,49,0.07); }
 tr.evlive > td:first-child { box-shadow: inset 3px 0 0 #e03131; }

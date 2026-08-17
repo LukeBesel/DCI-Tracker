@@ -58,6 +58,7 @@ else
   # dci.org's own recap replaces it in place once the wall lifts.
   FETCH_RETRIES=1 STEP_TIMEOUT=240 run "compsuite captions"      python scraper/scrape_compsuite.py "$YEAR"
   run "upcoming events"        python scraper/scrape_upcoming.py --refresh-days 10 --deadline 180
+  FETCH_RETRIES=1 STEP_TIMEOUT=120 run "dci news"               python scraper/scrape_news.py
   # the deep passes (profiles + history chunks) add ~15 min — the frequent
   # score runs skip them; the daily RUN_HISTORY=1 run picks them up
   if [ "${RUN_HISTORY:-0}" = "1" ]; then
