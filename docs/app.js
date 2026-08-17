@@ -2720,7 +2720,7 @@
       <p class="lede">${esc(fmtDateY(ev.date) || ev.date_display || "")}${ev.location ? " · " + esc(ev.location) : ""}${ev.url ? h` · <a href="${encodeURI(ev.url)}" target="_blank" rel="noopener">source ↗</a>` : ""}</p>
       <button id="evShare" class="favtoggle" style="margin:0 0 12px" title="Share this show">${SHARE_SVG} Share</button>
       ${(ev.classes || []).map((c, ci) => h`
-        <div class="card" style="margin-bottom:14px"><h2>${esc(c.label || c.class)}</h2>
+        <div class="card cardgap"><h2>${esc(c.label || c.class)}</h2>
         <div class="tscroll"><table class="t"><thead><tr><th>#</th><th>Corps</th><th class="num">Score</th></tr></thead><tbody class="evres" data-ci="${ci}">
         ${c.results.map(r => `<tr${FAVS.has(r.corps) || r.corps === focus ? ` class="favrow"${r.corps === focus ? ' data-focus="1"' : ""}` : ""}><td class="rank">${r.place ?? "—"}</td><td>${corpsLink(r.corps)}</td><td class="num score">${score3(r.score)}</td></tr>`).join("")}
         </tbody></table></div>
@@ -4072,7 +4072,7 @@
     const relayHost = (() => { try { return new URL(cfg.RELAY_URL).host; } catch (e) { return null; } })();
     app.innerHTML = `
       <h1 class="page">About Cadence</h1>
-      <div class="card" style="margin-bottom:14px">
+      <div class="card cardgap">
         <h2>What This Is</h2>
         <p class="abouttxt">Cadence is a free scores dashboard for Drum Corps International (DCI)
           competition: live season standings, judge-level caption recaps, corps histories, and
@@ -4082,7 +4082,7 @@
           sponsored by, or endorsed by Drum Corps International, CompetitionSuite, or any corps.
           All corps names and event names belong to their respective organizations.</p>
       </div>
-      <div class="card" style="margin-bottom:14px">
+      <div class="card cardgap">
         <h2>Where the Scores Come From</h2>
         <p class="abouttxt">Scores are collected from publicly published sources and credited:
           <a href="https://www.dci.org/scores" target="_blank" rel="noopener">DCI.org</a> (primary, with caption recaps),
@@ -4094,7 +4094,7 @@
           caption sheet is re-verified arithmetically before it's published here. Scores can be
           corrected at the source; Cadence picks up corrections on its next update cycle.</p>
       </div>
-      <div class="card" style="margin-bottom:14px">
+      <div class="card cardgap">
         <h2>Privacy</h2>
         <p class="abouttxt">Cadence has no accounts and no sign-in. Your favorites, theme, team
           colors, text size, predictions, and seen-item markers are stored only in this browser
@@ -4125,7 +4125,7 @@
     setNav("");
     app.innerHTML = `
       <h1 class="page">Suggestions <span class="kicker">· help decide what gets built</span></h1>
-      <div class="card" style="margin-bottom:14px">
+      <div class="card cardgap">
         <h2>Have an Idea?</h2>
         <p style="margin:0 0 12px;color:var(--text-secondary)">Missing a stat? Want a new view? Post it below — suggestions are public, and the most-wanted ideas get built first. A free GitHub account is all it takes.</p>
         <a class="tab on" style="display:inline-block;text-decoration:none" href="https://github.com/${SUGGEST_REPO}/issues/new?template=suggestion.yml" target="_blank" rel="noopener">Post a suggestion →</a>

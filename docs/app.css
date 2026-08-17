@@ -656,6 +656,7 @@ a.tile:hover { text-decoration: none; }
   .ob-grid { grid-template-columns: 1fr 1fr 1fr; }
 }
 
+.card.cardgap { margin-bottom: 14px; } /* stacked cards outside a grid */
 .abouttxt { color: var(--text-secondary); font-size: 13.5px; line-height: 1.65; margin: 0 0 10px; max-width: 74ch; }
 .mono { font-family: var(--mono); font-size: 0.92em; }
 .crumbs { color: var(--muted); font-size: 13px; margin-bottom: 10px; }
