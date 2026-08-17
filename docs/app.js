@@ -1151,7 +1151,6 @@
     app.innerHTML = h`
       <h1 class="page">${esc(String(rk.season))} Scoreboard</h1>
       <div id="followMount"></div>
-      <div id="offSznMount"></div>
       <div class="filters"><div id="clsSel"></div></div>
       <div class="rk-grid">
         <div class="card rk-trend">
@@ -1165,7 +1164,8 @@
         </div>
         <div class="card rk-move" id="moveCard"></div>
         <div class="card rk-battle" id="battleCard"></div>
-      </div>`;
+      </div>
+      <div id="offSznMount"></div>`;
 
     renderFollowStrip(document.getElementById("followMount"), rk); // async, never blocks the board
     renderOffseasonHome(document.getElementById("offSznMount"), rk);
@@ -2205,10 +2205,10 @@
           ${it.link ? `<a class="newsgo" href="${encodeURI(it.link)}" target="_blank" rel="noopener">See more ↗</a>` : ""}
         </div>
       </div>`;
-    const CUT = 4;
+    const CUT = 2; // keep the tile short — a couple of cards, expand for the rest
     mountEl.innerHTML = h`<div class="card newswrap">
       <h2>News &amp; Announcements <span class="sub">auditions, camps &amp; corps news · via DCI.org</span></h2>
-      ${articles.slice(0, 3).map(a => h`<a class="newshl${isNew(a) ? " new" : ""}" href="${encodeURI(a.url)}" target="_blank" rel="noopener"><span class="newshl-d">${esc(fmtDate(a.date))}</span>${esc(a.title)}${isNew(a) ? ' <span class="pill kpill knew">New</span>' : ""}</a>`).join("")}
+      ${articles.slice(0, 2).map(a => h`<a class="newshl${isNew(a) ? " new" : ""}" href="${encodeURI(a.url)}" target="_blank" rel="noopener"><span class="newshl-d">${esc(fmtDate(a.date))}</span>${esc(a.title)}${isNew(a) ? ' <span class="pill kpill knew">New</span>' : ""}</a>`).join("")}
       <div class="dsk2 newsgrid">${sorted.slice(0, CUT).map(cardHtml).join("")}</div>
       ${sorted.length > CUT ? `<div class="dsk2 newsgrid" id="newsMore" hidden>${sorted.slice(CUT).map(cardHtml).join("")}</div>
         <button class="tab newsmorebtn" type="button">All corps news (${sorted.length}) ▾</button>` : ""}
