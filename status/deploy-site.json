@@ -1,1 +1,1 @@
-{"workflow":"Deploy site","conclusion":"success","url":"https://github.com/LukeBesel/DCI-Tracker/actions/runs/32002288445","sha":"2699711f065b4b5c9289c8783391fd40b28d5850","finished":"2026-08-17 06:36:16 UTC","failed_steps":""}
+{"workflow":"Deploy site","conclusion":"failure","url":"https://github.com/LukeBesel/DCI-Tracker/actions/runs/32043955801","sha":"606e43666176d754873f585aa5f82759c8aca98c","finished":"2026-08-17 15:59:23 UTC","failed_steps":"deploy: Validate generated data\n"}
