@@ -560,6 +560,83 @@ a.tile:hover { text-decoration: none; }
     radial-gradient(farthest-side at 100% 50%, rgba(22,35,61,0.22), transparent) right/14px 100% no-repeat scroll;
 }
 .tscroll.dense table { font-size: 12.5px; white-space: nowrap; }
+/* "Following" strip — starred corps pinned atop the Scoreboard */
+.folwrap { margin: 0 0 14px; }
+.folhead {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .7px;
+  color: var(--muted); margin: 0 0 6px;
+}
+.folgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 8px; }
+.fol-card {
+  display: flex; align-items: center; gap: 10px; min-width: 0;
+  background: var(--surface-1); border: 1px solid var(--baseline); border-radius: 12px;
+  padding: 9px 12px; color: var(--text-primary); text-decoration: none;
+}
+.fol-card:hover { border-color: var(--link); text-decoration: none; }
+.fol-main { min-width: 0; flex: 1; display: block; }
+.fol-top { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.fol-top b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fol-rank { margin-left: auto; flex: none; font-size: 11.5px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.fol-sub { display: block; font-size: 12px; color: var(--text-secondary); margin-top: 2px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.fol-next { color: var(--muted); }
+.fol-new {
+  flex: none; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+  color: var(--accent-ink); background: var(--accent-wash); border: 1px solid var(--gold);
+  border-radius: 999px; padding: 1px 7px;
+}
+.folhint {
+  display: flex; align-items: center; gap: 6px; margin: 0 0 12px;
+  font-size: 12.5px; color: var(--muted);
+}
+.linklike { border: 0; background: none; padding: 0; font: inherit; color: var(--link); cursor: pointer; }
+.linklike:hover { text-decoration: underline; }
+.folhint-x {
+  border: 0; background: none; color: var(--muted); font-size: 16px; line-height: 1;
+  cursor: pointer; padding: 4px 6px; margin-left: auto; position: relative;
+}
+.folhint-x::after { content: ""; position: absolute; inset: -8px; }
+
+/* first-run onboarding sheet */
+.ob-ov {
+  position: fixed; inset: 0; z-index: 3500; background: rgba(10, 16, 28, 0.55);
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.ob-sheet {
+  background: var(--surface-1); color: var(--text-primary); width: 100%; max-width: 520px;
+  max-height: 86dvh; display: flex; flex-direction: column;
+  border-radius: 22px 22px 0 0; padding: 20px 18px calc(14px + env(safe-area-inset-bottom));
+  outline: none;
+}
+.ob-sheet h2 { margin: 0 0 4px; font-size: 19px; }
+.ob-sub { margin: 0 0 12px; color: var(--text-secondary); font-size: 13.5px; line-height: 1.5; }
+.ob-search { width: 100%; margin-bottom: 10px; }
+.ob-list { overflow-y: auto; min-height: 0; flex: 1; padding: 2px; margin: 0 -2px; }
+.ob-cls {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .7px;
+  color: var(--muted); margin: 10px 0 6px;
+}
+.ob-cls:first-child { margin-top: 0; }
+.ob-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.ob-chip {
+  display: flex; align-items: center; gap: 8px; min-width: 0; text-align: left;
+  font: inherit; font-size: 13px; font-weight: 600; color: var(--text-primary);
+  background: var(--surface-2); border: 1px solid var(--baseline); border-radius: 11px;
+  padding: 8px 10px; cursor: pointer; min-height: 42px;
+}
+.ob-chip[hidden] { display: none; }
+.ob-chip .ob-chip-n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ob-chip.on { border-color: var(--gold); background: var(--accent-wash); }
+.ob-chip.on .ob-chip-n::before { content: "★ "; color: var(--gold); }
+.ob-foot { display: flex; justify-content: space-between; gap: 10px; margin-top: 14px; }
+.ob-foot .tab { padding: 10px 18px; font-weight: 700; }
+.ob-note { margin: 10px 0 0; font-size: 12.5px; color: var(--text-secondary); min-height: 1.2em; }
+@media (min-width: 560px) {
+  .ob-ov { align-items: center; padding: 20px; }
+  .ob-sheet { border-radius: 22px; border: 1px solid var(--border); max-height: 82dvh; }
+  .ob-grid { grid-template-columns: 1fr 1fr 1fr; }
+}
+
 .abouttxt { color: var(--text-secondary); font-size: 13.5px; line-height: 1.65; margin: 0 0 10px; max-width: 74ch; }
 .mono { font-family: var(--mono); font-size: 0.92em; }
 .crumbs { color: var(--muted); font-size: 13px; margin-bottom: 10px; }

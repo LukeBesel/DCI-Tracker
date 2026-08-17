@@ -1,4 +1,4 @@
-/* DCI Tracker SPA — Rankings · Corps (compare) · Seasons · Database */
+/* Cadence SPA — Scoreboard · Shows · Corps · Stats (hash-routed, no build) */
 (function () {
   const app = document.getElementById("app");
   const { lineChart, sparkline, PALETTE, esc } = window.CCViz;
@@ -393,6 +393,168 @@
     const fav = FAVS.has(name);
     return `<a href="#/corps/${slugOf(name)}"${fav ? ' class="favname"' : ""}>${fav ? "★ " : ""}${esc(name)}</a>`;
   }
+
+  /* ===== first-run onboarding: "Who do you follow?" =====
+     One skippable sheet, shown once. Picking corps just drives the existing
+     ★ favorites store — no separate preference model. After a pick, offers
+     score alerts (existing CadPush) behind an explicit tap, never an
+     automatic permission prompt. Reopenable any time from Settings. */
+  const CadOnboard = (() => {
+    const KEY = "cad-onboard";           // versioned: bump the value to re-run
+    const DONE_VAL = "1";
+    const storageOK = (() => {
+      try { localStorage.setItem("cad-t", "1"); localStorage.removeItem("cad-t"); return true; }
+      catch (e) { return false; }
+    })();
+    const seen = () => { try { return localStorage.getItem(KEY) === DONE_VAL; } catch (e) { return true; } };
+    const markSeen = () => { try { localStorage.setItem(KEY, DONE_VAL); } catch (e) {} };
+    // Claim the first-visit popup slot NOW, at script-eval time — recap.js and
+    // install.js load after app.js and check these before auto-popping, so
+    // onboarding goes first and their nudges wait for a later visit.
+    const due = storageOK && !seen() && !FAVS.list().length;
+    if (due) {
+      try { sessionStorage.setItem("cad-rc-session", "1"); } catch (e) {}
+      try {
+        const cur = +(localStorage.getItem("cad-install-snooze") || 0);
+        if (cur < Date.now() + 864e5) localStorage.setItem("cad-install-snooze", String(Date.now() + 864e5));
+      } catch (e) {}
+    }
+
+    let ov = null, lastFocus = null, onClose = null;
+    function close() {
+      if (!ov) return;
+      ov.remove(); ov = null;
+      document.documentElement.style.overflow = "";
+      if (lastFocus && lastFocus.isConnected) { try { lastFocus.focus(); } catch (e) {} }
+      // the Following strip may need to appear/refresh with the new stars
+      if ((location.hash || "#/") === "#/") route();
+      const cb = onClose; onClose = null;
+      if (cb) { try { cb(); } catch (e) {} }
+    }
+
+    function chipHtml(name) {
+      const on = FAVS.has(name);
+      return `<button type="button" class="ob-chip${on ? " on" : ""}" data-corps="${esc(name)}"
+        aria-pressed="${on}">${corpsLogo(name, 22)}<span class="ob-chip-n">${esc(name)}</span></button>`;
+    }
+
+    async function open(replay, closedCb) {
+      if (ov) return;
+      onClose = closedCb || null;
+      let rk;
+      try { rk = await data("rankings.json"); } catch (e) { if (!replay) markSeen(); return; }
+      const groups = sortClasses(Object.keys(rk.standings || {}))
+        .map(c => ({ cls: c, rows: (rk.standings[c].rows || []).slice().sort((a, b) => a.rank - b.rank) }))
+        .filter(g => g.rows.length);
+      if (!groups.length) { if (!replay) markSeen(); return; }
+
+      lastFocus = document.activeElement;
+      ov = document.createElement("div");
+      ov.className = "ob-ov";
+      ov.innerHTML = `
+        <div class="ob-sheet" role="dialog" aria-modal="true" aria-labelledby="obTitle">
+          <h2 id="obTitle">Who do you follow?</h2>
+          <p class="ob-sub">Star your corps — the scoreboard and score alerts get personalized around them.</p>
+          <input class="ctrl ob-search" type="search" placeholder="Search corps…" aria-label="Search corps">
+          <div class="ob-list">${groups.map(g =>
+            `<div class="ob-cls">${esc(g.cls)}</div><div class="ob-grid">${g.rows.map(r => chipHtml(r.corps)).join("")}</div>`).join("")}
+          </div>
+          <div class="ob-foot">
+            <button type="button" class="tab" id="obSkip">${replay ? "Close" : "Skip"}</button>
+            <button type="button" class="tab on" id="obDone">Done</button>
+          </div>
+        </div>`;
+      document.body.appendChild(ov);
+      document.documentElement.style.overflow = "hidden";
+      const sheet = ov.querySelector(".ob-sheet");
+      const doneBtn = ov.querySelector("#obDone");
+      const paintDone = () => {
+        const n = FAVS.list().length;
+        doneBtn.textContent = n ? `Done · following ${n}` : "Done";
+      };
+      paintDone();
+      ov.addEventListener("click", e => {
+        if (e.target === ov) { finish(); return; }              // backdrop = skip
+        const chip = e.target.closest(".ob-chip");
+        if (chip) {
+          FAVS.toggle(chip.dataset.corps);
+          chip.classList.toggle("on");
+          chip.setAttribute("aria-pressed", chip.classList.contains("on"));
+          paintDone();
+        }
+      });
+      ov.querySelector(".ob-search").addEventListener("input", e => {
+        const q = e.target.value.trim().toLowerCase();
+        ov.querySelectorAll(".ob-chip").forEach(c => {
+          c.hidden = !!q && !c.dataset.corps.toLowerCase().includes(q);
+        });
+        ov.querySelectorAll(".ob-cls").forEach(hd => {
+          const grid = hd.nextElementSibling;
+          const any = grid && [...grid.children].some(c => !c.hidden);
+          hd.hidden = !any; if (grid) grid.hidden = !any;
+        });
+      });
+      ov.addEventListener("keydown", e => { if (e.key === "Escape") finish(); });
+      ov.querySelector("#obSkip").onclick = finish;
+      doneBtn.onclick = async () => {
+        if (!replay) markSeen();
+        // contextual alerts offer — only when it could actually work and the
+        // user just chose someone to follow. Never triggers the permission
+        // prompt itself; that stays behind its own explicit tap below.
+        const favs = FAVS.list();
+        const P = window.CadPush;
+        let show = false;
+        if (favs.length && P) {
+          try {
+            // status() waits on serviceWorker.ready — race it so an
+            // environment with no service worker can't hang the sheet
+            const st = await Promise.race([P.status(), new Promise(r => setTimeout(() => r("unknown"), 1200))]);
+            show = st !== "on" && st !== "unknown"
+              && (!("Notification" in window) || Notification.permission !== "denied");
+          } catch (e) {}
+        }
+        if (!show) { close(); return; }
+        sheet.innerHTML = `
+          <h2 id="obTitle">Want a ping when ${esc(favs[0])} scores post?</h2>
+          <p class="ob-sub">Score alerts are free and sent the moment results land — your starred
+            corps lead the notification. You can turn them off any time in Settings.</p>
+          <div class="ob-foot">
+            <button type="button" class="tab" id="obLater">Not now</button>
+            <button type="button" class="tab on" id="obAlerts">Turn on score alerts</button>
+          </div>
+          <p class="ob-note" id="obNote" role="status"></p>`;
+        sheet.querySelector("#obLater").onclick = close;
+        sheet.querySelector("#obAlerts").onclick = async () => {
+          const note = sheet.querySelector("#obNote");
+          note.textContent = "Setting up…";
+          try {
+            const r = await P.enable();
+            if (r && r.ok) {
+              note.textContent = "Alerts are on — a test ping lands in ~15 seconds.";
+              setTimeout(close, 2200);
+            } else {
+              note.textContent = (r && r.reason) || "Notifications weren't allowed — you can change that in your browser settings.";
+            }
+          } catch (e) { note.textContent = "Couldn't reach the alert server — try again from Settings later."; }
+        };
+      };
+      try { sheet.focus({ preventScroll: true }); } catch (e) {}
+      sheet.setAttribute("tabindex", "-1");
+      sheet.focus();
+      function finish() { if (!replay) markSeen(); close(); }
+    }
+
+    function maybeShow() {
+      if (!storageOK || seen()) return;
+      if (FAVS.list().length) { markSeen(); return; }   // existing users: never nag
+      if (document.querySelector(".sr-overlay,.rc-overlay,.ar-overlay,.in-ov,.ob-ov")) return;
+      // take this session's popup slot so the recap catch-up waits for the
+      // next visit instead of stacking on top of onboarding
+      try { sessionStorage.setItem("cad-rc-session", "1"); } catch (e) {}
+      open(false);
+    }
+    return { maybeShow, open };
+  })();
   // ---- inline icon set — the nav's stroke style, sized for running text ----
   const icoSvg = (paths, size = 15) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px">${paths}</svg>`;
   const ICO_TROPHY = '<path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M7 5H4v2a3 3 0 0 0 3 3"/><path d="M17 5h3v2a3 3 0 0 1-3 3"/>';
@@ -920,6 +1082,88 @@
     };
   }
 
+  /* ===== "Following" strip — the starred corps, pinned atop the Scoreboard.
+     Compact by design: one row per favorite with the facts a fan checks first
+     (rank, latest score and movement, LIVE state, next show when one is
+     verified). Never duplicates the standings table below it. */
+  const ord = n => { const s = ["th", "st", "nd", "rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
+  const followSeen = {
+    read() { try { return JSON.parse(localStorage.getItem("cad-follow-seen") || "{}") || {}; } catch (e) { return {}; } },
+    write(m) { try { localStorage.setItem("cad-follow-seen", JSON.stringify(m)); } catch (e) {} },
+  };
+  async function renderFollowStrip(mount, rk) {
+    if (!mount) return;
+    const favs = FAVS.list();
+    if (!favs.length) {
+      // onboarding was skipped — one quiet, dismissible pointer, never a big card
+      let dismissed = true;
+      try { dismissed = !!localStorage.getItem("cad-follow-hint") || localStorage.getItem("cad-onboard") !== "1"; } catch (e) {}
+      mount.innerHTML = dismissed ? "" : `
+        <div class="folhint">★ Star a corps to pin it here —
+          <button type="button" class="linklike" id="folPick">choose favorites</button>
+          <button type="button" class="folhint-x" aria-label="Dismiss">×</button></div>`;
+      const pick = mount.querySelector("#folPick");
+      if (pick) pick.onclick = () => CadOnboard.open(true);
+      const x = mount.querySelector(".folhint-x");
+      if (x) x.onclick = () => { try { localStorage.setItem("cad-follow-hint", "1"); } catch (e) {} mount.innerHTML = ""; };
+      return;
+    }
+    // latest row per favorite across every class (a corps that moved between
+    // classes keeps its most recent result)
+    const rows = new Map();
+    for (const [cls, block] of Object.entries(rk.standings || {})) {
+      for (const r of block.rows || []) {
+        if (!favs.includes(r.corps)) continue;
+        const prev = rows.get(r.corps);
+        if (!prev || (r.date || "") > (prev.date || "")) rows.set(r.corps, { ...r, cls });
+      }
+    }
+    // next verified appearance, when the upcoming feed has one (off-season:
+    // usually nothing — the line simply doesn't render; never fabricated)
+    let nexts = new Map();
+    try {
+      const up = await data("upcoming.json");
+      const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date());
+      for (const name of favs) {
+        const ev = (up || []).find(e => (e.date || "") >= today && !e.kind
+          && ((e.lineup || []).includes(name) || e.corps === name));
+        if (ev) nexts.set(name, ev);
+      }
+    } catch (e) {}
+    const seen = followSeen.read();
+    let seeded = false;
+    const cards = favs.map(name => {
+      const r = rows.get(name);
+      if (!r) {
+        return `<a class="fol-card" href="#/corps/${slugOf(name)}">${corpsLogo(name, 30)}
+          <span class="fol-main"><b>${esc(name)}</b>
+          <span class="fol-sub">No ${esc(String(rk.season))} scores yet</span></span></a>`;
+      }
+      const cur = `${r.date}|${r.score}`;
+      let isNew = false;
+      if (seen[name] == null) { seen[name] = cur; seeded = true; }        // first sight: seed silently
+      else if (seen[name] !== cur) isNew = true;
+      const live = LIVE.corpsLive(r.corps);
+      const nx = nexts.get(name);
+      const rankBit = r.rank ? `${ord(r.rank)} · ${esc(r.cls.replace(" Class", ""))}` : esc(r.cls);
+      return `<a class="fol-card" href="#/corps/${slugOf(name)}" data-fol="${esc(name)}" data-cur="${esc(cur)}">
+        ${corpsLogo(name, 30)}
+        <span class="fol-main">
+          <span class="fol-top"><b>${esc(name)}</b>${live ? " " + LIVE_BADGE : ""}${isNew ? ' <span class="fol-new">New score</span>' : ""}<span class="fol-rank">${rankBit}</span></span>
+          <span class="fol-sub">${score3(r.score)}${r.delta != null ? " " + deltaHtml(r.delta) : ""} · ${esc(fmtDate(r.date))} · ${esc(r.event || "")}</span>
+          ${nx ? `<span class="fol-sub fol-next">Next · ${esc(fmtDate(nx.date))} — ${esc(nx.name || "")}</span>` : ""}
+        </span></a>`;
+    });
+    if (seeded) followSeen.write(seen);
+    mount.innerHTML = `<div class="folwrap"><div class="folhead">Following</div>
+      <div class="folgrid">${cards.join("")}</div></div>`;
+    mount.querySelectorAll("[data-fol]").forEach(a => a.addEventListener("click", () => {
+      const m = followSeen.read();
+      m[a.dataset.fol] = a.dataset.cur;
+      followSeen.write(m);
+    }));
+  }
+
   /* ============ RANKINGS (home) ============ */
   async function viewRankings(_m, stale) {
     setNav("rankings");
@@ -946,6 +1190,7 @@
     const selectedSet = new Set(selected);
     app.innerHTML = h`
       <h1 class="page">${esc(String(rk.season))} Scoreboard</h1>
+      <div id="followMount"></div>
       <div class="filters"><div id="clsSel"></div></div>
       <div class="rk-grid">
         <div class="card rk-trend">
@@ -960,6 +1205,8 @@
         <div class="card rk-move" id="moveCard"></div>
         <div class="card rk-battle" id="battleCard"></div>
       </div>`;
+
+    renderFollowStrip(document.getElementById("followMount"), rk); // async, never blocks the board
 
     const previousSelection = new Set(selected);
     multiSelect(document.getElementById("clsSel"), {
@@ -3513,6 +3760,14 @@
         <button class="tab" id="installOpen" type="button" style="font-weight:800;padding:11px 20px;font-size:14.5px">Show me how →</button>
       </div>` : ""}
 
+      <div class="card setcard">
+        <h2>Favorites</h2>
+        <p class="setnote" id="favSummary">${FAVS.list().length
+          ? `Following ${FAVS.list().map(n => `<b>${esc(n)}</b>`).join(", ")} — starred everywhere, first in score alerts.`
+          : "Star corps to pin them on the Scoreboard and lead your score alerts."}</p>
+        <button class="tab" id="favPick" type="button">Choose favorites</button>
+      </div>
+
       <div class="dsk2">
         <div class="card setcard">
           <h2>Appearance</h2>
@@ -3649,6 +3904,13 @@
     // add to home screen
     const installOpen = document.getElementById("installOpen");
     if (installOpen) installOpen.addEventListener("click", () => { if (window.CadInstall) window.CadInstall.open(); });
+
+    // favorites picker — same sheet as first-run onboarding; re-render the
+    // page on close so the summary (and alert personalization notes) refresh
+    const favPick = document.getElementById("favPick");
+    if (favPick) favPick.addEventListener("click", () => CadOnboard.open(true, () => {
+      if ((location.hash || "") === "#/settings") route();
+    }));
 
     // notifications
     const pushToggle = document.getElementById("pushToggle");
@@ -4186,6 +4448,8 @@
   data("meta.json").then(m => {
     paintUpdated(m.updated);
     route();
+    // first-run onboarding waits for the first view to paint, never blocks it
+    setTimeout(() => CadOnboard.maybeShow(), 800);
   }).catch(() => {
     firstBuildPending = true;
     document.getElementById("updated").textContent = "awaiting first data build";
