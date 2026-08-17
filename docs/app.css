@@ -204,7 +204,6 @@ h1.page {
 }
 h1.page .kicker { font-weight: 500; }
 p.lede { color: var(--text-secondary); margin: 0 0 18px; max-width: 74ch; }
-p.pagenote { color: var(--muted); font-size: 11.5px; font-family: var(--mono); margin: 16px 2px 0; max-width: 90ch; }
 
 /* labeled section divider — mono annotation between page sections */
 .secdiv {
@@ -221,13 +220,6 @@ a.favname { font-weight: 650; }
 .capwin { background: var(--accent-wash); font-weight: 700; box-shadow: inset 0 -2px 0 var(--gold); }
 
 /* favorites */
-.favbtn {
-  border: 0; background: none; cursor: pointer; font-size: 17px;
-  color: var(--baseline); padding: 2px 4px; line-height: 1;
-}
-.favbtn.on { color: var(--gold); }
-.favbtn::after { content: ""; position: absolute; inset: -8px; }
-.favbtn { position: relative; }
 .favrow { background: var(--accent-wash); }
 
 /* settings gear */
@@ -270,6 +262,7 @@ th[data-sort] { cursor: pointer; user-select: none; }
   background: var(--accent-wash); border-radius: 10px;
 }
 .capwins b { color: var(--link); font-weight: 700; margin-right: 3px; }
+.capwins .cw-ico { align-self: center; line-height: 0; color: var(--gold); }
 .capwins .cw-main { font-weight: 650; }
 .capwins .cw-main b { text-transform: uppercase; letter-spacing: .4px; }
 
@@ -285,7 +278,7 @@ th[data-sort] { cursor: pointer; user-select: none; }
 }
 .capcta:hover { filter: brightness(1.03); border-color: var(--gold); }
 .capcta:disabled { opacity: .7; cursor: default; }
-.capcta-ic { flex: none; font-size: 23px; line-height: 1; }
+.capcta-ic { flex: none; line-height: 0; color: var(--gold); }
 .capcta-t { min-width: 0; }
 .capcta-t b { display: block; font-size: 15px; font-weight: 800; letter-spacing: -.1px; }
 .capcta-t span { display: block; font-size: 12.5px; color: var(--muted); margin-top: 2px; }
@@ -499,7 +492,6 @@ tr.evlive > td:first-child { box-shadow: inset 3px 0 0 #e03131; }
 .ch-btn.on { background: var(--ch-accent, #f0b429); border-color: transparent; color: #15130f; }
 @media (max-width: 640px) {
   .corpshero { padding: 18px 16px 16px; border-radius: 18px; }
-  .corpshero-logo { width: 62px; height: 62px; border-radius: 16px; }
   .corpshero-stats { grid-template-columns: repeat(2, 1fr); gap: 9px; }
 }
 
@@ -555,7 +547,7 @@ a.tile:hover { text-decoration: none; }
 .year:hover { color: var(--text-primary); background: var(--surface-2); text-decoration: none; }
 .year small { color: var(--muted); display: block; font-size: 10.5px; }
 
-.recapscroll, .tscroll { overflow-x: auto; }
+.tscroll { overflow-x: auto; }
 .tscroll {
   background:
     linear-gradient(90deg, var(--surface-1) 40%, rgba(255,255,255,0)) left/28px 100% no-repeat local,
@@ -563,10 +555,9 @@ a.tile:hover { text-decoration: none; }
     radial-gradient(farthest-side at 0 50%, rgba(22,35,61,0.22), transparent) left/14px 100% no-repeat scroll,
     radial-gradient(farthest-side at 100% 50%, rgba(22,35,61,0.22), transparent) right/14px 100% no-repeat scroll;
 }
-.recapscroll table, .tscroll.dense table { font-size: 12.5px; white-space: nowrap; }
+.tscroll.dense table { font-size: 12.5px; white-space: nowrap; }
 .crumbs { color: var(--muted); font-size: 13px; margin-bottom: 10px; }
 .crumbs a { color: var(--text-secondary); }
-.badge-champ { color: #b8860b; }
 .empty { color: var(--muted); padding: 40px 16px; text-align: center; }
 .notice {
   background: var(--accent-wash); border: 1px solid rgba(240,180,41,0.5);
@@ -607,30 +598,6 @@ a.tile:hover { text-decoration: none; }
 #evYearSel { flex: 0 0 auto; }
 #evYearSel .msel-btn { min-width: 0; max-width: none; width: auto; }
 #evYearSel .msel-panel { min-width: 130px; }
-
-/* corps directory add-to-compare */
-.addcell { width: 34px; }
-.addbtn {
-  width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--baseline);
-  background: var(--surface-1); color: var(--text-secondary); cursor: pointer;
-  font-size: 14px; line-height: 1;
-  position: relative;
-}
-.addbtn::after { /* expand the touch target past the visible circle */
-  content: ""; position: absolute; inset: -9px; border-radius: 50%;
-}
-.addbtn:hover { border-color: var(--link); color: var(--link); }
-.addbtn.on { background: var(--navy); border-color: var(--navy); color: #fff; }
-
-/* upcoming events */
-.upitem { padding: 8px 0; border-bottom: 1px solid var(--grid); font-size: 13px; }
-.upitem:last-of-type { border-bottom: 0; }
-.upitem .lineup { color: var(--text-secondary); font-size: 12px; margin-top: 3px; line-height: 1.5; }
-.lineup-more {
-  border: 0; background: none; color: var(--link); cursor: pointer;
-  font-size: 12px; padding: 0 2px;
-}
-.lineup-more:hover { text-decoration: underline; }
 
 /* season event accordion */
 .evrow { padding: 0; margin-bottom: 10px; overflow: hidden; }
@@ -797,7 +764,6 @@ a.tile:hover { text-decoration: none; }
 .corpschip-sw { width: 16px; height: 16px; border-radius: 50%; flex: none;
   background: linear-gradient(135deg, var(--c1, var(--gold)) 0 50%, var(--c2, var(--gold)) 50% 100%);
   box-shadow: inset 0 0 0 1px rgba(0,0,0,0.18); }
-.corpschip.nochip .corpschip-sw { background: #f0b429; }
 /* corps logo (real logo where we have one; two-tone color swatch as fallback) */
 .corpslogo { position: relative; display: inline-flex; flex: none; border-radius: 5px; overflow: hidden;
   background: linear-gradient(135deg, var(--c1, var(--navy)) 0 50%, var(--c2, var(--gold)) 50% 100%);
@@ -851,9 +817,6 @@ h1.page .corpslogo { vertical-align: -6px; margin-right: 11px; }
 .setrow { display: flex; align-items: center; justify-content: space-between; gap: 14px;
   padding: 13px 0; border-top: 1px solid var(--grid); }
 .setrow:first-of-type { border-top: 0; }
-.setrow-sel { border-top: 0; padding: 0; margin-top: 14px; }
-.setrow-sel span { font-weight: 600; font-size: 14px; }
-.setrow-sel .ctrl { min-width: 200px; }
 .setsub { color: var(--muted); font-size: 12.5px; margin-top: 2px; max-width: 46ch; }
 /* iOS-style toggle switch */
 .toggle { flex: none; width: 46px; height: 27px; border-radius: 999px; border: 0; cursor: pointer;

@@ -273,7 +273,6 @@
       + `:root${S}[data-theme="dark"],:root${S}[data-theme="dark"] .viz-root{${dark}}`
       + `:root${S}[data-theme="light"],:root${S}[data-theme="light"] .viz-root{${light}}`;
   }
-  const corpsThemeCSS = name => corpsThemeCSSFromVars(corpsThemeVars(name));
   // write a theme (curated corps, custom pair, or none) to the page + storage
   function writeTheme(slug, css, bar, extra) {
     let el = document.getElementById("corpsTheme");
@@ -394,6 +393,13 @@
     const fav = FAVS.has(name);
     return `<a href="#/corps/${slugOf(name)}"${fav ? ' class="favname"' : ""}>${fav ? "★ " : ""}${esc(name)}</a>`;
   }
+  // ---- inline icon set — the nav's stroke style, sized for running text ----
+  const icoSvg = (paths, size = 15) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px">${paths}</svg>`;
+  const ICO_TROPHY = '<path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M7 5H4v2a3 3 0 0 0 3 3"/><path d="M17 5h3v2a3 3 0 0 1-3 3"/>';
+  const ICO_TARGET = '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.6"/><circle cx="12" cy="12" r=".6"/>';
+  const ICO_TICKET = '<path d="M3 9V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a3 3 0 0 0 0 6v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a3 3 0 0 0 0-6z"/><path d="M13 5v2M13 11v2M13 17v2"/>';
+  const ICO_PHONE = '<rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18.5h2"/>';
+  const TARGET_SVG = icoSvg(ICO_TARGET);
   // ---- share: native share sheet, clipboard fallback -----------------------
   const SHARE_SVG = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/></svg>';
   function flashBtn(btn, msg) {
@@ -414,25 +420,13 @@
     const sb = document.getElementById(id);
     if (sb) sb.addEventListener("click", () => shareView(sb, title, location.href));
   }
-  // pinned events: keep the shows you're following at the top of the list
-  const PINS = (() => {
-    let s;
-    try { s = new Set(JSON.parse(localStorage.getItem("cad-pins") || "[]")); }
-    catch (e) { s = new Set(); }
-    return {
-      has: k => s.has(k),
-      toggle: k => {
-        s.has(k) ? s.delete(k) : s.add(k);
-        localStorage.setItem("cad-pins", JSON.stringify([...s]));
-      },
-    };
-  })();
+  // stable per-show key — the same event keeps its key across data refreshes
   const pinKeyOf = ev => (ev.date || "") + "|" + (ev.name || "");
 
   // ---- Predictions: call a show's World Class finish before scores post ----
-  // Guesses live in localStorage (survive refresh, close, restart — per device,
-  // like favorites/pins), keyed like pins by date|name. Scored automatically
-  // the moment the show's results land.
+  // Guesses live in localStorage (survive refresh, close, restart — per
+  // device, like favorites), keyed by date|name. Scored automatically the
+  // moment the show's results land.
   const PREDS = (() => {
     let m;
     try { m = JSON.parse(localStorage.getItem("cad-preds") || "{}"); }
@@ -496,7 +490,7 @@
         + `<td class="pr-you">${corpsLink(corps)}${tick}</td>`
         + `<td class="pr-real">${real ? corpsLink(real) + sv : "—"}</td></tr>`;
     }).join("");
-    return h`<div class="pr-head">🎯 Your call: <b>${s.pct}%</b> <span class="kicker">${s.exact}/${s.n} exact · ${s.pts}/${s.max} pts</span></div>
+    return h`<div class="pr-head">${TARGET_SVG} Your call: <b>${s.pct}%</b> <span class="kicker">${s.exact}/${s.n} exact · ${s.pts}/${s.max} pts</span></div>
       <table class="t pr-table"><thead><tr><th class="num">#</th><th>Your pick</th><th>Actual finish</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
 
@@ -515,7 +509,7 @@
     let lineup = (ev.lineup || []).filter(c => wcCorps.has(c));
     if (lineup.length < 2) lineup = (ev.lineup || []).slice();   // early-season fallback
     if (lineup.length < 2) {
-      container.innerHTML = `<div class="predict"><div class="pr-head">🎯 Call the finish</div>`
+      container.innerHTML = `<div class="predict"><div class="pr-head">${TARGET_SVG} Call the finish</div>`
         + `<div class="pr-empty">Opens once the lineup is posted.</div></div>`;
       return;
     }
@@ -526,12 +520,12 @@
       const rest = lineup.filter(c => !draft.includes(c));
       if (locked) {
         container.innerHTML = h`<div class="predict">
-          <div class="pr-head">🎯 Your call is in <span class="kicker">edit anytime until scores post</span></div>
+          <div class="pr-head">${TARGET_SVG} Your call is in <span class="kicker">edit anytime until scores post</span></div>
           <ol class="pr-list locked">${draft.map(c => `<li>${corpsLink(c)}</li>`).join("")}</ol>
           <div class="pr-actions"><button class="tab" data-act="edit">Edit pick</button></div></div>`;
       } else {
         container.innerHTML = h`<div class="predict">
-          <div class="pr-head">🎯 Call the finish <span class="kicker">tap them in the order you think they'll place</span></div>
+          <div class="pr-head">${TARGET_SVG} Call the finish <span class="kicker">tap them in the order you think they'll place</span></div>
           <ol class="pr-list">${draft.map((c, i) => `<li><button class="pr-pick" data-drop="${i}">${esc(c)}<span class="pr-x">✕</span></button></li>`).join("")
             || '<li class="pr-hint">Tap a corps below to start ranking…</li>'}</ol>
           ${rest.length ? `<div class="pr-pool">${rest.map(c => `<button class="pr-chip" data-add="${esc(c)}">${esc(c)}</button>`).join("")}</div>` : ""}
@@ -565,7 +559,7 @@
     const all = PREDS.all();
     const keys = Object.keys(all);
     app.innerHTML = h`<div class="crumbs"><a href="#/events">Shows</a> / My Calls</div>
-      <h1 class="page">My Calls 🎯</h1>`;
+      <h1 class="page">My Calls</h1>`;
     if (!keys.length) {
       app.innerHTML += `<div class="card"><div class="empty">You haven't called a show yet — open an upcoming show in <a href="#/events">Shows</a> and tap “Call the finish.”</div></div>`;
       return;
@@ -1234,7 +1228,7 @@
       noticeEl.innerHTML = "";
       if (!corpsSel.length || !yearsSel.length) {
         chartEl.innerHTML = `<div class='empty' style="padding:52px 16px">
-          <div style="font-size:30px" aria-hidden="true">📈</div>
+          <div style="line-height:0;color:var(--muted)" aria-hidden="true"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></div>
           <div style="font-weight:650;color:var(--text-primary);margin:8px 0 4px">Pick corps to compare — this season is already selected</div>
           Select as many corps as you like — each corps-season draws its own line,<br>
           and its row below expands into the full show-by-show log.</div>`;
@@ -1902,7 +1896,7 @@
       const mapLink = (ev.location
         ? `<p style="font-size:12.5px;color:var(--muted);margin:8px 0 0"><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((ev.name || "") + " " + ev.location)}" target="_blank" rel="noopener">Venue map ↗</a></p>`
         : "") + (ev.url
-        ? `<p style="font-size:12.5px;color:var(--muted);margin:6px 0 0"><a href="${encodeURI(ev.url)}" target="_blank" rel="noopener">🎒 Venue info — bag policy, tickets, parking ↗</a></p>`
+        ? `<p style="font-size:12.5px;color:var(--muted);margin:6px 0 0"><a href="${encodeURI(ev.url)}" target="_blank" rel="noopener">${icoSvg(ICO_TICKET, 13)} Venue info — bag policy, tickets, parking ↗</a></p>`
         : "");
       if (ev.schedule && ev.schedule.length) {
         // show the viewer their own clock; note the venue's zone when it differs
@@ -1931,7 +1925,7 @@
     }
     // full page / caption sheet is the most-wanted jump — sit it up top, right
     // of the first class heading, so it's the first thing you see and tap
-    const fullLink = `<a href="#/event/${year}/${i}" class="evfull">${ev.has_recap ? "🏆 Captions & full page →" : "Full event page →"}</a>`;
+    const fullLink = `<a href="#/event/${year}/${i}" class="evfull">${ev.has_recap ? icoSvg(ICO_TROPHY, 13) + " Captions & full page →" : "Full event page →"}</a>`;
     return h`
       ${(ev.classes || []).map((c, ci) => h`
         <h3 class="evcls evcls-row">${esc(c.label || c.class)} <span class="kicker">${c.results.length} corps</span>${ci === 0 ? fullLink : ""}</h3>
@@ -1940,8 +1934,6 @@
         </tbody></table>`).join("")}
       <div class="predictmount"></div>`;
   }
-
-  const MONTH_FULL = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
   async function viewEvents(qs, stale) {
     setNav("events");
@@ -2085,7 +2077,7 @@
       if (p && ord.length) graded.push(scorePred(p.order, ord).pct);
     });
     const recordStrip = graded.length
-      ? `<a class="pr-record" href="#/predictions">🎯 Your calls · ${graded.length} show${graded.length > 1 ? "s" : ""} · `
+      ? `<a class="pr-record" href="#/predictions">${TARGET_SVG} Your calls · ${graded.length} show${graded.length > 1 ? "s" : ""} · `
         + `avg ${Math.round(graded.reduce((a, b) => a + b, 0) / graded.length)}% · best ${Math.max(...graded)}% <span class="pr-record-go">See all →</span></a>`
       : "";
 
@@ -2314,7 +2306,7 @@
      loud, obvious entry point — the same treatment the corps page gives its
      season card — at the TOP of every captions block. */
   const CAP_CTA_INNER =
-    '<span class="capcta-ic">🏆</span>' +
+    `<span class="capcta-ic">${icoSvg(ICO_TROPHY, 23)}</span>` +
     '<span class="capcta-t"><b>Caption Winners Card</b>' +
     "<span>See who took GE · Visual · Music — and by how much</span></span>" +
     '<span class="capcta-go">Open →</span>';
@@ -2322,7 +2314,7 @@
   // `info` may be a function so the button can read the currently-picked show
   function wireCapCta(btn, info) {
     if (!btn) return;
-    const note = msg => `<span class="capcta-ic">🏆</span><span class="capcta-t"><b>${esc(msg)}</b></span>`;
+    const note = msg => `<span class="capcta-ic">${icoSvg(ICO_TROPHY, 23)}</span><span class="capcta-t"><b>${esc(msg)}</b></span>`;
     btn.onclick = () => {
       if (!window.CadWrapped || !window.CadWrapped.captionsCard) return;
       const i = typeof info === "function" ? info() : info;
@@ -2388,7 +2380,7 @@
       }
     }
     const winStrip = winChips.length
-      ? `<div class="capwins" title="Caption winners on this sheet">🏆 ${winChips.join("")}</div>` : "";
+      ? `<div class="capwins" title="Caption winners on this sheet"><span class="cw-ico">${icoSvg(ICO_TROPHY, 14)}</span>${winChips.join("")}</div>` : "";
     // heavier rule where a caption group starts, so the blocks read at a glance
     const gb = new Set(groups.map(g => g.first));
     gb.add(iSub);
@@ -2485,7 +2477,7 @@
         return names.length ? `<span${k === "ge" ? ' class="cw-main"' : ""}><b>${esc(label)}</b> ${esc([...new Set(names)].join(" & "))}</span>` : "";
       }).join("");
       return h`<h3 class="evcls" style="margin-top:14px">Caption Breakdown <span class="kicker">verified against the official recap · gold marks the caption winner · tap a column to sort</span></h3>
-        ${winChips ? `<div class="capwins">🏆 ${winChips}</div>` : ""}
+        ${winChips ? `<div class="capwins"><span class="cw-ico">${icoSvg(ICO_TROPHY, 14)}</span>${winChips}</div>` : ""}
         <div class="tscroll"><table class="t sticky1 capsort"><thead><tr><th>Corps</th>${CAP_HEAD.map(([k, l]) => `<th class="num" data-sort="${k}">${l}</th>`).join("")}</tr></thead><tbody class="evcap" data-ci="${ci}">
         ${rows.map(r => `<tr><td>${corpsLink(r[CIDX.corps])}</td>${CAP_HEAD.map(([k]) => {
           const v = r[CIDX[k]];
@@ -2743,7 +2735,7 @@
         const names = [...new Set(sheet.filter(r => r[i] != null && r[i] === best[k] && best[k] > 0).map(r => r[iCorps()]))];
         return names.length ? `<span${k === "ge" ? ' class="cw-main"' : ""}><b>${esc(label)}</b> ${esc(names.join(" & "))}</span>` : "";
       }).join("");
-      body.innerHTML = `${winChips ? `<div class="capwins">🏆 ${winChips}</div>` : ""}<div class="tscroll"><table class="t sticky1 showcmp"><thead><tr><th>Corps</th>${HEAD.map(([k, l]) =>
+      body.innerHTML = `${winChips ? `<div class="capwins"><span class="cw-ico">${icoSvg(ICO_TROPHY, 14)}</span>${winChips}</div>` : ""}<div class="tscroll"><table class="t sticky1 showcmp"><thead><tr><th>Corps</th>${HEAD.map(([k, l]) =>
           `<th class="num" data-c="${cols.indexOf(k)}">${l}</th>`).join("")}</tr></thead><tbody>
         ${sheet.map(r => `<tr><td>${corpsLink(r[iCorps()])}</td>${HEAD.map(([k]) => {
           const i = cols.indexOf(k);
@@ -3078,7 +3070,7 @@
         <div id="dbCorps"></div>
         <div id="dbYears"></div>
         <div id="fcls"></div>
-        <input class="ctrl" id="fq" placeholder="Search event…">
+        <input class="ctrl" id="fq" placeholder="Search event or corps…">
         <button class="tab" id="dbReset" title="Clear all filters">Reset</button>
         <button class="tab" id="csv">Export CSV</button>
       </div>
@@ -3164,7 +3156,8 @@
         (!yearSet.size || yearSet.has(String(r[0]))) &&
         (!corpsSet.size || corpsSet.has(r[cfg.corpsIdx])) &&
         (!cls || r[cfg.clsIdx] === cls) &&
-        (!q || (r[cfg.evIdx] || "").toLowerCase().includes(q)));
+        (!q || (r[cfg.evIdx] || "").toLowerCase().includes(q)
+          || (r[cfg.corpsIdx] || "").toLowerCase().includes(q)));
       const [ci, dir] = DB.sort;
       filtered = filtered.slice().sort((a, b) => {
         const av = a[ci], bv = b[ci];
@@ -3508,7 +3501,7 @@
 
       ${(window.CadInstall && !window.CadInstall.standalone()) ? `
       <div class="card setcard" id="installCard">
-        <h2>📲 Add to Home Screen</h2>
+        <h2>${icoSvg(ICO_PHONE, 16)} Add to Home Screen</h2>
         <p class="setnote">Install Cadence like a real app — full screen, works offline, and it's how you get score alerts on iPhone.</p>
         <button class="tab" id="installOpen" type="button" style="font-weight:800;padding:11px 20px;font-size:14.5px">Show me how →</button>
       </div>` : ""}

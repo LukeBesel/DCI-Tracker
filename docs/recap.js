@@ -398,6 +398,7 @@
       ".sr-next:hover{border-color:var(--muted);}",
       // caption-winners call-to-action inside the recap body
       ".sr-capcta{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;margin:2px 0 8px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-primary);border-radius:13px;padding:12px 14px;font:inherit;font-size:15px;font-weight:800;cursor:pointer;}",
+      ".sr-capcta svg{width:16px;height:16px;flex:none;color:var(--gold);}",
       ".sr-capcta span{font-weight:600;font-size:12.5px;color:var(--muted);}",
       ".sr-capcta:hover{border-color:var(--gold);}",
       ".sr-capcta:disabled{opacity:.6;cursor:default;}"
@@ -533,7 +534,7 @@
       '<div class="sr-body">' +
         podiumHtml(recap) +
         (+recap.date.slice(0, 4) >= 2013
-          ? '<button class="sr-capcta" type="button">🏆 Caption winners <span>who took GE · Visual · Music →</span></button>' : "") +
+          ? '<button class="sr-capcta" type="button">' + TROPHY_SVG + ' Caption winners <span>who took GE · Visual · Music →</span></button>' : "") +
         (factsHtml(recap.facts) ? '<div class="rc-sech">Highlights</div>' + factsHtml(recap.facts) : "") +
         '<div class="rc-sech">Full results</div>' + leaderboardHtml(recap) +
       "</div>" +
@@ -546,6 +547,7 @@
   // swipeable stack of rich show-recap popups
   var stackList = [], stackIdx = 0, srOverlay = null;
   var SHARE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M8 7l4-4 4 4M4 13v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6"/></svg>';
+  var TROPHY_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M7 5H4v2a3 3 0 0 0 3 3"/><path d="M17 5h3v2a3 3 0 0 1-3 3"/></svg>';
   function closeStack() {
     if (srOverlay) { srOverlay.remove(); srOverlay = null; }
     document.removeEventListener("keydown", onStackKey, true);
