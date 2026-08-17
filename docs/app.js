@@ -3791,6 +3791,65 @@
     location.replace(`#/events?y=${y}`);
   }
 
+  // About, data sources, non-affiliation, and privacy — the app's honest
+  // self-description. Everything stated here must stay true to the actual
+  // implementation (no accounts, no trackers, relay stores only what /subscribe
+  // is sent). Update this page whenever that reality changes.
+  function viewAbout() {
+    setNav("");
+    const cfg = window.CadConfig || {};
+    const relayHost = (() => { try { return new URL(cfg.RELAY_URL).host; } catch (e) { return null; } })();
+    app.innerHTML = `
+      <h1 class="page">About Cadence</h1>
+      <div class="card" style="margin-bottom:14px">
+        <h2>What This Is</h2>
+        <p class="abouttxt">Cadence is a free scores dashboard for Drum Corps International (DCI)
+          competition: live season standings, judge-level caption recaps, corps histories, and
+          complete published results back to 1972. It covers DCI's World Class, Open Class, and
+          All-Age divisions. It does not currently cover other circuits.</p>
+        <p class="abouttxt"><b>Cadence is an independent fan project.</b> It is not affiliated with,
+          sponsored by, or endorsed by Drum Corps International, CompetitionSuite, or any corps.
+          All corps names and event names belong to their respective organizations.</p>
+      </div>
+      <div class="card" style="margin-bottom:14px">
+        <h2>Where the Scores Come From</h2>
+        <p class="abouttxt">Scores are collected from publicly published sources and credited:
+          <a href="https://www.dci.org/scores" target="_blank" rel="noopener">DCI.org</a> (primary, with caption recaps),
+          <a href="https://www.drum-corps.net" target="_blank" rel="noopener">drum-corps.net</a>,
+          <a href="https://downbeatdesigns.com" target="_blank" rel="noopener">Downbeat Designs</a>,
+          CompetitionSuite's public score feeds, and
+          <a href="https://www.soundmachine.org/dci/dcihistory.htm" target="_blank" rel="noopener">The Sound Machine</a> historical archive.
+          Collection is rate-limited and cached to keep load on those sites minimal, and every
+          caption sheet is re-verified arithmetically before it's published here. Scores can be
+          corrected at the source; Cadence picks up corrections on its next update cycle.</p>
+      </div>
+      <div class="card" style="margin-bottom:14px">
+        <h2>Privacy</h2>
+        <p class="abouttxt">Cadence has no accounts and no sign-in. Your favorites, theme, team
+          colors, text size, predictions, and seen-item markers are stored only in this browser
+          — they never leave your device.</p>
+        <p class="abouttxt">There is no advertising and no behavioral analytics. The app makes no
+          requests to tracking services.</p>
+        <p class="abouttxt"><b>Score alerts</b> are the one optional feature that stores anything
+          off-device: turning them on registers an anonymous browser push endpoint${relayHost ? ` with the
+          alert relay (<span class="mono">${esc(relayHost)}</span>)` : ""} along with your starred corps and
+          class preferences, so notifications can be personalized. No name, email, or identifier
+          is attached. Turning alerts off asks the relay to delete that registration, and you can
+          also revoke notification permission in your browser or device settings at any time. The
+          relay keeps only aggregate counters and recent error messages for troubleshooting; its
+          hosting provider may keep standard server request logs.</p>
+        <p class="abouttxt">External links (venue pages, news articles, GitHub) lead to third-party
+          sites with their own policies. The "Ask Cadence" assistant is currently unavailable.</p>
+      </div>
+      <div class="card">
+        <h2>Contact &amp; Source</h2>
+        <p class="abouttxt">Questions, corrections, or ideas: open an issue on
+          <a href="https://github.com/${SUGGEST_REPO}/issues" target="_blank" rel="noopener">GitHub</a>
+          or use the <a href="#/suggestions">Suggestions</a> page. The full source code is public.</p>
+        <p class="abouttxt" style="margin-bottom:0">Created by Lucas Besel${cfg.RELEASE ? ` · release <span class="mono">${esc(String(cfg.RELEASE))}</span>` : ""}</p>
+      </div>`;
+  }
+
   async function viewSuggestions(_m, stale) {
     setNav("");
     app.innerHTML = `
@@ -3839,7 +3898,10 @@
     [/^#\/events(?:\?(.*))?$/, (m, st) => viewEvents(m[1], st)],
     [/^#\/predictions$/, viewPredictions],
     [/^#\/(?:seasons|champions)$/, viewSeasons],
-    [/^#\/data$/, () => { location.replace("#/captions"); }],
+    // Stats hub entry — lands on the captions front page. "#/data" is the
+    // legacy name for the same hub; keep both redirecting forever so old
+    // shared links never break.
+    [/^#\/(?:stats|data)$/, () => { location.replace("#/captions"); }],
     [/^#\/season\/(\d{4})$/, m => { location.replace(`#/events?y=${m[1]}`); }],
     [/^#\/event\/(\d{4})\/(\d+)$/, (m, st) => viewEvent(m[1], m[2], st)],
     [/^#\/captions(?:\?(.*))?$/, (m, st) => viewCaptions(m[1], st)],
@@ -3847,6 +3909,7 @@
     [/^#\/settings$/, viewSettings],
     [/^#\/go(?:\?(.*))?$/, m => viewGo(m[1])],
     [/^#\/ask$/, viewAsk],
+    [/^#\/about$/, viewAbout],
     [/^#\/suggestions$/, viewSuggestions],
     [/^#\/database$/, viewDatabase],
     // legacy routes from earlier versions
@@ -3864,7 +3927,7 @@
   function sectionOf(hash) {
     if (/^#\/(events|event\/|season\/|predictions)/.test(hash)) return "events";
     if (/^#\/corps/.test(hash)) return "corps";
-    if (/^#\/(data|compare|captions|champions|seasons|records|database)/.test(hash)) return "data";
+    if (/^#\/(stats|data|compare|captions|champions|seasons|records|database)/.test(hash)) return "data";
     if (hash === "#/" || hash === "" || hash === "#") return "rankings";
     return null; // suggestions etc. carry no tab memory
   }

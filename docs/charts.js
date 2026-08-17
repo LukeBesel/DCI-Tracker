@@ -1,4 +1,4 @@
-/* Corps Central chart helpers — hand-rolled SVG per house dataviz spec:
+/* Cadence chart helpers — hand-rolled SVG per house dataviz spec:
    2px lines, >=8px end markers with 2px surface rings, hairline solid grid,
    crosshair + single tooltip listing every series, legend always for >=2 series. */
 (function () {
