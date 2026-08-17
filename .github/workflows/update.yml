@@ -53,8 +53,11 @@ jobs:
               sleep $((5 * i))
               continue
             fi
-            # 2) regenerate site data from the merged inputs, commit, push
+            # 2) regenerate site data from the merged inputs, validate it
+            #    (never publish a broken build — the previous data stays
+            #    live), then commit and push
             python scraper/build_data.py
+            python scraper/validate_data.py
             git add -A data docs/data
             git diff --cached --quiet || git commit -m "Data update: $(date -u +'%F %H:%M') UTC"
             git push && exit 0

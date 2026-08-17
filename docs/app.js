@@ -21,20 +21,12 @@
   // is already in. A whole show goes dark the moment its full results land, even
   // if the clock is still inside the window. DCI championship venues run on
   // Eastern time; August is EDT (UTC-4).
-  const LIVE_PAD = 15 * 60000; // 15-min cushion on each side of a performance slot
-  // logistics rows the schedule scrape sometimes leaves in the lineup — never a
-  // performing corps, so they must not carry a LIVE pill or stretch the window
-  const NON_CORPS = /gates?\s*open|doors?\s*open|will\s*call|box\s*office|welcome|national\s*anthem|opening\s*ceremon|closing\s*ceremon|intermission|scores?\s*announced|awards?|retreat|encore|age.?out|honor\s*guard|pledge|drum\s*major|autograph|loge|terrace|reserved\s*seating|takes\s*effect|levels?\s*open|lot\s*opens?|parking|(semi.?finals?|quarter.?finals?|finals?|prelims?|competition|show|program)\s*(begins?|resumes?|concludes?|starts?|ends?)|lunch|dinner|\bbreak\b/i;
+  // The decision rules live in docs/lib/live-core.js (pure + unit-tested);
+  // this module owns the fetching, 30-second cache, and lookup API.
   const LIVE = (() => {
+    const CORE = window.CadLiveCore;
     let cache = null, cacheAt = 0;
     const etToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date());
-    function slotMs(dateISO, timeStr) {
-      const m = /(\d{1,2}):(\d{2})\s*([ap])\.?m/i.exec(String(timeStr || ""));
-      if (!m) return null;
-      let h = (+m[1]) % 12; if (/p/i.test(m[3])) h += 12;
-      const [y, mo, d] = dateISO.split("-").map(Number);
-      return Date.UTC(y, mo - 1, d, h + 4, +m[2]); // ET slot → UTC (EDT = UTC-4)
-    }
     async function refresh(force) {
       const now = Date.now();
       if (!force && cache && now - cacheAt < 30000) return cache;
@@ -42,40 +34,7 @@
       let up = [], season = null;
       try { up = await data("upcoming.json"); } catch (e) {}
       try { season = await data(`seasons/${+today.slice(0, 4)}.json`); } catch (e) {}
-      const scoredToday = new Set();      // corps names with a score posted today
-      const scoredByShow = {};            // event name → how many corps have scored
-      (season || []).forEach(e => {
-        if (e.date !== today) return;
-        let n = 0;
-        (e.classes || []).forEach(c => (c.results || []).forEach(r => {
-          if (r.score != null) { scoredToday.add(r.corps); n++; }
-        }));
-        scoredByShow[e.name] = (scoredByShow[e.name] || 0) + n;
-      });
-      const corpsLive = new Set(), showLive = new Set(), complete = new Set();
-      (up || []).forEach(ev => {
-        if (ev.date !== today || !Array.isArray(ev.schedule)) return;
-        const lineup = new Set(ev.lineup || []);
-        // real performing corps (logistics rows dropped) drive completeness + the
-        // per-corps pills used on the scoreboard / corps pages
-        const realSlots = ev.schedule.filter(p => p && lineup.has(p[1]) && !NON_CORPS.test(p[1]));
-        const realCorps = new Set(realSlots.map(p => p[1]));
-        // the instant every performing corps has a score the whole show is done —
-        // corps AND logistics rows all go dark, wherever the clock sits
-        if (realCorps.size && (scoredByShow[ev.name] || 0) >= realCorps.size) { complete.add(ev.name); return; }
-        realSlots.forEach(pair => {
-          const t = slotMs(ev.date, pair[0]); if (t == null) return;
-          if (now >= t - LIVE_PAD && now <= t + LIVE_PAD && !scoredToday.has(pair[1])) corpsLive.add(pair[1]);
-        });
-        // the show stays live across its whole schedule — first slot to last,
-        // logistics rows included — until it completes above
-        const times = ev.schedule.map(p => slotMs(ev.date, p[0])).filter(t => t != null);
-        if (times.length) {
-          const first = Math.min(...times), last = Math.max(...times);
-          if (now >= first - LIVE_PAD && now <= last + LIVE_PAD) showLive.add(ev.name);
-        }
-      });
-      cache = { corpsLive, showLive, complete, scored: scoredToday, today }; cacheAt = now;
+      cache = { ...CORE.compute(up, season, today, now), today }; cacheAt = now;
       return cache;
     }
     return {
@@ -87,10 +46,7 @@
       scored: n => !!(cache && cache.scored.has(n)),
       // is a specific schedule slot inside its ±15-min live window right now?
       // (corps and logistics rows alike — the caller gates on show-completeness)
-      slotLiveAt: (dateISO, timeStr) => {
-        const t = slotMs(dateISO, timeStr);
-        return t != null && Date.now() >= t - LIVE_PAD && Date.now() <= t + LIVE_PAD;
-      },
+      slotLiveAt: (dateISO, timeStr) => CORE.slotLiveAt(dateISO, timeStr, Date.now()),
       today: () => cache && cache.today,
       // signature of the current live sets — lets a view repaint only on change
       sig: () => cache ? [...cache.corpsLive].sort().join("|") + "#" + [...cache.showLive].sort().join("|") : "",
@@ -613,22 +569,8 @@
     if (wc) (wc.results || []).forEach(r => { if (r.score != null) m.set(r.corps, r.score); });
     return m;
   }
-  // exact spot = 3 pts, off by one = 1 pt. Graded only over the corps you
-  // actually called that competed, so a partial pick isn't crushed by the
-  // full-field size (and a scratched corps just doesn't count).
-  function scorePred(predOrder, actual) {
-    const pos = new Map(actual.map((c, i) => [c, i]));
-    let pts = 0, exact = 0, graded = 0;
-    predOrder.forEach((corps, i) => {
-      const ap = pos.get(corps);
-      if (ap == null) return;
-      graded++;
-      const d = Math.abs(ap - i);
-      if (d === 0) { pts += 3; exact++; } else if (d === 1) pts += 1;
-    });
-    const max = graded * 3;
-    return { pts, max, exact, n: graded, pct: max ? Math.round(pts / max * 100) : 0 };
-  }
+  // grading rules live in docs/lib/season-utils.js (pure + unit-tested)
+  const scorePred = window.CadSeasonUtils.scorePred;
   // Render the prediction UI into a mount div: the scored result if the show
   // is in, otherwise the tap-to-rank card (or the locked pick). Self-contained
   // — manages its own re-renders and click handling.
@@ -873,36 +815,7 @@
      delta, 3-show average, season high and trend describe their ACTUAL season —
      while the row itself (score, date, event, ranking) stays true to the class
      being shown. */
-  function stitchSeasonHistory(standings, rows) {
-    const hist = new Map(), best = new Map();
-    Object.values(standings || {}).forEach(block => (block.rows || []).forEach(r => {
-      const h = hist.get(r.corps) || [];
-      (r.trend || []).forEach(t => h.push(t));
-      hist.set(r.corps, h);
-      const b = best.get(r.corps);
-      if (r.high != null && (!b || r.high > b.high))
-        best.set(r.corps, { high: r.high, high_event: r.high_event, high_date: r.high_date });
-    }));
-    return rows.map(r => {
-      const all = hist.get(r.corps);
-      if (!all || !all.length) return r;
-      // one point per date; this row's own show wins its date
-      const byDate = new Map();
-      all.forEach(([d, s]) => { const cur = byDate.get(d); if (cur == null || s > cur) byDate.set(d, s); });
-      if (r.date) byDate.set(r.date, r.score);
-      const trend = [...byDate.entries()].sort((a, b) => String(a[0]).localeCompare(String(b[0])));
-      if (trend.length <= (r.trend || []).length) return r; // nothing new to add
-      const i = trend.findIndex(t => t[0] === r.date);
-      const prev = i > 0 ? trend[i - 1][1] : null;
-      const b = best.get(r.corps) || {};
-      return { ...r, trend,
-        prev_score: prev != null ? prev : r.prev_score,
-        delta: prev != null ? +(r.score - prev).toFixed(3) : r.delta,
-        high: b.high != null ? b.high : r.high,
-        high_event: b.high != null ? b.high_event : r.high_event,
-        high_date: b.high != null ? b.high_date : r.high_date };
-    });
-  }
+  const stitchSeasonHistory = window.CadSeasonUtils.stitchSeasonHistory;
 
   function combinedStandings(standings, selected) {
     // one row per corps: their most recent result across the selected classes,
@@ -1164,16 +1077,7 @@
     }));
   }
 
-  // days since the newest posted score across every class (Infinity if none).
-  // The tour never goes more than a few days dark mid-season, so >7 quiet
-  // days = the season is over.
-  function daysSinceLastScore(rk) {
-    let newest = "";
-    for (const b of Object.values(rk.standings || {}))
-      for (const r of b.rows || []) if ((r.date || "") > newest) newest = r.date;
-    if (!newest) return Infinity;
-    return (Date.now() - new Date(newest + "T12:00:00")) / 86400000;
-  }
+  const daysSinceLastScore = rk => window.CadSeasonUtils.daysSinceLastScore(rk, Date.now());
 
   /* ===== off-season home module: This Day in DCI History + season countdown.
      Renders only between seasons, and only what's true: history rows come
