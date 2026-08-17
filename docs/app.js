@@ -3985,15 +3985,39 @@
     // notifications
     const pushToggle = document.getElementById("pushToggle");
     const pushStatus = document.getElementById("pushStatus");
+    // is the alert relay answering? Any HTTP response (even 404 from an older
+    // build without /healthz) proves the server is up — only a network-level
+    // failure counts as down. Never blocks the page; 2.5 s cap.
+    async function relayUp() {
+      const base = (window.CadConfig || {}).RELAY_URL;
+      if (!base) return false;
+      try {
+        const ctl = new AbortController();
+        const t = setTimeout(() => ctl.abort(), 2500);
+        const r = await fetch(base + "/healthz", { signal: ctl.signal });
+        clearTimeout(t);
+        return r.status > 0;
+      } catch (e) { return false; }
+    }
     async function paintPush() {
       if (!window.CadPush) { pushStatus.textContent = "Not available"; pushToggle.disabled = true; return; }
       const s = await CadPush.status();
       if (s === "unsupported") { pushStatus.textContent = "Not supported in this browser"; pushToggle.disabled = true; pushToggle.classList.remove("on"); return; }
       if (s === "ios-install") { pushStatus.textContent = "On iPhone, install the app first (Share → Add to Home Screen), then reopen Cadence"; pushToggle.disabled = true; pushToggle.classList.remove("on"); return; }
+      if (s !== "on" && "Notification" in window && Notification.permission === "denied") {
+        pushStatus.textContent = "Blocked — allow notifications for this site in your browser settings, then reopen Cadence";
+        pushToggle.disabled = true; pushToggle.classList.remove("on");
+        return;
+      }
       pushToggle.disabled = false;
       pushToggle.classList.toggle("on", s === "on");
       pushToggle.setAttribute("aria-pressed", s === "on");
       pushStatus.textContent = s === "on" ? "On — you'll get a ping when scores drop" : "Off";
+      // relay trouble is worth a heads-up only when alerts are meant to be on
+      if (s === "on") relayUp().then(up => {
+        if (!up && pushStatus.isConnected && pushToggle.classList.contains("on"))
+          pushStatus.textContent = "On — but the alert server isn't responding right now, so alerts may be delayed";
+      });
     }
     if (pushToggle) pushToggle.addEventListener("click", async () => {
       if (!window.CadPush || pushToggle.disabled) return;
@@ -4031,6 +4055,16 @@
   let askThread = []; // [{ role: "user"|"assistant", content }]
   async function viewAsk(_m, stale) {
     setNav("");
+    // real feature flag, not just a hidden button: the assistant renders an
+    // honest unavailable state until BOTH this flag and the relay's own
+    // server-side gate are switched on
+    if (!(window.CadConfig || {}).ASK_ENABLED) {
+      app.innerHTML = `
+        <h1 class="page">Ask Cadence <span class="kicker">· scores assistant</span></h1>
+        <div class="card"><div class="empty">The scores assistant is switched off right now.<br>
+          Everything else works without it — try the <a href="#/">Scoreboard</a> or <a href="#/stats">Stats</a>.</div></div>`;
+      return;
+    }
     let year = new Date().getUTCFullYear();
     try {
       const meta = await data("meta.json");
@@ -4357,8 +4391,16 @@
       : mins < 180 ? `${mins} min ago`
       : mins < 36 * 60 ? `${Math.round(mins / 60)} h ago`
       : `${Math.round(mins / 1440)} d ago`;
+    // the pipeline rebuilds every ~15 min year-round, so a stamp hours old
+    // means updates have stalled — flag it quietly rather than pretending
+    // the board is current. Cached offline data trips this too, which is
+    // exactly right: it isn't live.
+    const stale = mins > 120;
+    el.classList.toggle("stale", stale);
     el.textContent = `Updated ${ago}`;
-    el.title = `Data from ${s} — refreshes several times an hour — every 3 min on show nights`;
+    el.title = stale
+      ? `Data from ${s} — updates seem delayed right now; scores may lag until the pipeline catches up`
+      : `Data from ${s} — refreshes several times an hour — every 3 min on show nights`;
   }
   setInterval(() => paintUpdated(), 30 * 1000);
 

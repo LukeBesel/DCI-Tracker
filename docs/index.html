@@ -151,7 +151,15 @@ window.CadPush = (function () {
   }
   async function getSub() {
     if (!canPush) return null;
-    try { var reg = await navigator.serviceWorker.ready; return await reg.pushManager.getSubscription(); }
+    // serviceWorker.ready never settles if registration failed — cap the wait
+    // so status checks report "off" instead of hanging the Settings page
+    try {
+      var reg = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise(function (_, rej) { setTimeout(function () { rej(new Error("sw-timeout")); }, 3000); }),
+      ]);
+      return await reg.pushManager.getSubscription();
+    }
     catch (e) { return null; }
   }
   function favList() { try { return JSON.parse(localStorage.getItem("cad-favs") || "[]"); } catch (e) { return []; } }

@@ -12,11 +12,17 @@ import fs from "node:fs";
 import path from "node:path";
 import webpush from "web-push";
 
-const VERSION = 15; // bump on every behavior change — /status shows what's really deployed
+const VERSION = 16; // bump on every behavior change — /status shows what's really deployed
 const SITE = process.env.SITE_URL || "https://lukebesel.github.io/DCI-Tracker/";
 const PORT = process.env.PORT || 8787;
 const POLL_MS = +(process.env.POLL_SECONDS || 60) * 1000;
 const DATA_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH || "./data";
+const BOOTED = Date.now();
+// browsers may only call the write endpoints from these origins (CORS).
+// Configure ALLOWED_ORIGINS as a comma-separated list after a domain move.
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS
+  || new URL(SITE).origin + ",http://localhost:8000,http://localhost:8533").split(",").map(s => s.trim()).filter(Boolean);
+const MAX_BODY = 64 * 1024; // no legitimate request body comes close to 64 KB
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
 // ---- VAPID keys: env > saved > freshly generated ----
@@ -168,9 +174,12 @@ async function broadcast(events) {
         .map(r => `${r.corps} ${r.score.toFixed(3)}`).join(" · ");
 
       // #/go turns the show's name+date into its exact event page (the app
-      // matches name AND date, so two shows on one day still resolve precisely).
+      // matches name AND date, so two shows on one day still resolve
+      // precisely). When one of the subscriber's starred corps scored here,
+      // carry it too — the event page highlights and scrolls to their row.
       const url = yr
         ? `${SITE}#/go?y=${yr}&d=${encodeURIComponent(dt)}&e=${encodeURIComponent(name)}`
+          + (mine.length ? `&c=${encodeURIComponent(mine[0].corps)}` : "")
         : SITE;
       // tag keyed to the show so each show is its own tappable alert, and a
       // re-post for the same show replaces (and re-chimes) its earlier one
@@ -217,7 +226,11 @@ setInterval(refreshShowFlag, 15 * 60 * 1000);
 // Guarded end to end: with no ANTHROPIC_API_KEY the endpoint reports "disabled"
 // and the push relay is completely unaffected. Model is swappable via ASK_MODEL
 // (defaults to Haiku — cheap and fast for grounded lookups over structured data).
-const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || "";
+// Two switches, both required: ASK_ENABLED=1 is the deliberate policy
+// decision, the API key is the credential. A key alone (e.g. pasted for a
+// different experiment) must never silently turn the assistant on.
+const ASK_ON = process.env.ASK_ENABLED === "1";
+const ANTHROPIC_KEY = ASK_ON ? (process.env.ANTHROPIC_API_KEY || "") : "";
 const ASK_MODEL = process.env.ASK_MODEL || "claude-haiku-4-5";
 const ASK_MAX_TOKENS = +(process.env.ASK_MAX_TOKENS || 700);
 const ASK_DAILY_CAP = +(process.env.ASK_DAILY_CAP || 1500);        // global ceiling / day
@@ -234,7 +247,7 @@ if (ANTHROPIC_KEY) {
     console.error("assistant init failed (is @anthropic-ai/sdk installed?):", e.message);
   }
 } else {
-  console.log("assistant disabled — set ANTHROPIC_API_KEY to enable /ask");
+  console.log("assistant disabled — set ASK_ENABLED=1 and ANTHROPIC_API_KEY to enable /ask");
 }
 let askStat = { answered: 0, blocked: 0, lastAsk: null, lastError: null };
 
@@ -315,24 +328,37 @@ function askUnderDailyCap() {
 }
 
 // ---- tiny HTTP API ----
-const CORS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-  "Access-Control-Allow-Headers": "content-type",
+// GET endpoints are public data (any origin may read them); the POST
+// endpoints echo only allowlisted origins, so another site's page can't
+// drive a visitor's subscription or spend the assistant budget.
+const corsFor = req => {
+  const origin = req.headers.origin || "";
+  const allow = ALLOWED_ORIGINS.includes(origin);
+  return {
+    "Access-Control-Allow-Origin": req.method === "GET" ? "*" : (allow ? origin : ALLOWED_ORIGINS[0] || "null"),
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Headers": "content-type",
+    "Vary": "Origin",
+  };
 };
-const send = (res, code, obj) =>
-  res.writeHead(code, { "content-type": "application/json", ...CORS }).end(JSON.stringify(obj));
 
 // a bad request or disk hiccup must answer 500, never kill the process
 process.on("uncaughtException", e => console.error("uncaught:", e));
 process.on("unhandledRejection", e => console.error("unhandled:", e));
 
 http.createServer(async (req, res) => {
+  const CORS = corsFor(req);
+  const send = (res, code, obj) =>
+    res.writeHead(code, { "content-type": "application/json", ...CORS }).end(JSON.stringify(obj));
   try {
   if (req.method === "OPTIONS") return res.writeHead(204, CORS).end();
   const url = new URL(req.url, "http://x");
-  let body = "";
-  for await (const chunk of req) body += chunk;
+  let body = "", tooBig = false;
+  for await (const chunk of req) {
+    body += chunk;
+    if (body.length > MAX_BODY) { tooBig = true; break; }
+  }
+  if (tooBig) return send(res, 413, { error: "request too large" });
   let json = {};
   try { json = body ? JSON.parse(body) : {}; } catch {}
 
@@ -340,9 +366,15 @@ http.createServer(async (req, res) => {
     // humans who click the relay's URL should land on the app itself
     return res.writeHead(302, { Location: SITE, ...CORS }).end();
   }
+  if (req.method === "GET" && url.pathname === "/healthz") {
+    // the monitoring contract: tiny, stable, and never anything sensitive
+    return send(res, 200, { ok: true, service: "cadence-push", version: VERSION,
+      uptimeSec: Math.round((Date.now() - BOOTED) / 1000),
+      push: true, ask: !!anthropic, lastCheck: status.lastCheck });
+  }
   if (req.method === "GET" && url.pathname === "/status") {
     return send(res, 200, { ok: true, service: "cadence-push", version: VERSION,
-      volume: !!process.env.RAILWAY_VOLUME_MOUNT_PATH, dataDir: DATA_DIR,
+      volume: !!process.env.RAILWAY_VOLUME_MOUNT_PATH,
       subscribers: subs.size, notifiedShows: notified.size, source: DATA_BASE,
       ask: { enabled: !!anthropic, model: ASK_MODEL, ...askStat }, ...status });
   }
