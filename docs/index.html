@@ -59,6 +59,8 @@ var m=document.querySelector('meta[name="theme-color"]'),bar=localStorage.getIte
 </header>
 
 <main id="app" class="viz-root">
+  <noscript><style>#app .loading { display: none; }</style>
+    <div class="empty">Cadence needs JavaScript to show live scores &mdash; please enable it and reload.</div></noscript>
   <div class="loading">Loading…</div>
 </main>
 

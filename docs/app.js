@@ -663,11 +663,11 @@
     btn.onclick = () => {
       open = !open;
       applyRows();
-      btn.textContent = open ? `Show Top ${n} ▴` : `Show All ${rows.length} ${noun} ▾`;
+      btn.textContent = open ? `Show top ${n} ▴` : `Show all ${rows.length} ${noun} ▾`;
       // collapsing from deep in a long table: bring the table top back on screen
       if (!open && host.getBoundingClientRect().top < 0) host.scrollIntoView({ block: "start" });
     };
-    btn.textContent = `Show All ${rows.length} ${noun} ▾`;
+    btn.textContent = `Show all ${rows.length} ${noun} ▾`;
     wrap.appendChild(btn);
     host.insertAdjacentElement("afterend", wrap);
     applyRows();
@@ -1385,7 +1385,7 @@
       const favs = FAVS.list().filter(n => bySlug.has(slugOf(n)));
       document.getElementById("corpsDetail").innerHTML = h`<div class="card" style="text-align:center;padding:44px 20px">
         <div style="font-size:34px" aria-hidden="true">🥁</div>
-        <h2 style="margin:10px 0 6px">Pick a corps</h2>
+        <h2 style="margin:10px 0 6px">Pick a Corps</h2>
         <div style="color:var(--muted);font-size:14px;max-width:44ch;margin:0 auto">Choose any corps above to see season charts, the full performance log, and championship titles — back to 1972.</div>
         ${favs.length ? `<div style="margin-top:14px;font-size:15px">${favs.map(n => corpsLink(n)).join(" · ")}</div>` : ""}
       </div>`;
@@ -3513,14 +3513,14 @@
           <div class="seg" id="themeSeg">${segBtn("auto", "Auto")}${segBtn("light", "Light")}${segBtn("dark", "Dark")}</div>
         </div>
         <div class="card setcard">
-          <h2>Text size</h2>
+          <h2>Text Size</h2>
           <p class="setnote">Make everything a little easier to read.</p>
           <div class="seg" id="fsSeg">${fsBtn("1", "Default")}${fsBtn("1.1", "Large")}${fsBtn("1.2", "Larger")}</div>
         </div>
       </div>
 
       <div class="card setcard">
-        <h2>Team colors</h2>
+        <h2>Team Colors</h2>
         <p class="setnote">Paint Cadence in your corps' colors — or keep the classic Cadence look.</p>
         <button class="setreset${curCorps ? " armed" : " on"}" data-corps-set="">
           <span class="corpschip-sw" style="background:#f0b429"></span>

@@ -5,7 +5,7 @@
   --surface-2: #eef1f6;
   --text-primary: #16233d;
   --text-secondary: #3f4c63;
-  --muted: #74808f;
+  --muted: #636f7e; /* AA ≥4.5:1 on both light surfaces */
   --grid: #e4e9f1;
   --baseline: #c4cdda;
   --border: #dfe4ec;
@@ -289,6 +289,10 @@ th[data-sort] { cursor: pointer; user-select: none; }
 .rjbtn {
   border: 1px solid var(--baseline); background: var(--surface-1); color: var(--text-secondary);
   border-radius: 999px; padding: 4px 12px; font-size: 12px; font-family: inherit; cursor: pointer;
+  position: relative;
+}
+.rjbtn::after { /* extend the touch target past the visible pill */
+  content: ""; position: absolute; inset: -8px -2px;
 }
 .rjbtn:hover { color: var(--text-primary); border-color: var(--link); }
 @media (max-width: 640px) {
