@@ -544,6 +544,11 @@
   // flat sub-captions fall into the same families when no judge sheet parsed
   var FLAT_FAMILY = { ge1: "ge", ge2: "ge", vp: "vis", va: "vis", cg: "vis", br: "mus", ma: "mus", pc: "mus" };
 
+  // inside a family block the family's own name is redundant on every row
+  function stripFamily(label) {
+    return String(label).replace(/^Visual\s+Prof\.?$/i, "Proficiency")
+      .replace(/^(Visual|Music)\s+/i, "");
+  }
   function cardFamilies(info) {
     var byKey = {};
     (info.caps || []).forEach(function (c) { byKey[c.key] = c; });
@@ -552,22 +557,25 @@
       var head = byKey[f.key];
       var rows = judges.length
         ? judges.filter(function (j) { return f.match.test(j.group); }).map(function (j) {
-            return { label: j.name + (j.judge ? " · " + j.judge : ""), winner: j.winner,
-              score: j.score, margin: j.margin };
+            return { label: stripFamily(j.name) + (j.judge ? " · " + j.judge : ""),
+              winner: j.winner, score: j.score, margin: j.margin };
           })
         : (info.caps || []).filter(function (c) { return !c.main && FLAT_FAMILY[c.key] === f.key; })
             .map(function (c) {
-              return { label: c.label, winner: c.winner, score: c.score, margin: c.margin };
+              return { label: stripFamily(c.label), winner: c.winner, score: c.score, margin: c.margin };
             });
       return { name: f.name, head: head || null, rows: rows };
     }).filter(function (f) { return f.head || f.rows.length; });
   }
 
   function drawCaptionsCard(info) {
-    var W = 2160, H = 4200;
+    var W = 2160, H = 4080;
     var cv = document.createElement("canvas"); cv.width = W; cv.height = H;
     var g = cv.getContext("2d");
     var PAD = 130, R = W - PAD, GOOD = "#ffd35c";
+    var NAME_X = PAD + 1030;      // one fixed column for the winning corps
+    var SCORE_R = R;             // scores right-align to a single edge
+    var ROW = 178;               // judge row pitch
     // dress the card in the colours of the corps that won the show overall
     var champ = (info.podium && info.podium[0] && info.podium[0].corps) || info.champ;
     var theme = pair(champ), bar = theme.bar, accHex = theme.accent;
@@ -578,112 +586,84 @@
     grad.addColorStop(0, shade(bar, 0.08)); grad.addColorStop(1, shade(bar, -0.55));
     g.fillStyle = grad; g.fillRect(0, 0, W, H);
     var rg = g.createRadialGradient(W * 0.85, H * 0.03, 0, W * 0.85, H * 0.03, W * 0.9);
-    rg.addColorStop(0, hexA(accHex, 0.16)); rg.addColorStop(1, hexA(accHex, 0));
+    rg.addColorStop(0, hexA(accHex, 0.14)); rg.addColorStop(1, hexA(accHex, 0));
     g.fillStyle = rg; g.fillRect(0, 0, W, H);
 
     g.textBaseline = "alphabetic"; g.textAlign = "left";
-    // ---- header ----
-    // brand and season both sit LEFT: the viewer's close button occupies the
-    // top-right corner and would sit on top of anything right-aligned here
+    // ---- header. Brand and season both sit LEFT: the viewer's close button
+    // owns the top-right corner and would sit on anything right-aligned here.
     g.font = "800 52px " + FONT;
-    g.fillStyle = accent; g.fillText("C A D E N C E", PAD, 152);
+    g.fillStyle = accent; g.fillText("C A D E N C E", PAD, 156);
     var brandW = g.measureText("C A D E N C E").width;
-    g.fillStyle = "rgba(255,255,255,.5)";
-    g.fillText("·  " + info.year + " SEASON", PAD + brandW + 34, 152);
-    g.fillStyle = "#fff"; g.font = "900 128px " + FONT; g.fillText("Caption Winners", PAD, 292);
-    g.fillStyle = accent; g.font = "800 68px " + FONT;
-    g.fillText(ellip(g, (info.event || "") + "  ·  " + (info.cls || ""), W - PAD * 2), PAD, 386);
+    g.fillStyle = "rgba(255,255,255,.45)";
+    g.fillText("·  " + info.year + " SEASON", PAD + brandW + 34, 156);
+    g.fillStyle = "#fff"; g.font = "900 132px " + FONT; g.fillText("Caption Winners", PAD, 306);
+    g.fillStyle = "rgba(255,255,255,.62)"; g.font = "700 64px " + FONT;
+    g.fillText(ellip(g, (info.event || "") + "  ·  " + (info.cls || ""), W - PAD * 2), PAD, 396);
 
-    var fams = cardFamilies(info);
-    var y = 512;
-    g.fillStyle = "rgba(255,255,255,.92)"; g.font = "800 100px " + FONT;
-    g.fillText(info.judgeSubs && info.judgeSubs.length ? "Every judge, every caption" : "Caption winners", PAD, y);
-    y += 74;
-
-    // ---- caption families: a header line, then one line per judge ----
-    fams.forEach(function (f) {
+    // ---- caption families. No fills, no zebra, no chips: one hairline under
+    // each family header is all the structure a plain table needs.
+    var y = 560;
+    cardFamilies(info).forEach(function (f) {
       var h = f.head;
-      // family header band
-      roundRect(g, PAD, y, W - PAD * 2, 122, 20);
-      g.fillStyle = "rgba(255,255,255,.08)"; g.fill();
-      g.fillStyle = "rgba(255,255,255,.72)"; g.font = "800 76px " + FONT;
-      g.fillText(f.name.toUpperCase(), PAD + 34, y + 82);
+      g.fillStyle = accent; g.font = "800 76px " + FONT;
+      g.fillText(f.name.toUpperCase(), PAD, y);
       if (h) {
         g.textAlign = "right";
-        g.fillStyle = accent; g.font = "900 92px " + FONT;
-        g.fillText(fmt2(h.score), R - 34, y + 82);
+        g.fillStyle = "#fff"; g.font = "800 84px " + FONT;
+        g.fillText(fmt2(h.score), SCORE_R, y);
         var sW = g.measureText(fmt2(h.score)).width;
-        g.fillStyle = "#fff"; g.font = "800 76px " + FONT;
-        g.fillText(ellip(g, h.winner, 760), R - 34 - sW - 34, y + 82);
+        g.fillStyle = "rgba(255,255,255,.62)"; g.font = "700 68px " + FONT;
+        g.fillText(ellip(g, h.winner, 700), SCORE_R - sW - 40, y);
         g.textAlign = "left";
       }
-      y += 122;
-      // two lines per judge: the caption + judge name reads across the full
-      // width, then the winner gets the whole line for its name and score.
-      // One line each would squeeze both into ~450px and truncate everything.
-      f.rows.forEach(function (r, i) {
-        var rowH = 214, cc = pair(r.winner);
-        if (i % 2 === 1) {   // zebra: keeps a long list trackable across the width
-          roundRect(g, PAD, y + 6, W - PAD * 2, rowH - 12, 18);
-          g.fillStyle = "rgba(255,255,255,.04)"; g.fill();
-        }
-        // a corps-coloured spine, lightened when the corps colour is too dark
-        // to read on this ground — the old inline chip vanished on navy corps
-        var spine = capLum(cc.bar) < 0.42 ? shade(cc.bar, 0.55) : cc.bar;
-        roundRect(g, PAD + 10, y + 26, 12, rowH - 52, 6); g.fillStyle = spine; g.fill();
-        g.fillStyle = "rgba(255,255,255,.58)"; g.font = "800 68px " + FONT;
-        g.fillText(ellip(g, r.label.toUpperCase(), W - PAD * 2 - 130), PAD + 54, y + 84);
-        var base = y + 184;
-        g.fillStyle = "#fff"; g.font = "800 92px " + FONT;
-        g.fillText(ellip(g, r.winner, 1160), PAD + 54, base);
+      g.fillStyle = "rgba(255,255,255,.18)"; g.fillRect(PAD, y + 34, W - PAD * 2, 3);
+      y += 116;
+      f.rows.forEach(function (r) {
+        g.fillStyle = "rgba(255,255,255,.55)"; g.font = "700 66px " + FONT;
+        g.fillText(ellip(g, r.label, 960), PAD + 34, y);
+        g.fillStyle = "rgba(255,255,255,.95)"; g.font = "700 82px " + FONT;
+        g.fillText(ellip(g, r.winner, 620), NAME_X, y);
         g.textAlign = "right";
-        g.fillStyle = accent; g.font = "800 92px " + FONT;
-        g.fillText(fmt2(r.score), R - 270, base);
-        if (r.margin != null) {
-          g.fillStyle = "rgba(255,255,255,.52)"; g.font = "700 66px " + FONT;
-          g.fillText("+" + fmt2(r.margin), R - 20, base);
-        }
+        g.fillStyle = accent; g.font = "800 82px " + FONT;
+        g.fillText(fmt2(r.score), SCORE_R, y);
         g.textAlign = "left";
-        y += rowH;
+        y += ROW;
       });
-      y += 40;
+      y += 84;
     });
 
-    // ---- overall podium ----
+    // ---- overall podium, in the same plain table ----
     var pod = (info.podium || []).slice(0, 3);
     if (pod.length) {
-      y += 76;
-      g.fillStyle = "rgba(255,255,255,.92)"; g.font = "800 100px " + FONT;
-      g.fillText("Overall", PAD, y);
-      y += 52;
-      var medal = ["#f0b429", "#c9ccd1", "#cd7f32"];
+      y += 10;
+      g.fillStyle = accent; g.font = "800 76px " + FONT;
+      g.fillText("OVERALL", PAD, y);
+      g.fillStyle = "rgba(255,255,255,.18)"; g.fillRect(PAD, y + 34, W - PAD * 2, 3);
+      y += 116;
       pod.forEach(function (r, i) {
-        var cc = pair(r.corps), base = y + 92;
-        var spine = capLum(cc.bar) < 0.42 ? shade(cc.bar, 0.55) : cc.bar;
-        g.fillStyle = medal[i] || "#c9ccd1"; g.font = "900 92px " + FONT;
-        g.fillText(String(i + 1), PAD, base);
-        roundRect(g, PAD + 84, base - 68, 12, 78, 6); g.fillStyle = spine; g.fill();
-        g.fillStyle = "#fff"; g.font = "800 96px " + FONT;
-        g.fillText(ellip(g, r.corps, W - PAD * 2 - 620), PAD + 132, base);
-        g.textAlign = "right"; g.fillStyle = accent; g.font = "900 100px " + FONT;
-        g.fillText(fmt3(r.score), R - 20, base); g.textAlign = "left";
-        y += 128;
+        g.fillStyle = "rgba(255,255,255,.45)"; g.font = "700 66px " + FONT;
+        g.fillText(String(i + 1), PAD + 34, y);
+        g.fillStyle = "#fff"; g.font = "800 86px " + FONT;
+        g.fillText(ellip(g, r.corps, W - PAD * 2 - 620), PAD + 130, y);
+        g.textAlign = "right"; g.fillStyle = accent; g.font = "800 86px " + FONT;
+        g.fillText(fmt3(r.score), SCORE_R, y); g.textAlign = "left";
+        y += ROW;
       });
     }
 
-    // ---- footer ----
+    // ---- footer. Drawn inline: cardFooter's type sizes are tuned for the
+    // 1080-wide cards and would land at ~5 CSS px on this one.
     var flips = (info.caps || []).filter(function (c) { return c.took; }).length;
     g.textAlign = "center";
     if (flips && info.prevDate) {
-      g.fillStyle = GOOD; g.font = "800 66px " + FONT;
+      g.fillStyle = GOOD; g.font = "700 62px " + FONT;
       g.fillText(ellip(g, "▲ " + flips + " caption" + (flips === 1 ? "" : "s") + " changed hands since the last show", W - PAD * 2),
         W / 2, H - 190);
     }
-    // footer drawn inline rather than via cardFooter(): that helper's type sizes
-    // are tuned for the 1080-wide cards and would render this one at ~5 CSS px
-    g.fillStyle = "rgba(255,255,255,.55)"; g.font = "700 56px " + FONT;
+    g.fillStyle = "rgba(255,255,255,.5)"; g.font = "700 54px " + FONT;
     g.fillText(SITE_LABEL, W / 2, H - 104);
-    g.fillStyle = "rgba(255,255,255,.34)"; g.font = "600 44px " + FONT;
+    g.fillStyle = "rgba(255,255,255,.3)"; g.font = "600 44px " + FONT;
     g.fillText("Unofficial fan app — not affiliated with DCI", W / 2, H - 40);
     g.textAlign = "left";
     return cv;
