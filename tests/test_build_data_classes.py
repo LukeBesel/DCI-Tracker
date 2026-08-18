@@ -216,3 +216,80 @@ class CommittedInputTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ChampionshipAnchorTests(unittest.TestCase):
+    """The DCI championship anchors a season: its name pattern, its roster."""
+
+    def test_champ_event_names(self):
+        for name, year in [
+            ("DCI World Championships", 1982),
+            ("World Championships Finals", 2002),
+            ("DCI Championships - Div II Prelims", 2001),
+            ("World Class Finals", 2008),
+            ("Open Class Semifinals", 2008),
+        ]:
+            self.assertTrue(build_data.is_champ_event(name, year), name)
+        for name, year in [
+            ("Open Class Finals", 1996),      # the Dutch championship
+            ("World Class Finals", 1993),     # DCUK's
+            ("DCA Championships", 1996),
+            ("Drum Corps West Indies Championship", 1992),
+            ("British Drum Corps Championships", 2001),
+        ]:
+            self.assertFalse(build_data.is_champ_event(name, year), name)
+
+    def test_non_dci_circuit_fields_become_international(self):
+        # ten championship corps establish the roster; a field sharing none of
+        # them (a UK circuit show) is another circuit's and gets its honest label
+        champs = results(*[f"DCI Corps {i}" for i in range(10)])
+        events = load([
+            {"year": 1991, "name": "DCI World Championships", "date": "1991-08-17",
+             "classes": [{"class": "World Class", "results": champs}]},
+            {"year": 1991, "name": "Leicester United Kingdom Show", "date": "1991-06-24",
+             "classes": [{"class": "World Class",
+                          "results": results("Blue Eagles", "Senators (UK)")}]},
+            {"year": 1991, "name": "Toledo OH Show", "date": "1991-07-01",
+             "classes": [{"class": "World Class",
+                          "results": results("DCI Corps 1", "Blue Eagles")}]},
+        ])
+        self.assertEqual(classes_of(events, "Leicester United Kingdom Show"),
+                         {"International": ["Blue Eagles", "Senators (UK)"]})
+        # a mixed field with a championship corps stays DCI
+        self.assertEqual(list(classes_of(events, "Toledo OH Show")), ["World Class"])
+
+    def test_side_division_events_leave_world_class(self):
+        events = load([
+            {"year": 1982, "name": "DCI World Championships Class A Prelims", "date": "1982-08-18",
+             "classes": [{"class": "World Class", "results": results("Small Corps A", "Small Corps B")}]},
+            {"year": 1982, "name": "DCI World Championships All-Girl Finals", "date": "1982-08-20",
+             "classes": [{"class": "World Class", "results": results("St. Ignatius Girls")}]},
+        ])
+        self.assertEqual(list(classes_of(events, "DCI World Championships Class A Prelims")), ["Class A"])
+        self.assertEqual(list(classes_of(events, "DCI World Championships All-Girl Finals")), ["All-Girl"])
+
+    def test_split_bill_does_not_brand_juniors_senior(self):
+        # 2002's Hershey listing is one event for a DCI Atlantic + DCA double
+        # bill — The Cadets on it must NOT become an All-Age corps for the year
+        events = load([
+            {"year": 2002, "name": "Hershey PA DCI Atlantic/DCA Show", "date": "2002-07-06",
+             "source": "dcx",
+             "classes": [{"class": "World Class",
+                          "results": results("The Cadets", "Syracuse Brigadiers")}]},
+            {"year": 2002, "name": "World Championships Finals", "date": "2002-08-10",
+             "source": "dcx",
+             "classes": [{"class": "World Class", "results": results("The Cadets")}]},
+        ])
+        finals = classes_of(events, "World Championships Finals")
+        self.assertEqual(finals, {"World Class": ["The Cadets"]})
+
+    def test_odca_is_not_dca(self):
+        # the Ontario circuit's name contains "DCA" only as a substring
+        events = load([
+            {"year": 2002, "name": "ODCA Championships", "date": "2002-07-20", "source": "dcx",
+             "classes": [{"class": "Open Class", "results": results("Dutch Boy")}]},
+            {"year": 2002, "name": "Kitchener Show", "date": "2002-07-22", "source": "dcx",
+             "classes": [{"class": "Open Class", "results": results("Dutch Boy")}]},
+        ])
+        for name in ("ODCA Championships", "Kitchener Show"):
+            self.assertEqual(list(classes_of(events, name)), ["Open Class"], name)

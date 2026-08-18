@@ -118,17 +118,29 @@ def parse_show_page(html: str, year: int, sid: int) -> dict | None:
         ev["name"] = f"Show #{sid % 1000}"
 
     by_class: dict[str, list] = {}
+    # Column layout varies: most pages run Division|Position|Corps|Score, but
+    # some carry a leading Photos column that shifts everything right — those
+    # pages (2002's World Championships among them) used to parse as empty and
+    # be dropped. Read the offset from the header row instead of assuming it.
+    pos_i = 1
+    for tr in rows[:body_start + 2]:
+        cells = [norm_space(td.get_text(" ", strip=True)) for td in tr.find_all(["td", "th"])]
+        if "Position" in cells:
+            pos_i = cells.index("Position")
+            break
     for tr in rows[body_start:]:
         cells = [norm_space(td.get_text(" ", strip=True)) for td in tr.find_all(["td", "th"])]
-        if len(cells) < 4 or cells[1] == "Position":
+        if len(cells) < pos_i + 3 or (len(cells) > pos_i and cells[pos_i] == "Position"):
             continue
-        division, pos, corps, score = cells[0], cells[1], cells[2], cells[3]
+        division, pos, corps, score = cells[pos_i - 1], cells[pos_i], cells[pos_i + 1], cells[pos_i + 2]
         corps = canon_corps(corps)
         if not corps:
             continue
         pm = re.fullmatch(r"(\d{1,3})\.?", pos)
         sm = re.search(r"(\d{1,3}\.\d{1,3})", score)
         place = int(pm.group(1)) if pm else None
+        if place == 0:
+            place = None  # lineup-only listings mark every row position 0
         sc = float(sm.group(1)) if sm else None
         if sc is not None and (sc < 20 or sc > 100):
             sc = None
