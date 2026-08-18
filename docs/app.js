@@ -779,10 +779,23 @@
 
   const CAP_KEY_NOTE = "<p class='capkey'>GE General Effect · VP Visual Proficiency · VA Visual Analysis · CG Color Guard · BR Brass · MA Music Analysis · PC Percussion</p>";
 
-  // pill sub-tabs inside the Data tab
+  // underline sub-tabs inside the Data tab (Stats)
   const DATA_SUBS = [["captions", "Captions"], ["compare", "Compare"], ["champions", "Champions"], ["records", "Records"], ["database", "Database"]];
-  const dataSubNav = active => `<div class="subtabs">${DATA_SUBS.map(([k, l]) =>
-    `<a href="#/${k}" class="${k === active ? "on" : ""}">${l}</a>`).join("")}</div>`;
+  // the strip scrolls horizontally on a narrow screen; once the view's
+  // innerHTML lands, nudge the active view into view so landing on "Database"
+  // (the rightmost tab) never leaves it clipped off the right edge
+  function centerSubtab() {
+    const strip = app.querySelector(".subtabs");
+    const on = strip && strip.querySelector("a.on");
+    if (!strip || !on) return;
+    const sr = strip.getBoundingClientRect(), ar = on.getBoundingClientRect();
+    strip.scrollLeft += (ar.left - sr.left) - (sr.width - ar.width) / 2;
+  }
+  const dataSubNav = active => {
+    requestAnimationFrame(centerSubtab);
+    return `<div class="subtabs">${DATA_SUBS.map(([k, l]) =>
+      `<a href="#/${k}" class="${k === active ? "on" : ""}">${l}</a>`).join("")}</div>`;
+  };
 
   // one-choice slicer with the same look as the checkbox pickers
   function singleSelect(mount, cfg) {
@@ -1079,10 +1092,10 @@
 
   const daysSinceLastScore = rk => window.CadSeasonUtils.daysSinceLastScore(rk, Date.now());
 
-  /* ===== off-season home module: This Day in DCI History + season countdown.
-     Renders only between seasons, and only what's true: history rows come
-     from the committed onthisday index; the countdown appears only once a
-     real future show is in the verified upcoming feed. */
+  /* ===== off-season home module: a truthful next-season countdown.
+     Renders only between seasons, and only once a real future show is in the
+     verified upcoming feed. (The "This Day in DCI History" panel is retired
+     for now — its onthisday index is still built, so it can return later.) */
   async function renderOffseasonHome(mount, rk) {
     if (!mount) return;
     if (daysSinceLastScore(rk) <= 7) { mount.innerHTML = ""; return; }
@@ -1093,33 +1106,11 @@
       next = (up || []).filter(e => !e.kind && (e.date || "") >= etNow)
         .sort((a, b) => (a.date || "").localeCompare(b.date || ""))[0] || null;
     } catch (e) {}
-    let items = [];
-    try {
-      const r = await fetch("onthisday.json", { cache: "no-cache" });
-      if (r.ok) items = ((await r.json())[etNow.slice(5)] || []).slice(0, 4);
-    } catch (e) {}
-    if (!next && !items.length) { mount.innerHTML = ""; return; }
-    const nextSeason = (+rk.season || new Date().getFullYear()) + 1;
-    const nextLine = next
-      ? (() => {
-          const days = Math.max(0, Math.ceil((new Date(next.date + "T12:00:00") - Date.now()) / 86400000));
-          return `Next season starts <b>${esc(fmtDateY(next.date))}</b> — ${esc(next.name || "")}${days ? ` · in ${days} day${days === 1 ? "" : "s"}` : " · today"}`;
-        })()
-      : `The ${nextSeason} tour schedule hasn't been announced yet — it'll appear here the moment it posts.`;
-    const dateLabel = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", month: "long", day: "numeric" }).format(new Date());
-    const rowHtml = e => {
-      const loc = (e.loc || "").replace(/\s*DCI$/, "");
-      const what = e.k === 3 ? "won the DCI World Championship"
-        : e.k === 2 ? `won ${esc(e.e || "")}` : `topped ${esc(e.e || "")}`;
-      const clsBit = e.cls && e.cls !== "World Class" ? ` · ${esc(e.cls)}` : "";
-      return `<a class="otd-row" href="#/events?y=${e.y}">
-        <span class="otd-y">${e.y}</span>
-        <span class="otd-t"><b>${esc(e.c || "")}</b> ${what}${e.s != null ? ` — ${score3(e.s)}` : ""}${loc ? ` · ${esc(loc)}` : ""}${clsBit}</span></a>`;
-    };
+    if (!next) { mount.innerHTML = ""; return; }
+    const days = Math.max(0, Math.ceil((new Date(next.date + "T12:00:00") - Date.now()) / 86400000));
+    const nextLine = `Next season starts <b>${esc(fmtDateY(next.date))}</b> — ${esc(next.name || "")}${days ? ` · in ${days} day${days === 1 ? "" : "s"}` : " · today"}`;
     mount.innerHTML = `
       <div class="card offszn">
-        ${items.length ? `<h2>This Day in DCI History <span class="sub">${esc(dateLabel)}</span></h2>
-        <div class="otd">${items.map(rowHtml).join("")}</div>` : ""}
         <p class="offnext">${nextLine}</p>
       </div>`;
   }
@@ -1128,11 +1119,16 @@
      A grid of years beats a 53-item dropdown: every season is one tap, and
      the reader can see the whole span of the archive at once. */
   const CHEVRON_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
-  function yearHeaderHtml(year) {
-    return `<h1 class="page"><span class="yearwrap" id="yearWrap">`
+  // the tappable, gold-underlined season control — reused verbatim by the
+  // Scoreboard heading and the Shows heading so both switch years the same way
+  function yearPickerHtml(year) {
+    return `<span class="yearwrap" id="yearWrap">`
       + `<button type="button" class="yearpick" aria-haspopup="listbox" aria-expanded="false" title="Change season">${esc(String(year))}${CHEVRON_SVG}</button>`
       + `<div class="yearpanel" role="listbox" aria-label="Season" hidden></div>`
-      + `</span> Scoreboard</h1>`;
+      + `</span>`;
+  }
+  function yearHeaderHtml(year) {
+    return `<h1 class="page">${yearPickerHtml(year)} Scoreboard</h1>`;
   }
   function wireYearPicker(years, value, onPick) {
     const wrap = document.getElementById("yearWrap");
@@ -2347,9 +2343,8 @@
     const years = meta.seasons.map(sn => sn.year).sort((a, b) => b - a);
     let year = +params.y && years.includes(+params.y) ? +params.y : years[0];
     app.innerHTML = `
-      <h1 class="page">Shows <span class="kicker" id="evCount"></span></h1>
-      <div class="filters" style="justify-content:space-between;align-items:center">
-        <div id="evYearSel"></div>
+      <h1 class="page">Shows ${yearPickerHtml(year)} <span class="kicker" id="evCount"></span></h1>
+      <div class="filters" style="justify-content:flex-end">
         <button class="tab" id="fToggle" aria-expanded="false">Filters ▾</button>
       </div>
       <div id="seasonMount"><div class="loading">Loading…</div></div>`;
@@ -2361,12 +2356,10 @@
       if (mount) mount.innerHTML = "<div class='loading'>Loading…</div>";
       await renderSeason(year, () => stale() || g !== gen);
     }
-    singleSelect(document.getElementById("evYearSel"), {
-      label: "Season", searchable: years.length > 15,
-      options: years.map(y => ({ value: String(y), label: String(y) })),
-      value: String(year),
-      onChange: v => { year = +v; load(); },
-    });
+    // the year IS the control (same component as the Scoreboard). Picking a
+    // season re-routes, so the whole view rebuilds with the new heading —
+    // exactly how the Scoreboard picker behaves.
+    wireYearPicker(years, year, y => { location.hash = `#/events?y=${y}`; });
     await load();
   }
 
@@ -2398,13 +2391,32 @@
         </div>
       </div>`;
     const CUT = 2; // keep the tile short — a couple of cards, expand for the rest
-    mountEl.innerHTML = h`<div class="card newswrap">
-      <h2>News &amp; Announcements <span class="sub">auditions, camps &amp; corps news · via DCI.org</span></h2>
-      ${articles.slice(0, 2).map(a => h`<a class="newshl${isNew(a) ? " new" : ""}" href="${encodeURI(a.url)}" target="_blank" rel="noopener"><span class="newshl-d">${esc(fmtDate(a.date))}</span>${esc(a.title)}${isNew(a) ? ' <span class="pill kpill knew">New</span>' : ""}</a>`).join("")}
-      <div class="dsk2 newsgrid">${sorted.slice(0, CUT).map(cardHtml).join("")}</div>
-      ${sorted.length > CUT ? `<div class="dsk2 newsgrid" id="newsMore" hidden>${sorted.slice(CUT).map(cardHtml).join("")}</div>
-        <button class="tab newsmorebtn" type="button">All corps news (${sorted.length}) ▾</button>` : ""}
+    // the whole tile collapses to just its header, remembered per device — for
+    // readers who don't want news taking up the top of the season page
+    let collapsed = false;
+    try { collapsed = localStorage.getItem("cad-news-collapsed") === "1"; } catch (e) {}
+    mountEl.innerHTML = h`<div class="card newswrap${collapsed ? " collapsed" : ""}">
+      <h2 class="newsh2"><button class="newshead" type="button" aria-controls="newsInner" aria-expanded="${collapsed ? "false" : "true"}">
+        <span class="newshtxt">News &amp; Announcements <span class="sub">auditions, camps &amp; corps news · via DCI.org</span></span>
+        ${anyNew ? '<span class="pill kpill knew">New</span>' : ""}<span class="newschev" aria-hidden="true">${CHEVRON_SVG}</span>
+      </button></h2>
+      <div class="newsinner" id="newsInner"${collapsed ? " hidden" : ""}>
+        ${articles.slice(0, 2).map(a => h`<a class="newshl${isNew(a) ? " new" : ""}" href="${encodeURI(a.url)}" target="_blank" rel="noopener"><span class="newshl-d">${esc(fmtDate(a.date))}</span>${esc(a.title)}${isNew(a) ? ' <span class="pill kpill knew">New</span>' : ""}</a>`).join("")}
+        <div class="dsk2 newsgrid">${sorted.slice(0, CUT).map(cardHtml).join("")}</div>
+        ${sorted.length > CUT ? `<div class="dsk2 newsgrid" id="newsMore" hidden>${sorted.slice(CUT).map(cardHtml).join("")}</div>
+          <button class="tab newsmorebtn" type="button">All corps news (${sorted.length}) ▾</button>` : ""}
+      </div>
     </div>`;
+    const head = mountEl.querySelector(".newshead");
+    const inner = mountEl.querySelector("#newsInner");
+    const wrap = mountEl.querySelector(".newswrap");
+    if (head) head.onclick = () => {
+      const nowCollapsed = !inner.hidden;
+      inner.hidden = nowCollapsed;
+      wrap.classList.toggle("collapsed", nowCollapsed);
+      head.setAttribute("aria-expanded", nowCollapsed ? "false" : "true");
+      try { localStorage.setItem("cad-news-collapsed", nowCollapsed ? "1" : "0"); } catch (e) {}
+    };
     const more = mountEl.querySelector(".newsmorebtn");
     if (more) more.onclick = () => {
       const p = mountEl.querySelector("#newsMore");
@@ -2488,7 +2500,7 @@
       : "";
 
     const cnt = document.getElementById("evCount");
-    if (cnt) cnt.textContent = `· ${year} — ${events.filter(e => !e.future).length} events${events.some(e => e.future) ? `, ${events.filter(e => e.future).length} upcoming` : ""}`;
+    if (cnt) cnt.textContent = `· ${events.filter(e => !e.future).length} events${events.some(e => e.future) ? `, ${events.filter(e => e.future).length} upcoming` : ""}`;
     mount().innerHTML = h`
       <div class="filters fpanel" id="fPanel" hidden>
         <div id="fCls"></div>
