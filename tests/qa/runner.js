@@ -295,6 +295,40 @@ section("shows: expansion, filters panel, event page focus", async (browser, bas
     const after = panel && await panel.isVisible();
     if (before === after) bad("Filters toggle did not change panel visibility");
   }
+
+  // the year is the same picker as the Scoreboard — pick a season, the URL and
+  // heading follow, and a real board for it renders
+  const yp = await page.$("h1.page .yearpick");
+  if (!yp) bad("shows: no year picker in the heading");
+  else {
+    const yrs = await (async () => { await yp.click(); await page.waitForTimeout(300);
+      return page.$$eval(".yearopt", els => els.map(e => +e.textContent.trim())); })();
+    if (yrs.length < 20) bad(`shows: year picker lists only ${yrs.length} seasons`);
+    const older = yrs.find(y => y <= yrs[0] - 5) || yrs[yrs.length - 1];
+    await page.click(`.yearopt[data-y="${older}"]`);
+    await page.waitForTimeout(1500);
+    if (await page.evaluate(() => location.hash) !== `#/events?y=${older}`) bad("shows: picking a year did not update the URL");
+    if ((await page.textContent("h1.page .yearpick")).trim() !== String(older)) bad("shows: heading did not switch season");
+    if (!await page.$(".evrow, .evsection, .empty")) bad(`shows: ${older} rendered no season body`);
+    await page.goHash("#/events"); await page.waitForTimeout(1000);
+  }
+
+  // News & Announcements collapses to just its header, and remembers it
+  const nw = await page.$(".newswrap");
+  if (nw) {
+    const inner = await page.$("#newsInner");
+    if (!inner) bad("news: no inner content wrapper");
+    else if (!await inner.isVisible()) bad("news: tile started collapsed unexpectedly");
+    else {
+      await page.click(".newshead"); await page.waitForTimeout(250);
+      if (await inner.isVisible()) bad("news: collapse did not hide the body");
+      if (await page.evaluate(() => localStorage.getItem("cad-news-collapsed")) !== "1")
+        bad("news: collapsed state not remembered");
+      await page.click(".newshead"); await page.waitForTimeout(250);
+      if (!await inner.isVisible()) bad("news: could not expand the tile again");
+    }
+  }
+
   // deep-linked corps focus on an event page
   await page.goHash("#/go?y=2026&d=2026-08-08&e=" + encodeURIComponent("DCI World Championship Finals") + "&c=" + encodeURIComponent("Phantom Regiment"));
   await page.waitForTimeout(1600);
@@ -310,6 +344,17 @@ section("stats hub: captions sheet, compare, database, records", async (browser,
   await page.goHash("#/captions");
   await page.waitForTimeout(1200);
   if (!await page.$(".capcta")) bad("captions: no Caption Winners CTA");
+  // the sub-nav is an underline strip, not pills: the active view carries a
+  // ~2px bottom line and none of the old rounded-pill chrome
+  const subtab = await page.evaluate(() => {
+    const on = document.querySelector(".subtabs a.on");
+    if (!on) return null;
+    const s = getComputedStyle(on);
+    return { bb: parseFloat(s.borderBottomWidth), radius: parseFloat(s.borderTopLeftRadius) };
+  });
+  if (!subtab) bad("stats: no active sub-tab");
+  else if (subtab.bb < 1.5) bad(`stats: active sub-tab has no underline (border-bottom ${subtab.bb}px)`);
+  else if (subtab.radius > 8) bad(`stats: sub-tab still renders as a pill (radius ${subtab.radius}px)`);
   const sortHeader = await page.$(".capsort th[data-sort], .rt th[data-c]");
   if (sortHeader) { await sortHeader.click(); await page.waitForTimeout(300); }
   await page.goHash("#/compare");
@@ -329,6 +374,16 @@ section("stats hub: captions sheet, compare, database, records", async (browser,
   await page.goHash("#/database");
   await page.waitForTimeout(1400);
   if ((await page.$$("table tbody tr")).length < 8) bad("database: too few rows");
+  // the sub-nav scrolls on a phone; the active "Database" tab (rightmost) must
+  // still sit within the visible strip, not be clipped off the right edge
+  const tabVis = await page.evaluate(() => {
+    const strip = document.querySelector(".subtabs");
+    const on = strip && strip.querySelector("a.on");
+    if (!strip || !on) return null;
+    const sr = strip.getBoundingClientRect(), ar = on.getBoundingClientRect();
+    return ar.left >= sr.left - 1 && ar.right <= sr.right + 1;
+  });
+  if (tabVis === false) bad("database: active sub-tab is scrolled out of view on a phone");
   const q = await page.$("#fq");
   if (q) {
     await q.fill("Bluecoats");

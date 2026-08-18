@@ -354,19 +354,25 @@ th[data-sort] { cursor: pointer; user-select: none; }
 @media (max-width: 640px) { #liveToast { bottom: calc(96px + env(safe-area-inset-bottom)); } }
 @keyframes toastin { from { opacity: 0; transform: translateX(-50%) translateY(12px); } }
 
-/* Data section sub-tabs */
-.subtabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 2px 0 16px; }
+/* Data section sub-tabs — an underline tab strip, matching the gold-underlined
+   season control in the headings (the active view carries the same line). */
+.subtabs {
+  display: flex; gap: 2px; margin: 2px 0 18px;
+  border-bottom: 1px solid var(--baseline);
+  overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.subtabs::-webkit-scrollbar { display: none; }
 .subtabs a {
-  padding: 10px 20px; border-radius: 999px; font-size: 15px; font-weight: 600;
-  background: var(--surface-1); border: 1px solid var(--border); color: var(--text-secondary);
+  flex: 0 0 auto; margin-bottom: -1px; white-space: nowrap;
+  padding: 9px 14px 10px; font-size: 15px; font-weight: 600;
+  color: var(--text-secondary); background: none;
+  border: 0; border-bottom: 2px solid transparent; border-radius: 0;
 }
 .subtabs a:hover { text-decoration: none; color: var(--text-primary); }
-.subtabs a.on { background: var(--navy); border-color: var(--navy); color: #fff; }
+.subtabs a.on { color: var(--link); border-bottom-color: var(--gold); font-weight: 700; }
 @media (max-width: 640px) {
-  /* all sub-tabs visible at once (3 per row, centered) instead of a
-     horizontal scroll that cut off the ends */
-  .subtabs { justify-content: center; gap: 6px; margin: 2px 0 14px; }
-  .subtabs a { flex: 0 1 calc(33.333% - 4px); padding: 10px 6px; font-size: 13.5px; text-align: center; white-space: nowrap; }
+  .subtabs { gap: 0; margin: 2px 0 14px; }
+  .subtabs a { padding: 9px 12px 10px; font-size: 14px; }
 }
 
 /* filters/tabs */
@@ -450,6 +456,19 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14.5px; }
 
 /* News & Announcements */
 .newswrap { margin: 0 0 14px; }
+/* collapsible header: the whole h2 row is the toggle */
+.newsh2 { margin: 0; }
+.newshead {
+  display: flex; align-items: center; gap: 8px; width: 100%; min-height: 34px;
+  font: inherit; color: inherit; text-align: left; cursor: pointer;
+  background: none; border: 0; padding: 3px 0;
+}
+.newshead .newshtxt { min-width: 0; }
+.newschev { margin-left: auto; flex: none; color: var(--muted); transition: transform 0.15s; }
+.newswrap.collapsed .newschev { transform: rotate(-90deg); }
+@media (prefers-reduced-motion: reduce) { .newschev { transition: none; } }
+.newsinner { margin-top: 12px; }
+.newsinner[hidden] { display: none; }
 .newshl { display: flex; align-items: baseline; gap: 10px; padding: 7px 2px; font-weight: 600; border-top: 1px solid var(--grid); }
 .newshl:first-of-type { border-top: 0; }
 .newshl:hover { text-decoration: none; }
