@@ -207,10 +207,51 @@ section("season picker: browse the archive from the Scoreboard heading", async (
   const over = await page.overflowPx();
   if (over > 1) bad(`${older} board overflows ${over}px`);
 
+  // the class filter must actually switch the board ON an archived season —
+  // its choice lives in memory, not in the device-wide saved preference
+  const savedBefore = await page.evaluate(() => localStorage.getItem("dt-classes"));
+  const titleBefore = await page.textContent("#standTitle");
+  const rowsBefore = (await page.$$("#standings tbody tr")).length;
+  await page.click("#clsSel .msel-btn");
+  await page.waitForTimeout(400);
+  const clsLabels = await page.$$eval("#clsSel .msel-opt", els => els.map(e => e.textContent.replace(/\s+/g, " ").trim()));
+  const otherIdx = clsLabels.findIndex(l => !/^World Class/.test(l));
+  if (otherIdx < 0) bad(`${older}: only one class to choose from, cannot verify the filter`);
+  else {
+    await (await page.$$("#clsSel .msel-opt"))[otherIdx].click();
+    await page.waitForTimeout(1700);
+    const titleAfter = await page.textContent("#standTitle");
+    const rowsAfter = (await page.$$("#standings tbody tr")).length;
+    if (titleAfter === titleBefore && rowsAfter === rowsBefore)
+      bad(`${older}: picking "${clsLabels[otherIdx]}" changed nothing — the class filter is inert on archived seasons`);
+    if (await page.evaluate(() => localStorage.getItem("dt-classes")) !== savedBefore)
+      bad("an archived season's class choice overwrote the saved current-season preference");
+  }
+
+  // 2007's archive holds one indoor mini-corps date 91 days before the tour;
+  // the season must still fill the chart rather than being squashed into a
+  // corner, and the axis labels must keep telling the truth
+  await page.goHash("#/?y=2007");
+  await page.waitForTimeout(1500);
+  const chart = await page.evaluate(() => {
+    const svg = document.querySelector("#trendChart svg");
+    if (!svg) return null;
+    const xs = [...svg.querySelectorAll('path[d^="M"]')].flatMap(p =>
+      (p.getAttribute("d").match(/[ML] ?([\d.]+)/g) || []).map(s => parseFloat(s.replace(/[ML] ?/, ""))));
+    const dots = [...svg.querySelectorAll("circle")].map(c => +c.getAttribute("cx")).filter(n => !isNaN(n));
+    const all = [...xs, ...dots];
+    return all.length && xs.length
+      ? { start: (Math.min(...xs) - Math.min(...all)) / (Math.max(...all) - Math.min(...all)) }
+      : null;
+  });
+  if (!chart) bad("2007: no progression chart rendered");
+  else if (chart.start > 0.35)
+    bad(`2007: an off-tour outlier squashes the season — lines start ${(chart.start * 100).toFixed(0)}% into the plot`);
+
   // back returns to the current season with its live modules
-  await page.goBack();
-  await page.waitForTimeout(1700);
-  if ((await page.textContent(".yearpick")).trim() !== current) bad("back button did not restore the current season");
+  await page.goHash("#/");
+  await page.waitForTimeout(1200);
+  if ((await page.textContent(".yearpick")).trim() !== current) bad("could not get back to the current season");
 
   // unknown seasons fall back instead of erroring
   for (const badHash of ["#/?y=1899", "#/?y=abc"]) {
