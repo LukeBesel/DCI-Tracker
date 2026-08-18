@@ -2391,10 +2391,12 @@
         </div>
       </div>`;
     const CUT = 2; // keep the tile short — a couple of cards, expand for the rest
-    // the whole tile collapses to just its header, remembered per device — for
-    // readers who don't want news taking up the top of the season page
-    let collapsed = false;
-    try { collapsed = localStorage.getItem("cad-news-collapsed") === "1"; } catch (e) {}
+    // the whole tile collapses to just its header, remembered per device.
+    // Collapsed by DEFAULT — news stays out of the way until the reader opens
+    // it (the header keeps a "New" pill so fresh items still announce
+    // themselves). It expands only once someone has explicitly opened it.
+    let collapsed = true;
+    try { collapsed = localStorage.getItem("cad-news-collapsed") !== "0"; } catch (e) {}
     mountEl.innerHTML = h`<div class="card newswrap${collapsed ? " collapsed" : ""}">
       <h2 class="newsh2"><button class="newshead" type="button" aria-controls="newsInner" aria-expanded="${collapsed ? "false" : "true"}">
         <span class="newshtxt">News &amp; Announcements <span class="sub">auditions, camps &amp; corps news · via DCI.org</span></span>
