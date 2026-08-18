@@ -1124,18 +1124,126 @@
       </div>`;
   }
 
+  /* ===== season picker — the year in the Scoreboard heading IS the control.
+     A grid of years beats a 53-item dropdown: every season is one tap, and
+     the reader can see the whole span of the archive at once. */
+  const CHEVRON_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+  function yearHeaderHtml(year) {
+    return `<h1 class="page"><span class="yearwrap" id="yearWrap">`
+      + `<button type="button" class="yearpick" aria-haspopup="listbox" aria-expanded="false" title="Change season">${esc(String(year))}${CHEVRON_SVG}</button>`
+      + `<div class="yearpanel" role="listbox" aria-label="Season" hidden></div>`
+      + `</span> Scoreboard</h1>`;
+  }
+  function wireYearPicker(years, value, onPick) {
+    const wrap = document.getElementById("yearWrap");
+    if (!wrap) return;
+    const btn = wrap.querySelector(".yearpick");
+    const panel = wrap.querySelector(".yearpanel");
+    let open = false, built = false;
+    const onDown = e => {
+      // a route change can swap the whole view out from under an open panel;
+      // drop the listener rather than acting on a detached node
+      if (!wrap.isConnected) { document.removeEventListener("pointerdown", onDown, true); return; }
+      if (!wrap.contains(e.target)) setOpen(false);
+    };
+    function setOpen(v) {
+      // built on first open: the heading keeps a clean text content, and the
+      // common case (never touching the picker) never builds 53 buttons
+      if (v && !built) {
+        panel.innerHTML = years.map(y =>
+          `<button type="button" role="option" class="yearopt${y === value ? " on" : ""}" data-y="${y}" aria-selected="${y === value}">${y}</button>`).join("");
+        built = true;
+      }
+      open = v;
+      panel.hidden = !v;
+      wrap.classList.toggle("open", v);
+      btn.setAttribute("aria-expanded", v ? "true" : "false");
+      if (!v) { document.removeEventListener("pointerdown", onDown, true); return; }
+      document.addEventListener("pointerdown", onDown, true);
+      const cur = panel.querySelector(".yearopt.on") || panel.firstElementChild;
+      if (cur) {
+        // scroll the panel itself — never the page out from under the reader
+        panel.scrollTop = Math.max(0, cur.offsetTop - panel.clientHeight / 2 + cur.offsetHeight / 2);
+        cur.focus({ preventScroll: true });
+      }
+    }
+    btn.onclick = () => setOpen(!open);
+    panel.onclick = e => {
+      const opt = e.target.closest("[data-y]");
+      if (!opt) return;
+      setOpen(false);
+      btn.focus();
+      onPick(+opt.dataset.y);
+    };
+    wrap.addEventListener("keydown", e => {
+      if (e.key === "Escape" && open) { e.stopPropagation(); setOpen(false); btn.focus(); return; }
+      if (!open) return;
+      // arrow/Home/End walk the grid — 53 seasons is far too many to Tab through
+      const nav = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: 0, ArrowUp: 0, Home: 0, End: 0 };
+      if (!(e.key in nav)) return;
+      const opts = [...panel.querySelectorAll(".yearopt")];
+      const i = opts.indexOf(document.activeElement);
+      if (i < 0) return;
+      const cols = getComputedStyle(panel).gridTemplateColumns.split(/\s+/).filter(Boolean).length || 4;
+      let n = e.key === "Home" ? 0
+        : e.key === "End" ? opts.length - 1
+        : e.key === "ArrowDown" ? i + cols
+        : e.key === "ArrowUp" ? i - cols
+        : i + nav[e.key];
+      if (n < 0 || n >= opts.length || n === i) return;
+      e.preventDefault();
+      const el = opts[n];
+      el.focus({ preventScroll: true });
+      if (el.offsetTop < panel.scrollTop) panel.scrollTop = el.offsetTop - 8;
+      else if (el.offsetTop + el.offsetHeight > panel.scrollTop + panel.clientHeight)
+        panel.scrollTop = el.offsetTop + el.offsetHeight - panel.clientHeight + 8;
+    });
+  }
+
   /* ============ RANKINGS (home) ============ */
-  async function viewRankings(_m, stale) {
+  async function viewRankings(qs, stale) {
     setNav("rankings");
-    const rk = await data("rankings.json");
+    const meta = await data("meta.json");
+    if (stale()) return;
+    const years = (meta.seasons || []).map(s => s.year).filter(y => Number.isFinite(y)).sort((a, b) => b - a);
+    const latest = years[0] || new Date().getUTCFullYear();
+    const asked = +parseHashQuery(qs).y;
+    const year = years.includes(asked) ? asked : latest;
+    // only the newest season is "live" — past seasons are settled history, so
+    // they skip the live-tracking, Following and off-season modules entirely
+    const isCurrent = year === latest;
+    const header = yearHeaderHtml(year);
+    const pickYear = () => wireYearPicker(years, year, y => {
+      location.hash = y === latest ? "#/" : `#/?y=${y}`;
+    });
+
+    let rk;
+    try {
+      // the current season reads the pipeline's own rankings.json; past
+      // seasons are rebuilt from their events file with the identical
+      // algorithm (see CadSeasonUtils.rankingsFromEvents)
+      rk = isCurrent
+        ? await data("rankings.json")
+        : window.CadSeasonUtils.rankingsFromEvents(await data(`seasons/${year}.json`), { season: year });
+    } catch (e) {
+      if (stale()) return;
+      app.innerHTML = header
+        + `<div class="card"><div class="empty">Couldn't load the ${esc(String(year))} season right now.<br>Pick another season above, or try again in a minute.</div></div>`;
+      pickYear();
+      return;
+    }
     if (stale()) return;
     await ensureLogos();
     if (stale()) return;
-    await LIVE.refresh().catch(() => {});
-    if (stale()) return;
-    const classes = sortClasses(Object.keys(rk.standings || {}));
+    if (isCurrent) { await LIVE.refresh().catch(() => {}); if (stale()) return; }
+    // an archived board keeps every class in `standings` so season-stitching
+    // sees a corps' whole year, but only offers the rankable ones as boards
+    const classes = sortClasses((rk.listClasses || Object.keys(rk.standings || {})).slice());
     if (!classes.length) {
-      app.innerHTML = `<div class="card"><div class="empty">No scores yet for ${rk.season} — check back after the first show.</div></div>`;
+      app.innerHTML = header + `<div class="card"><div class="empty">${isCurrent
+        ? `No scores yet for ${esc(String(year))} — check back after the first show.`
+        : `No scores on file for ${esc(String(year))}.`}</div></div>`;
+      pickYear();
       return;
     }
     const defaults = classes.includes("World Class") ? ["World Class"] : [classes[0]];
@@ -1149,8 +1257,8 @@
     if (savedExclusive) selected = [savedExclusive];
     const selectedSet = new Set(selected);
     app.innerHTML = h`
-      <h1 class="page">${esc(String(rk.season))} Scoreboard</h1>
-      <div id="followMount"></div>
+      ${header}
+      ${isCurrent ? '<div id="followMount"></div>' : ""}
       <div class="filters"><div id="clsSel"></div></div>
       <div class="rk-grid">
         <div class="card rk-trend">
@@ -1165,10 +1273,13 @@
         <div class="card rk-move" id="moveCard"></div>
         <div class="card rk-battle" id="battleCard"></div>
       </div>
-      <div id="offSznMount"></div>`;
+      ${isCurrent ? '<div id="offSznMount"></div>' : ""}`;
 
-    renderFollowStrip(document.getElementById("followMount"), rk); // async, never blocks the board
-    renderOffseasonHome(document.getElementById("offSznMount"), rk);
+    pickYear();
+    if (isCurrent) {
+      renderFollowStrip(document.getElementById("followMount"), rk); // async, never blocks the board
+      renderOffseasonHome(document.getElementById("offSznMount"), rk);
+    }
 
     const previousSelection = new Set(selected);
     multiSelect(document.getElementById("clsSel"), {
@@ -1187,8 +1298,11 @@
           [...selectedSet].filter(c => !COMBINABLE_SCORE_CLASSES.has(c)).forEach(c => selectedSet.delete(c));
         }
         if (!selectedSet.size) previousSelection.forEach(c => selectedSet.add(c));
-        localStorage.setItem("dt-classes", JSON.stringify(sortClasses([...selectedSet])));
-        viewRankings(null, stale);
+        // only the current season's choice is remembered — archived seasons
+        // have their own class names ("Class B", "All-Girl"), and saving one
+        // of those would wipe the live board's preference
+        if (isCurrent) localStorage.setItem("dt-classes", JSON.stringify(sortClasses([...selectedSet])));
+        viewRankings(qs, stale);   // re-render, staying on the season being viewed
       },
     });
 
@@ -1243,22 +1357,27 @@
     };
     drawTrend();
 
+    const seasonOver = daysSinceLastScore(rk) > 7;
+
     function renderStandings() {
       // keep true ranking order — favorites are starred/highlighted in place,
       // not pulled to the top
       const sorted = block.rows.slice().sort((a, b) => a.rank - b.rank);
-      const seasonOver = daysSinceLastScore(rk) > 7;
+      // "final scores" implied a championship result, but this board ranks each
+      // corps' LAST score — and a handful of archived seasons end with corps at
+      // different late-season shows, so the top row isn't always the champion
       document.getElementById("standTitle").innerHTML =
         `${esc(classLabel)} Standings <span class="sub">${seasonOver
-          ? `final scores of the ${rk.season} season · your favorites are starred`
+          ? `each corps' last score of the ${rk.season} season · your favorites are starred`
           : "each corps' most recent score · your favorites are starred"}</span>`;
       document.getElementById("standings").innerHTML = `
         <div class="tscroll"><table class="t standings"><thead><tr><th>#</th><th>Corps · last event</th><th class="num">Score</th><th class="num col-high">3-show avg</th><th class="num col-high">Season high</th><th class="num">vs prev</th><th class="col-trend">Trend</th></tr></thead><tbody>
         ${sorted.map(r => h`<tr${FAVS.has(r.corps) ? ' class="favrow"' : ""}>
           <td class="rank">${r.rank}</td>
-          <td><span class="corpscell">${corpsLogo(r.corps, 26)}<span class="corpscell-body"><span class="corpscell-name">${corpsLink(r.corps)}${LIVE.corpsLive(r.corps) ? LIVE_BADGE : ""}${showClassTags ? `<span class="classbadge ${r.class === "Open Class" ? "open" : "world"}" title="${esc(r.class)}">${r.class === "Open Class" ? "Open" : "World"}</span>` : ""}</span><div class="lastev">${esc(fmtDateY(r.date))} · ${esc(r.event)}</div></span></span></td>
+          <td><span class="corpscell">${corpsLogo(r.corps, 26)}<span class="corpscell-body"><span class="corpscell-name">${corpsLink(r.corps)}${isCurrent && LIVE.corpsLive(r.corps) ? LIVE_BADGE : ""}${showClassTags ? `<span class="classbadge ${r.class === "Open Class" ? "open" : "world"}" title="${esc(r.class)}">${r.class === "Open Class" ? "Open" : "World"}</span>` : ""}</span><div class="lastev">${esc(fmtDateY(r.date))} · ${esc(r.event)}</div></span></span></td>
           <td class="num score">${score3(r.score)}</td>
-          <td class="num col-high" data-tip="Average of the last ${Math.min(3, r.trend.length)} shows — smooths out one judging panel">${score3(r.trend.slice(-3).reduce((a, t) => a + t[1], 0) / Math.min(3, r.trend.length))}</td>
+          <td class="num col-high" data-tip="${r.trend.length === 1 ? "Their only scored show this season"
+            : `Average of the last ${Math.min(3, r.trend.length)} shows — smooths out one judging panel`}">${score3(r.trend.slice(-3).reduce((a, t) => a + t[1], 0) / Math.min(3, r.trend.length))}</td>
           <td class="num col-high" data-tip="${esc(`${score3(r.high)} — ${r.high_event || ""} · ${fmtDateY(r.high_date) || ""}`)}">${score3(r.high)}</td>
           <td class="num">${deltaHtml(r.delta)}</td>
           <td class="col-trend"><span class="sparkcell" data-trend="${r.trend.map(t => t[1]).join(",")}"></span></td>
@@ -1272,7 +1391,7 @@
 
     const jump = block.movers && block.movers[0];
     document.getElementById("moveCard").innerHTML = jump ? h`
-      <h2>Biggest Move <span class="sub">latest show vs previous</span></h2>
+      <h2>Biggest Move <span class="sub">${seasonOver ? "last show vs previous" : "latest show vs previous"}</span></h2>
       <div style="font-size:20px;font-weight:650">${corpsLink(jump.corps)}</div>
       <div style="color:var(--text-secondary)">${score3(jump.prev_score)} → <b>${score3(jump.score)}</b> ${deltaHtml(jump.delta)}</div>
       ${block.movers.slice(1).map(m => `<div style="font-size:13px;margin-top:6px">${corpsLink(m.corps)} ${deltaHtml(m.delta)}</div>`).join("")}
@@ -4161,7 +4280,8 @@
 
   /* ============ router ============ */
   const routes = [
-    [/^#?\/?$/, viewRankings],
+    // "#/" is the current season; "#/?y=1994" is that season's board
+    [/^#?\/?(?:\?(.*))?$/, (m, st) => viewRankings(m[1], st)],
     [/^#\/compare(?:\?(.*))?$/, (m, st) => viewCorpsHub(m[1], st)],
     [/^#\/corps\?(.*)$/, m => { location.replace(`#/compare?${m[1]}`); }],
     [/^#\/corps$/, (m, st) => viewCorpsPage(null, st)],
@@ -4184,7 +4304,7 @@
     [/^#\/suggestions$/, viewSuggestions],
     [/^#\/database$/, viewDatabase],
     // legacy routes from earlier versions
-    [/^#\/(today|rankings)$/, viewRankings],
+    [/^#\/(today|rankings)$/, (m, st) => viewRankings("", st)],
     [/^#\/season\/dci\/(\d{4})$/, m => { location.replace(`#/events?y=${m[1]}`); }],
   ];
 
@@ -4199,7 +4319,7 @@
     if (/^#\/(events|event\/|season\/|predictions)/.test(hash)) return "events";
     if (/^#\/corps/.test(hash)) return "corps";
     if (/^#\/(stats|data|compare|captions|champions|seasons|records|database)/.test(hash)) return "data";
-    if (hash === "#/" || hash === "" || hash === "#") return "rankings";
+    if (/^#?\/?(\?.*)?$/.test(hash)) return "rankings";   // incl. "#/?y=1994"
     return null; // suggestions etc. carry no tab memory
   }
   function rememberSpot() {

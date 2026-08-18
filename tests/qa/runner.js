@@ -23,7 +23,7 @@ catch (e) {
 const EXECUTABLE = process.env.PW_EXECUTABLE || undefined;
 const PHONE = { width: 390, height: 844 };
 const DESKTOP = { width: 1280, height: 900 };
-const ROUTES = ["#/", "#/events", "#/corps", "#/corps/bluecoats", "#/stats", "#/captions",
+const ROUTES = ["#/", "#/?y=2019", "#/events", "#/corps", "#/corps/bluecoats", "#/stats", "#/captions",
   "#/compare", "#/champions", "#/records", "#/database", "#/predictions", "#/settings",
   "#/suggestions", "#/about", "#/ask"];
 
@@ -160,6 +160,63 @@ section("first-run onboarding → favorites → Following strip", async (browser
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForTimeout(1600);
   if (await page.$(".ob-ov")) bad("sheet reappeared after completion");
+  if (page._errs.length) bad(page._errs[0]);
+  await ctx.close();
+});
+
+section("season picker: browse the archive from the Scoreboard heading", async (browser, base) => {
+  const { ctx, page } = await ctxPage(browser, base, { favs: ["Bluecoats"] });
+  await page.goHash("#/");
+  const heading = await page.evaluate(() => document.querySelector("h1.page").innerText.replace(/\s+/g, " ").trim());
+  if (!/^\d{4} Scoreboard$/.test(heading)) bad(`heading is not "<year> Scoreboard": "${heading}"`);
+  const current = (await page.textContent(".yearpick")).trim();
+
+  // opens, lists every season newest-first, marks the one being viewed
+  await page.click(".yearpick");
+  await page.waitForTimeout(400);
+  const years = await page.$$eval(".yearopt", els => els.map(e => +e.textContent.trim()));
+  if (years.length < 20) bad(`picker lists only ${years.length} seasons`);
+  if (String(years[0]) !== current) bad("picker is not sorted newest-first");
+  if (years.some((y, i) => i && y >= years[i - 1])) bad("picker years are not strictly descending");
+  const marked = await page.$$eval(".yearopt.on", els => els.map(e => e.textContent.trim()));
+  if (marked.length !== 1 || marked[0] !== current) bad(`selected season marker: ${JSON.stringify(marked)}`);
+  if (await page.getAttribute(".yearpick", "aria-expanded") !== "true") bad("aria-expanded stays false when open");
+
+  // Escape closes it and returns focus to the trigger
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+  if (await page.$(".yearpanel:not([hidden])")) bad("Escape did not close the season panel");
+  if (await page.evaluate(() => document.activeElement.className) !== "yearpick")
+    bad("focus not returned to the year button after Escape");
+
+  // pick an older season: URL, heading, and a real board for it
+  const older = years.find(y => y <= years[0] - 5) || years[years.length - 1];
+  await page.click(".yearpick");
+  await page.waitForTimeout(300);
+  await page.click(`.yearopt[data-y="${older}"]`);
+  await page.waitForTimeout(1800);
+  if (await page.evaluate(() => location.hash) !== `#/?y=${older}`) bad("URL did not carry the picked season");
+  if ((await page.textContent(".yearpick")).trim() !== String(older)) bad("heading did not switch season");
+  if (!(await page.$$("#standings tbody tr")).length) bad(`${older}: no standings rows`);
+  if (!await page.$("#trendChart svg")) bad(`${older}: no progression chart`);
+  if (!/last score of the /.test(await page.textContent("#standTitle"))) bad(`${older}: not framed as a finished season`);
+  // a settled season carries no live/now modules
+  if (await page.$("#followMount")) bad("past season still renders the Following strip");
+  if (await page.$(".offszn")) bad("past season still renders This Day in History");
+  if (await page.$(".pill.live")) bad("past season shows a LIVE badge");
+  const over = await page.overflowPx();
+  if (over > 1) bad(`${older} board overflows ${over}px`);
+
+  // back returns to the current season with its live modules
+  await page.goBack();
+  await page.waitForTimeout(1700);
+  if ((await page.textContent(".yearpick")).trim() !== current) bad("back button did not restore the current season");
+
+  // unknown seasons fall back instead of erroring
+  for (const badHash of ["#/?y=1899", "#/?y=abc"]) {
+    await page.goHash(badHash);
+    if ((await page.textContent(".yearpick")).trim() !== current) bad(`${badHash} did not fall back to the current season`);
+  }
   if (page._errs.length) bad(page._errs[0]);
   await ctx.close();
 });
@@ -344,7 +401,7 @@ section("accessibility: names, tap targets, contrast", async (browser, base) => 
       const bgOf = el => { for (let n = el; n; n = n.parentElement) { const c = getComputedStyle(n).backgroundColor, p = parse(c); if (p && !/rgba?\(0, 0, 0, 0\)/.test(c)) return p; } return [255, 255, 255]; };
       const ratio = (a, b) => { const l1 = lum(a), l2 = lum(b); return (Math.max(l1, l2) + .05) / (Math.min(l1, l2) + .05); };
       const out = [];
-      for (const sel of [".kicker", ".sub", "td.num", ".card h2", "p.lede", ".foot div", ".fol-sub", ".otd-t", ".abouttxt"]) {
+      for (const sel of [".kicker", ".sub", "td.num", ".card h2", "p.lede", ".foot div", ".fol-sub", ".otd-t", ".abouttxt", ".yearopt", ".yearopt.on"]) {
         const el = document.querySelector(sel);
         if (!el || !el.textContent.trim()) continue;
         const cs = getComputedStyle(el), fg = parse(cs.color);

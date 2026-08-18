@@ -399,11 +399,27 @@ def build_corps(events):
     return index
 
 
+def _round_rank(name):
+    """Order rounds within one date: prelims/quarters, then semis, then finals.
+
+    Championship weekends run several rounds, sometimes two on the same date.
+    Sorting on the date alone made whichever the file listed last count as a
+    corps' "latest score", which put prelims on top of same-day finals.
+    docs/lib/season-utils.js mirrors this rule for archived seasons.
+    """
+    n = name or ""
+    if re.search(r"prelim|quarter", n, re.I):
+        return 0
+    if re.search(r"semi", n, re.I):
+        return 1
+    return 2
+
+
 def build_rankings(events):
     now = datetime.now(timezone.utc)
     season = max((e["year"] for e in events), default=now.year)
     dated = sorted([e for e in events if e.get("date") and e["year"] == season],
-                   key=lambda e: e["date"])
+                   key=lambda e: (e["date"], _round_rank(e.get("name"))))
     per_class = defaultdict(dict)
     for ev in dated:
         for c in ev["classes"]:

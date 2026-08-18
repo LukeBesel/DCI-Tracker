@@ -34,17 +34,25 @@
       });
       if (r.date) byDate.set(r.date, r.score);
       var trend = Array.from(byDate.entries()).sort(function (a, b) { return String(a[0]).localeCompare(String(b[0])); });
-      if (trend.length <= (r.trend || []).length) return r; // nothing new to add
+      // the season high is the corps' best across every class, whether or not
+      // the merged trend gained a point (their other class may have competed
+      // on a date this one already covers)
+      var b = best.get(r.corps) || {};
+      var withHigh = (b.high == null || b.high === r.high) ? r : Object.assign({}, r, {
+        high: b.high, high_event: b.high_event, high_date: b.high_date,
+      });
+      // compare contents, not just length: a corps can compete in two classes
+      // on the SAME date, which replaces a point rather than adding one
+      var unchanged = trend.length === (r.trend || []).length && trend.every(function (t, k) {
+        return r.trend[k] && r.trend[k][0] === t[0] && r.trend[k][1] === t[1];
+      });
+      if (unchanged) return withHigh;
       var i = trend.findIndex(function (t) { return t[0] === r.date; });
       var prev = i > 0 ? trend[i - 1][1] : null;
-      var b = best.get(r.corps) || {};
-      return Object.assign({}, r, {
+      return Object.assign({}, withHigh, {
         trend: trend,
         prev_score: prev != null ? prev : r.prev_score,
         delta: prev != null ? +(r.score - prev).toFixed(3) : r.delta,
-        high: b.high != null ? b.high : r.high,
-        high_event: b.high != null ? b.high_event : r.high_event,
-        high_date: b.high != null ? b.high_date : r.high_date,
       });
     });
   }
@@ -67,6 +75,101 @@
     return { pts: pts, max: max, exact: exact, n: graded, pct: max ? Math.round(pts / max * 100) : 0 };
   }
 
+  /* Championship weekends run prelims, semis and finals — sometimes two of
+     them on the SAME date. Plain date ordering then makes whichever the file
+     happens to list last "the latest score", which put prelims results on top
+     of same-day finals. Ranking the rounds keeps a corps' season in the order
+     it was actually competed. (scraper/build_data.py applies the identical
+     rule, so this mirror stays faithful.) */
+  function roundRank(name) {
+    var n = String(name || "");
+    if (/prelim|quarter/i.test(n)) return 0;
+    if (/semi/i.test(n)) return 1;
+    return 2;
+  }
+
+  /* Build a rankings block for ONE past season from its events file — the
+     browser-side mirror of scraper/build_data.py's build_rankings(), so a
+     historical scoreboard is byte-for-byte the same shape as the live
+     rankings.json the current season serves. Only used for past seasons; the
+     current season always reads the pipeline's own file, untouched.
+
+     Class filter: the archives label a handful of one-off oddities as
+     "classes" ("Iiii", "Blockshow", "Dci Atlantic Competi" — parse residue
+     from 50-year-old result pages). A division that really ran a season has
+     several corps competing at more than one show, so a class needs
+     minCorps corps AND minEvents events to be worth OFFERING as a board.
+     Real historical divisions (Class A/B/C, All-Girl, Cadet, Corps Style…)
+     all clear it; the residue doesn't. Filtered classes are still returned
+     in `standings` — they are part of a corps' real season, and dropping
+     them outright would hide results from stitchSeasonHistory and corrupt
+     the season high / 3-show average / sparkline of corps that competed in
+     both. `listClasses` is the subset worth showing in the class picker. */
+  function rankingsFromEvents(events, opts) {
+    var o = opts || {};
+    var minCorps = o.minCorps == null ? 3 : o.minCorps;
+    var minEvents = o.minEvents == null ? 2 : o.minEvents;
+    var evs = (events || []).filter(function (e) { return e && e.date; })
+      .slice().sort(function (a, b) {
+        return String(a.date).localeCompare(String(b.date)) || roundRank(a.name) - roundRank(b.name);
+      });
+    var perClass = new Map();        // class -> Map(corps -> [{date, score, event}])
+    var perClassEvents = new Map();  // class -> Set(event key)
+    evs.forEach(function (ev) {
+      (ev.classes || []).forEach(function (c) {
+        var cls = c && c["class"];
+        if (!cls) return;
+        (c.results || []).forEach(function (r) {
+          // falsy-score skip mirrors the Python builder (drops null AND 0)
+          if (!r || !r.corps || !r.score) return;
+          if (!perClass.has(cls)) { perClass.set(cls, new Map()); perClassEvents.set(cls, new Set()); }
+          var byCorps = perClass.get(cls);
+          if (!byCorps.has(r.corps)) byCorps.set(r.corps, []);
+          byCorps.get(r.corps).push({ date: ev.date, score: r.score, event: ev.name });
+          perClassEvents.get(cls).add(ev.date + "|" + ev.name);
+        });
+      });
+    });
+    var standings = {}, listClasses = [];
+    perClass.forEach(function (byCorps, cls) {
+      if (byCorps.size >= minCorps && perClassEvents.get(cls).size >= minEvents) listClasses.push(cls);
+      var rows = [];
+      byCorps.forEach(function (hist, corps) {
+        hist.sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); });
+        var latest = hist[hist.length - 1];
+        var prev = hist.length > 1 ? hist[hist.length - 2] : null;
+        var hi = hist.reduce(function (best, x) { return x.score > best.score ? x : best; }, hist[0]);
+        rows.push({
+          corps: corps, score: latest.score, date: latest.date, event: latest.event,
+          high: hi.score, high_event: hi.event, high_date: hi.date,
+          prev_score: prev ? prev.score : null,
+          delta: prev ? +(latest.score - prev.score).toFixed(3) : null,
+          outings: hist.length,
+          trend: hist.map(function (x) { return [x.date, x.score]; }).slice(-10),
+        });
+      });
+      rows.sort(function (a, b) { return (b.score || 0) - (a.score || 0); });
+      rows.forEach(function (r, i) { r.rank = i + 1; });
+      var movers = rows.filter(function (r) { return r.delta != null; })
+        .sort(function (a, b) { return Math.abs(b.delta) - Math.abs(a.delta); }).slice(0, 3);
+      var battles = [];
+      for (var i = 1; i < rows.length; i++) {
+        var a = rows[i - 1], b = rows[i];
+        battles.push({ a: a.corps, b: b.corps, ra: a.rank, rb: b.rank, sa: a.score, sb: b.score,
+          gap: +(a.score - b.score).toFixed(3) });
+      }
+      battles.sort(function (x, y) { return x.gap - y.gap; });
+      standings[cls] = { rows: rows, movers: movers, battles: battles.slice(0, 3) };
+    });
+    return {
+      season: o.season != null ? o.season
+        : (evs.length ? +String(evs[evs.length - 1].date).slice(0, 4) : null),
+      standings: standings,     // every class — stitching needs the full picture
+      listClasses: listClasses, // the ones worth offering as a standings board
+      archived: true,           // built here rather than by the pipeline
+    };
+  }
+
   /* Days since the newest posted score across every class (Infinity if none).
      The tour never goes more than a few days dark mid-season, so >7 quiet
      days = the season is over — this drives the "final standings" framing
@@ -81,5 +184,10 @@
     return (now - Date.UTC(p[0], p[1] - 1, p[2], 12)) / 86400000;
   }
 
-  window.CadSeasonUtils = { stitchSeasonHistory: stitchSeasonHistory, scorePred: scorePred, daysSinceLastScore: daysSinceLastScore };
+  window.CadSeasonUtils = {
+    stitchSeasonHistory: stitchSeasonHistory,
+    scorePred: scorePred,
+    daysSinceLastScore: daysSinceLastScore,
+    rankingsFromEvents: rankingsFromEvents,
+  };
 })();
