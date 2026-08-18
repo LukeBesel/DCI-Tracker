@@ -442,6 +442,14 @@
       .sort(function (a, b) { return b - a; });
     return vals.length > 1 ? Math.round((vals[0] - vals[1]) * 1000) / 1000 : null;
   }
+  function _runnerUpOf(set, idx, winner) {
+    var hi = -Infinity, who = null;
+    set.forEach(function (r) {
+      var v = r[idx];
+      if (v != null && r[3] !== winner && v > hi) { hi = v; who = r[3]; }
+    });
+    return who;
+  }
   function captionSummary(year, date, event, cls) {
     return loadCaptions(year).then(function (rows) {
       if (!rows || !rows.length) return null;
@@ -463,19 +471,25 @@
         if (!w) return null;
         var pw = prev.length ? _winnerOf(prev, CAP_IDX[d.key]) : null;
         return { key: d.key, label: d.label, main: !!d.main, winner: w.corps, score: w.score,
-          margin: _marginOf(here, CAP_IDX[d.key]), took: pw && pw.corps !== w.corps ? pw.corps : null };
+          margin: _marginOf(here, CAP_IDX[d.key]),
+          runnerUp: _runnerUpOf(here, CAP_IDX[d.key], w.corps),
+          took: pw && pw.corps !== w.corps ? pw.corps : null };
       }).filter(Boolean);
       if (!caps.length) return null;
       var champ = _winnerOf(here, CAP_IDX.tot);
       var podium = here.slice().sort(function (a, b) { return (b[CAP_IDX.tot] || 0) - (a[CAP_IDX.tot] || 0); })
-        .slice(0, 3).map(function (r) { return { corps: r[3], score: r[CAP_IDX.tot] }; });
+        .slice(0, 10).map(function (r) { return { corps: r[3], score: r[CAP_IDX.tot] }; });
       return { year: year, date: date, event: event, cls: useCls, prevDate: prevDate,
         caps: caps, champ: champ ? champ.corps : null, podium: podium, corpsN: here.length };
     });
   }
 
   function drawCaptionsCard(info) {
-    var W = 1080, H = 1350, cv = newCanvas(), g = cv.getContext("2d");
+    // phone-shaped (9:16) so the in-app viewer can fill the screen with it —
+    // this card is for READING first, sharing second
+    var W = 1080, H = 1920;
+    var cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+    var g = cv.getContext("2d");
     var PAD = 84, GOOD = "#ffd35c";
     // dress the whole card in the colours of the corps that won the show overall
     var champ = (info.podium && info.podium[0] && info.podium[0].corps) || info.champ;
@@ -531,50 +545,67 @@
       g.textAlign = "left";
     });
 
-    // sub-caption winners — two columns
-    var sTop = tTop + tH + 74;
-    g.fillStyle = "#fff"; g.font = "800 30px " + FONT; g.fillText("Sub-caption winners", PAD, sTop - 26);
-    var colW = (W - PAD * 2) / 2, rowH = 78, perCol = Math.ceil(subs.length / 2);
+    // sub-caption winners — two columns, each with score, the margin over the
+    // runner-up, and the hands-changed flag: the full "who won what" story
+    var sTop = tTop + tH + 96;
+    g.fillStyle = "#fff"; g.font = "800 34px " + FONT; g.fillText("Sub-caption winners", PAD, sTop - 30);
+    var colW = (W - PAD * 2) / 2, rowH = 118, perCol = Math.ceil(subs.length / 2);
     subs.forEach(function (c, i) {
       var col = i < perCol ? 0 : 1, idx = i < perCol ? i : i - perCol;
       var lx = PAD + col * colW, ly = sTop + idx * rowH, cc = pair(c.winner);
-      g.fillStyle = "rgba(255,255,255,.55)"; g.font = "800 21px " + FONT;
+      g.fillStyle = "rgba(255,255,255,.55)"; g.font = "800 23px " + FONT;
       g.fillText(c.label.toUpperCase(), lx, ly);
-      g.fillStyle = cc.bar; roundRect(g, lx, ly + 14, 16, 16, 4); g.fill();
-      g.fillStyle = "#fff"; g.font = "800 27px " + FONT;
-      g.fillText(ellip(g, c.winner, colW - 150), lx + 28, ly + 30);
-      g.fillStyle = accent; g.font = "800 25px " + FONT; g.textAlign = "right";
-      g.fillText(fmt2(c.score), lx + colW - 40, ly + 30); g.textAlign = "left";
-      if (c.took) {
-        g.fillStyle = GOOD; g.font = "700 16px " + FONT;
-        g.fillText(ellip(g, "▲ from " + c.took, colW - 60), lx + 28, ly + 52);
+      g.fillStyle = cc.bar; roundRect(g, lx, ly + 16, 18, 18, 5); g.fill();
+      g.fillStyle = "#fff"; g.font = "800 31px " + FONT;
+      g.fillText(ellip(g, c.winner, colW - 170), lx + 32, ly + 34);
+      g.fillStyle = accent; g.font = "800 29px " + FONT; g.textAlign = "right";
+      g.fillText(fmt2(c.score), lx + colW - 44, ly + 34); g.textAlign = "left";
+      // detail line: margin over the runner-up, plus who it was taken from —
+      // when both need the room, the flip note wins and the margin shrinks
+      var bits = [];
+      if (c.margin != null) {
+        bits.push(c.took || !c.runnerUp ? "+" + fmt2(c.margin) : "+" + fmt2(c.margin) + " over " + c.runnerUp);
+      }
+      if (c.took) bits.push("▲ from " + c.took);
+      if (bits.length) {
+        g.fillStyle = c.took ? GOOD : "rgba(255,255,255,.5)"; g.font = "700 19px " + FONT;
+        g.fillText(ellip(g, bits.join(" · "), colW - 60), lx + 32, ly + 62);
       }
     });
 
-    // overall top 3 — anchors the bottom and gives the caption story its context
+    // overall standings — the full top of the field, not just a podium
     var pod = info.podium || [];
     if (pod.length) {
-      var pTop = sTop + perCol * rowH + 46;
-      g.fillStyle = "#fff"; g.font = "800 30px " + FONT; g.fillText("Overall", PAD, pTop);
+      var pTop = sTop + perCol * rowH + 58;
+      g.fillStyle = "#fff"; g.font = "800 34px " + FONT;
+      g.fillText("Overall", PAD, pTop);
+      if (info.corpsN > pod.length) {
+        g.fillStyle = "rgba(255,255,255,.45)"; g.font = "700 22px " + FONT;
+        g.fillText("top " + pod.length + " of " + info.corpsN, PAD + 152, pTop);
+      }
       var medal = ["#f0b429", "#c9ccd1", "#cd7f32"];
       pod.forEach(function (r, i) {
-        var py = pTop + 44 + i * 62, cc = pair(r.corps);
-        g.fillStyle = medal[i] || "#c9ccd1"; g.font = "900 30px " + FONT; g.fillText(String(i + 1), PAD, py);
-        g.fillStyle = cc.bar; roundRect(g, PAD + 42, py - 20, 18, 18, 5); g.fill();
-        g.fillStyle = "#fff"; g.font = "800 30px " + FONT; g.fillText(ellip(g, r.corps, W - PAD * 2 - 240), PAD + 74, py);
-        g.fillStyle = accent; g.font = "900 32px " + FONT; g.textAlign = "right"; g.fillText(fmt3(r.score), W - PAD, py); g.textAlign = "left";
+        var py = pTop + 52 + i * 57, cc = pair(r.corps);
+        g.fillStyle = i < 3 ? medal[i] : "rgba(255,255,255,.45)";
+        g.font = (i < 3 ? "900 30px " : "800 26px ") + FONT; g.fillText(String(i + 1), PAD, py);
+        g.fillStyle = cc.bar; roundRect(g, PAD + 46, py - 19, 18, 18, 5); g.fill();
+        g.fillStyle = i < 3 ? "#fff" : "rgba(255,255,255,.82)";
+        g.font = (i < 3 ? "800 30px " : "700 27px ") + FONT;
+        g.fillText(ellip(g, r.corps, W - PAD * 2 - 260), PAD + 78, py);
+        g.fillStyle = accent; g.font = (i < 3 ? "900 31px " : "800 27px ") + FONT;
+        g.textAlign = "right"; g.fillText(fmt3(r.score), W - PAD, py); g.textAlign = "left";
       });
     }
 
-    // footer: caption-flip note (the podium already names the overall leader)
+    // footer: caption-flip note (the standings already name the overall leader)
     var flips = caps.filter(function (c) { return c.took; }).length;
     g.textAlign = "center";
     if (flips && info.prevDate) {
-      g.fillStyle = GOOD; g.font = "800 26px " + FONT;
-      g.fillText(ellip(g, "▲ " + flips + " caption" + (flips === 1 ? "" : "s") + " changed hands since the last show", W - PAD * 2), W / 2, H - 92);
+      g.fillStyle = GOOD; g.font = "800 27px " + FONT;
+      g.fillText(ellip(g, "▲ " + flips + " caption" + (flips === 1 ? "" : "s") + " changed hands since the last show", W - PAD * 2), W / 2, H - 104);
     }
     g.fillStyle = "rgba(255,255,255,.5)"; g.font = "700 24px " + FONT;
-    cardFooter(g, W, H - 52, SITE_LABEL);
+    cardFooter(g, W, H - 56, SITE_LABEL);
     return cv;
   }
   function fmt2(n) { return n == null ? "—" : (Math.round(n * 100) / 100).toFixed(2); }
@@ -631,14 +662,14 @@
   // A lightbox that shows one or more cards big, in the app, each with a Share
   // button. Season card, daily recaps and history all open here — one surface.
   var VIEW_CSS =
-    ".cad-ov{position:fixed;inset:0;z-index:4200;display:flex;align-items:center;justify-content:center;background:rgba(6,8,14,.74);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);padding:20px;animation:cadFade .18s ease}" +
+    ".cad-ov{position:fixed;inset:0;z-index:4200;display:flex;align-items:center;justify-content:center;background:rgba(6,8,14,.74);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);padding:10px;animation:cadFade .18s ease}" +
     "@keyframes cadFade{from{opacity:0}to{opacity:1}}" +
-    ".cad-modal{position:relative;width:min(540px,100%);display:flex;flex-direction:column;align-items:center;gap:13px}" +
+    ".cad-modal{position:relative;width:min(560px,100%);display:flex;flex-direction:column;align-items:center;gap:10px}" +
     ".cad-x{position:absolute;top:-4px;right:-4px;z-index:3;width:40px;height:40px;border-radius:999px;border:none;background:rgba(255,255,255,.15);color:#fff;font-size:25px;line-height:38px;cursor:pointer}" +
     ".cad-x:hover{background:rgba(255,255,255,.26)}" +
     ".cad-cap{color:#fff;font-weight:700;font-size:14px;opacity:.92;text-align:center;min-height:18px}" +
     ".cad-stage{position:relative;width:100%;display:flex;justify-content:center;touch-action:pan-y}" +
-    ".cad-img{width:100%;max-width:500px;max-height:84vh;object-fit:contain;border-radius:18px;box-shadow:0 20px 54px rgba(0,0,0,.55);animation:cadPop .22s ease}" +
+    ".cad-img{width:100%;max-width:520px;max-height:88vh;object-fit:contain;border-radius:18px;box-shadow:0 20px 54px rgba(0,0,0,.55);animation:cadPop .22s ease}" +
     "@keyframes cadPop{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}" +
     ".cad-dots{display:flex;gap:7px;min-height:7px}" +
     ".cad-dot{width:7px;height:7px;border-radius:999px;background:rgba(255,255,255,.32);cursor:pointer;transition:background .15s,width .15s}" +
