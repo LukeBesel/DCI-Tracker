@@ -1150,8 +1150,10 @@
       // built on first open: the heading keeps a clean text content, and the
       // common case (never touching the picker) never builds 53 buttons
       if (v && !built) {
+        // tabindex="-1": the grid is walked with arrows (below), so 53 seasons
+        // never become 53 tab stops between the heading and the board
         panel.innerHTML = years.map(y =>
-          `<button type="button" role="option" class="yearopt${y === value ? " on" : ""}" data-y="${y}" aria-selected="${y === value}">${y}</button>`).join("");
+          `<button type="button" role="option" tabindex="-1" class="yearopt${y === value ? " on" : ""}" data-y="${y}" aria-selected="${y === value}">${y}</button>`).join("");
         built = true;
       }
       open = v;
@@ -1178,6 +1180,9 @@
     wrap.addEventListener("keydown", e => {
       if (e.key === "Escape" && open) { e.stopPropagation(); setOpen(false); btn.focus(); return; }
       if (!open) return;
+      // Tab closes and hands focus back to the trigger, so the panel can never
+      // trap keyboard users or linger open behind them
+      if (e.key === "Tab") { e.preventDefault(); setOpen(false); btn.focus(); return; }
       // arrow/Home/End walk the grid — 53 seasons is far too many to Tab through
       const nav = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: 0, ArrowUp: 0, Home: 0, End: 0 };
       if (!(e.key in nav)) return;
@@ -1201,6 +1206,10 @@
   }
 
   /* ============ RANKINGS (home) ============ */
+  // archived boards are pure functions of a season file, and the class filter
+  // re-renders the view — memoise so toggling a class on 1972 (211 events,
+  // 322 corps) doesn't rebuild the whole season each time
+  const archiveBoards = new Map();
   async function viewRankings(qs, stale) {
     setNav("rankings");
     const meta = await data("meta.json");
@@ -1222,9 +1231,14 @@
       // the current season reads the pipeline's own rankings.json; past
       // seasons are rebuilt from their events file with the identical
       // algorithm (see CadSeasonUtils.rankingsFromEvents)
-      rk = isCurrent
-        ? await data("rankings.json")
-        : window.CadSeasonUtils.rankingsFromEvents(await data(`seasons/${year}.json`), { season: year });
+      if (isCurrent) rk = await data("rankings.json");
+      else {
+        if (!archiveBoards.has(year)) {
+          archiveBoards.set(year,
+            window.CadSeasonUtils.rankingsFromEvents(await data(`seasons/${year}.json`), { season: year }));
+        }
+        rk = archiveBoards.get(year);
+      }
     } catch (e) {
       if (stale()) return;
       app.innerHTML = header
