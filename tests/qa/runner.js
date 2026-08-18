@@ -313,19 +313,22 @@ section("shows: expansion, filters panel, event page focus", async (browser, bas
     await page.goHash("#/events"); await page.waitForTimeout(1000);
   }
 
-  // News & Announcements collapses to just its header, and remembers it
+  // News & Announcements starts collapsed to just its header, and the reader
+  // can expand it — both directions remembered per device
   const nw = await page.$(".newswrap");
   if (nw) {
     const inner = await page.$("#newsInner");
     if (!inner) bad("news: no inner content wrapper");
-    else if (!await inner.isVisible()) bad("news: tile started collapsed unexpectedly");
+    else if (await inner.isVisible()) bad("news: tile did not start collapsed by default");
     else {
       await page.click(".newshead"); await page.waitForTimeout(250);
-      if (await inner.isVisible()) bad("news: collapse did not hide the body");
+      if (!await inner.isVisible()) bad("news: could not expand the tile");
+      if (await page.evaluate(() => localStorage.getItem("cad-news-collapsed")) !== "0")
+        bad("news: expanded state not remembered");
+      await page.click(".newshead"); await page.waitForTimeout(250);
+      if (await inner.isVisible()) bad("news: could not collapse the tile again");
       if (await page.evaluate(() => localStorage.getItem("cad-news-collapsed")) !== "1")
         bad("news: collapsed state not remembered");
-      await page.click(".newshead"); await page.waitForTimeout(250);
-      if (!await inner.isVisible()) bad("news: could not expand the tile again");
     }
   }
 
