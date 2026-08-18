@@ -569,7 +569,7 @@
   }
 
   function drawCaptionsCard(info) {
-    var W = 2160, H = 4080;
+    var W = 2160, H = 4180;
     var cv = document.createElement("canvas"); cv.width = W; cv.height = H;
     var g = cv.getContext("2d");
     var PAD = 130, R = W - PAD, GOOD = "#ffd35c";
@@ -585,47 +585,67 @@
     var grad = g.createLinearGradient(0, 0, 0, H);
     grad.addColorStop(0, shade(bar, 0.08)); grad.addColorStop(1, shade(bar, -0.55));
     g.fillStyle = grad; g.fillRect(0, 0, W, H);
-    var rg = g.createRadialGradient(W * 0.85, H * 0.03, 0, W * 0.85, H * 0.03, W * 0.9);
-    rg.addColorStop(0, hexA(accHex, 0.14)); rg.addColorStop(1, hexA(accHex, 0));
-    g.fillStyle = rg; g.fillRect(0, 0, W, H);
+    var rg = g.createRadialGradient(W * 0.85, 0, 0, W * 0.85, 0, W * 0.62);
+    rg.addColorStop(0, hexA(accHex, 0.16)); rg.addColorStop(1, hexA(accHex, 0));
+    g.fillStyle = rg; g.fillRect(0, 0, W, 700);
 
     g.textBaseline = "alphabetic"; g.textAlign = "left";
     // ---- header. Brand and season both sit LEFT: the viewer's close button
     // owns the top-right corner and would sit on anything right-aligned here.
-    g.font = "800 52px " + FONT;
-    g.fillStyle = accent; g.fillText("C A D E N C E", PAD, 156);
+    g.font = "800 60px " + FONT;
+    g.fillStyle = accent; g.fillText("C A D E N C E", PAD, 160);
     var brandW = g.measureText("C A D E N C E").width;
-    g.fillStyle = "rgba(255,255,255,.45)";
-    g.fillText("·  " + info.year + " SEASON", PAD + brandW + 34, 156);
+    g.fillStyle = "rgba(255,255,255,.62)";
+    g.fillText("·  " + info.year + " SEASON", PAD + brandW + 34, 160);
     g.fillStyle = "#fff"; g.font = "900 132px " + FONT; g.fillText("Caption Winners", PAD, 306);
-    g.fillStyle = "rgba(255,255,255,.62)"; g.font = "700 64px " + FONT;
-    g.fillText(ellip(g, (info.event || "") + "  ·  " + (info.cls || ""), W - PAD * 2), PAD, 396);
+    g.fillStyle = "rgba(255,255,255,.78)"; g.font = "700 72px " + FONT;
+    g.fillText(ellip(g, (info.event || "") + "  ·  " + (info.cls || ""), W - PAD * 2), PAD, 400);
 
     // ---- caption families. No fills, no zebra, no chips: one hairline under
     // each family header is all the structure a plain table needs.
+    // One corps usually sweeps, so the interesting rows are the ones it did
+    // NOT win. Work out that usual winner and set every other row in gold —
+    // Blue Devils taking a single caption off a Bluecoats sweep has to be
+    // impossible to miss, and colour does that where plain text cannot.
+    var fams = cardFamilies(info);
+    var tally = {}, usual = null, best = 0;
+    fams.forEach(function (f) {
+      f.rows.forEach(function (r) {
+        tally[r.winner] = (tally[r.winner] || 0) + 1;
+        if (tally[r.winner] > best) { best = tally[r.winner]; usual = r.winner; }
+      });
+    });
+    var odd = function (name) { return usual && name !== usual; };
+
     var y = 560;
-    cardFamilies(info).forEach(function (f) {
+    fams.forEach(function (f) {
       var h = f.head;
-      g.fillStyle = accent; g.font = "800 76px " + FONT;
+      g.fillStyle = accent; g.font = "800 86px " + FONT;
       g.fillText(f.name.toUpperCase(), PAD, y);
       if (h) {
         g.textAlign = "right";
         g.fillStyle = "#fff"; g.font = "800 84px " + FONT;
         g.fillText(fmt2(h.score), SCORE_R, y);
         var sW = g.measureText(fmt2(h.score)).width;
-        g.fillStyle = "rgba(255,255,255,.62)"; g.font = "700 68px " + FONT;
+        g.fillStyle = odd(h.winner) ? GOOD : "rgba(255,255,255,.72)"; g.font = "700 74px " + FONT;
         g.fillText(ellip(g, h.winner, 700), SCORE_R - sW - 40, y);
         g.textAlign = "left";
       }
-      g.fillStyle = "rgba(255,255,255,.18)"; g.fillRect(PAD, y + 34, W - PAD * 2, 3);
-      y += 116;
+      g.fillStyle = "rgba(255,255,255,.26)"; g.fillRect(PAD, y + 40, W - PAD * 2, 3);
+      y += 140;   // the rule needs air under it before the first row
       f.rows.forEach(function (r) {
-        g.fillStyle = "rgba(255,255,255,.55)"; g.font = "700 66px " + FONT;
-        g.fillText(ellip(g, r.label, 960), PAD + 34, y);
-        g.fillStyle = "rgba(255,255,255,.95)"; g.font = "700 82px " + FONT;
-        g.fillText(ellip(g, r.winner, 620), NAME_X, y);
+        var flag = odd(r.winner);
+        g.fillStyle = "rgba(255,255,255,.7)"; g.font = "700 68px " + FONT;
+        g.fillText(ellip(g, r.label, 950), PAD + 34, y);
+        if (flag) {   // a dot as well as the colour, so it reads without hue
+          g.fillStyle = GOOD; g.beginPath();
+          g.arc(NAME_X - 40, y - 26, 15, 0, Math.PI * 2); g.fill();
+        }
+        g.fillStyle = flag ? GOOD : "rgba(255,255,255,.95)";
+        g.font = (flag ? "800 82px " : "700 82px ") + FONT;
+        g.fillText(ellip(g, r.winner, 570), NAME_X, y);
         g.textAlign = "right";
-        g.fillStyle = accent; g.font = "800 82px " + FONT;
+        g.fillStyle = flag ? GOOD : accent; g.font = "800 82px " + FONT;
         g.fillText(fmt2(r.score), SCORE_R, y);
         g.textAlign = "left";
         y += ROW;
@@ -639,10 +659,10 @@
       y += 10;
       g.fillStyle = accent; g.font = "800 76px " + FONT;
       g.fillText("OVERALL", PAD, y);
-      g.fillStyle = "rgba(255,255,255,.18)"; g.fillRect(PAD, y + 34, W - PAD * 2, 3);
-      y += 116;
+      g.fillStyle = "rgba(255,255,255,.26)"; g.fillRect(PAD, y + 40, W - PAD * 2, 3);
+      y += 140;
       pod.forEach(function (r, i) {
-        g.fillStyle = "rgba(255,255,255,.45)"; g.font = "700 66px " + FONT;
+        g.fillStyle = "rgba(255,255,255,.6)"; g.font = "700 72px " + FONT;
         g.fillText(String(i + 1), PAD + 34, y);
         g.fillStyle = "#fff"; g.font = "800 86px " + FONT;
         g.fillText(ellip(g, r.corps, W - PAD * 2 - 620), PAD + 130, y);
@@ -657,14 +677,14 @@
     var flips = (info.caps || []).filter(function (c) { return c.took; }).length;
     g.textAlign = "center";
     if (flips && info.prevDate) {
-      g.fillStyle = GOOD; g.font = "700 62px " + FONT;
+      g.fillStyle = GOOD; g.font = "700 70px " + FONT;
       g.fillText(ellip(g, "▲ " + flips + " caption" + (flips === 1 ? "" : "s") + " changed hands since the last show", W - PAD * 2),
-        W / 2, H - 190);
+        W / 2, H - 200);
     }
-    g.fillStyle = "rgba(255,255,255,.5)"; g.font = "700 54px " + FONT;
-    g.fillText(SITE_LABEL, W / 2, H - 104);
-    g.fillStyle = "rgba(255,255,255,.3)"; g.font = "600 44px " + FONT;
-    g.fillText("Unofficial fan app — not affiliated with DCI", W / 2, H - 40);
+    g.fillStyle = "rgba(255,255,255,.68)"; g.font = "700 64px " + FONT;
+    g.fillText(SITE_LABEL, W / 2, H - 108);
+    g.fillStyle = "rgba(255,255,255,.46)"; g.font = "600 52px " + FONT;
+    g.fillText("Unofficial fan app — not affiliated with DCI", W / 2, H - 42);
     g.textAlign = "left";
     return cv;
   }
