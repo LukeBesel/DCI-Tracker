@@ -436,6 +436,37 @@ section("share card opens with branding footer", async (browser, base) => {
   await ctx.close();
 });
 
+section("caption winners card: full-screen and legible", async (browser, base) => {
+  const { ctx, page } = await ctxPage(browser, base);
+  await page.goHash("#/captions");
+  await page.waitForTimeout(1600);
+  const cta = await page.$("#showCapCta");
+  if (!cta) { bad("no Caption Winners CTA"); await ctx.close(); return; }
+  // the CTA is one compact line, but still a legal tap target
+  const ctaH = await page.evaluate(() => Math.round(document.querySelector(".capcta").getBoundingClientRect().height));
+  if (ctaH > 56) bad(`caption CTA is ${ctaH}px tall — it should be a single line`);
+  if (ctaH < 30) bad(`caption CTA is only ${ctaH}px tall — under the tap-target floor`);
+  await cta.click();
+  await page.waitForSelector(".cad-ov img.cad-img", { timeout: 20000 });
+  await page.waitForTimeout(900);
+  const m = await page.evaluate(() => {
+    const img = document.querySelector(".cad-img");
+    const r = img.getBoundingClientRect();
+    return { w: img.naturalWidth, h: img.naturalHeight, cssW: r.width, cssH: r.height,
+      full: !!document.querySelector(".cad-ov.cad-full"), vw: window.innerWidth, vh: window.innerHeight };
+  });
+  // a DPR-3 phone needs ~3x the CSS width in real pixels or the card looks
+  // fuzzy; 2160 keeps it a downsample at any phone size
+  if (m.w < 2160) bad(`caption card renders only ${m.w}px wide — too soft to read full-screen`);
+  if (!m.full) bad("tall caption card did not open in full-screen mode");
+  if (m.cssW < m.vw - 2) bad(`card is ${Math.round(m.cssW)}px wide in a ${m.vw}px viewport — not filling the screen`);
+  // the smallest type on the card must clear ~12 CSS px once scaled
+  const detail = 68 * (m.cssW / m.w);
+  if (detail < 11.5) bad(`card detail type lands at ${detail.toFixed(1)} CSS px — under the legibility floor`);
+  if (page._errs.length) bad(page._errs[0]);
+  await ctx.close();
+});
+
 section("failure states: data 404s degrade with human messages", async (browser, base) => {
   const { ctx, page } = await ctxPage(browser, base);
   await page.route("**/data/rankings.json*", r => r.fulfill({ status: 404, body: "x" }));

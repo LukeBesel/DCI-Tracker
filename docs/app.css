@@ -305,24 +305,22 @@ th[data-sort] { cursor: pointer; user-select: none; }
 .capwins .cw-main { font-weight: 650; }
 .capwins .cw-main b { text-transform: uppercase; letter-spacing: .4px; }
 
-/* "Caption Winners Card" call-to-action — the loud entry point to the
-   shareable card, mirroring how the corps page surfaces its season card */
-.capctawrap { margin: 14px 0 10px; }
+/* "Caption Winners Card" call-to-action — one compact line: the card itself
+   does the explaining, so the button just needs to be findable */
+.capctawrap { margin: 10px 0 8px; }
 .capctawrap[hidden] { display: none; }
 .capcta {
-  display: flex; align-items: center; gap: 13px; width: 100%; text-align: left;
-  font: inherit; cursor: pointer; padding: 13px 15px; border-radius: 14px;
+  display: flex; align-items: center; gap: 9px; width: 100%; text-align: left;
+  font: inherit; cursor: pointer; padding: 8px 13px; border-radius: 10px;
   color: var(--text-primary); background: var(--accent-wash);
   border: 1px solid var(--gold);
 }
 .capcta:hover { filter: brightness(1.03); border-color: var(--gold); }
 .capcta:disabled { opacity: .7; cursor: default; }
 .capcta-ic { flex: none; line-height: 0; color: var(--gold); }
-.capcta-t { min-width: 0; }
-.capcta-t b { display: block; font-size: 15px; font-weight: 800; letter-spacing: -.1px; }
-.capcta-t span { display: block; font-size: 12.5px; color: var(--muted); margin-top: 2px; }
-.capcta-go { margin-left: auto; flex: none; font-size: 13px; font-weight: 800; color: var(--link); white-space: nowrap; }
-@media (max-width: 430px) { .capcta-go { display: none; } }
+.capcta-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.capcta-t b { font-size: 14px; font-weight: 800; letter-spacing: -.1px; }
+.capcta-go { margin-left: auto; flex: none; font-size: 12.5px; font-weight: 800; color: var(--link); white-space: nowrap; }
 
 .rjump { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 8px; }
 .rjbtn {
