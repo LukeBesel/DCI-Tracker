@@ -471,6 +471,23 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14.5px; }
 @media (prefers-reduced-motion: reduce) { .newschev { transition: none; } }
 .newsinner { margin-top: 12px; }
 .newsinner[hidden] { display: none; }
+/* collapsed, the tile is just its header — tighten the card so it isn't a
+   band of empty space (the .card.newswrap.collapsed specificity beats
+   [data-fs] .card's padding override) */
+.card.newswrap.collapsed { padding-top: 8px; padding-bottom: 8px; }
+
+/* generic collapsible card header (Caption Titles, and reusable elsewhere) */
+.collhead { margin: 0; }
+.collbtn {
+  display: flex; align-items: center; gap: 8px; width: 100%; min-height: 34px;
+  font: inherit; color: inherit; text-align: left; cursor: pointer;
+  background: none; border: 0; padding: 3px 0;
+}
+.collttl { min-width: 0; }
+.collchev { margin-left: auto; flex: none; color: var(--muted); transition: transform 0.15s; }
+.card.collapsed .collchev { transform: rotate(-90deg); }
+.card.collapsed { padding-top: 8px; padding-bottom: 8px; }
+@media (prefers-reduced-motion: reduce) { .collchev { transition: none; } }
 .newshl { display: flex; align-items: baseline; gap: 10px; padding: 7px 2px; font-weight: 600; border-top: 1px solid var(--grid); }
 .newshl:first-of-type { border-top: 0; }
 .newshl:hover { text-decoration: none; }

@@ -248,6 +248,18 @@ section("season picker: browse the archive from the Scoreboard heading", async (
   else if (chart.start > 0.35)
     bad(`2007: an off-tour outlier squashes the season — lines start ${(chart.start * 100).toFixed(0)}% into the plot`);
 
+  // 1996: the DCI season ends at the championship — the archive's post-finals
+  // hometown shows (a 98.1 in Montreal a week after finals) must never top
+  // the board. The real 1996 result is the Blue Devils / Phantom tie at 97.4.
+  await page.goHash("#/?y=1996");
+  await page.waitForTimeout(1500);
+  const top96 = await page.evaluate(() => {
+    const r = document.querySelector("#standings tbody tr");
+    return r ? r.textContent.replace(/\s+/g, " ").trim() : "";
+  });
+  if (!/Blue Devils|Phantom Regiment/.test(top96) || !/97\.4/.test(top96))
+    bad(`1996: board is not topped by the real champions — first row reads "${top96.slice(0, 80)}"`);
+
   // back returns to the current season with its live modules
   await page.goHash("#/");
   await page.waitForTimeout(1200);
