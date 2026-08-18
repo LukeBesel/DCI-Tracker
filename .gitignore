@@ -1,4 +1,7 @@
 __pycache__/
 *.pyc
 .DS_Store
+# Node deps for the browser QA suite — installed locally / in CI with `npm ci`,
+# never committed
+node_modules/
 # generated locally by make_mock.py — real data is committed only by CI
