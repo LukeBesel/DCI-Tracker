@@ -264,3 +264,70 @@ test("mirrors the Python builder exactly for the live season", () => {
     assert.deepEqual(a.battles.map(x => ({ ...x })), b.battles.map(x => ({ ...x })), `${cls} battles`);
   }
 });
+
+// ---- the season ends at the championship ------------------------------------
+// The archive keeps every show of the calendar year; "rank by last score"
+// must not let another circuit's September show — or a post-finals hometown
+// exhibition — set the DCI board (1996's board once led with a 98.1 posted a
+// week after that corps placed 15th at DCI Semifinals).
+
+function championshipSeason() {
+  const wc = (corps, score) => ({ class: "World Class", results: [{ place: 1, corps, score }] });
+  return [
+    { date: "1996-07-10", name: "Mid-Season Show", classes: [
+      { class: "World Class", results: [{ place: 1, corps: "Blue Alpha", score: 90 }, { place: 2, corps: "Maple Leafs", score: 85 }] }] },
+    { date: "1996-08-17", name: "DCI World Championships", classes: [
+      { class: "World Class", results: [{ place: 1, corps: "Blue Alpha", score: 97.4 }] },
+    ] },
+    // a week later, a hometown show with friendly judging
+    { date: "1996-08-24", name: "Montreal Hometown Show", classes: [wc("Maple Leafs", 98.1)] },
+    // another circuit's September championship — All-Age keeps its own calendar
+    { date: "1996-09-07", name: "DCA Championships", classes: [
+      { class: "All-Age", results: [{ place: 1, corps: "Seniors", score: 96 }] }] },
+  ];
+}
+
+test("post-championship scores never set the World Class board", () => {
+  const rk = rankingsFromEvents(championshipSeason(), { season: 1996, minCorps: 0, minEvents: 0 });
+  const rows = rk.standings["World Class"].rows;
+  assert.equal(rows[0].corps, "Blue Alpha");
+  assert.equal(rows[0].score, 97.4);
+  const maple = rows.find(r => r.corps === "Maple Leafs");
+  assert.equal(maple.score, 85);            // their last DCI-season score
+  assert.equal(maple.date, "1996-07-10");   // NOT the 98.1 from Aug 24
+});
+
+test("All-Age keeps its own September calendar", () => {
+  const rk = rankingsFromEvents(championshipSeason(), { season: 1996, minCorps: 0, minEvents: 0 });
+  assert.equal(rk.standings["All-Age"].rows[0].score, 96);
+});
+
+test("a season with no championship on file is left untruncated", () => {
+  const evs = championshipSeason().filter(e => e.name !== "DCI World Championships");
+  const rk = rankingsFromEvents(evs, { season: 1996, minCorps: 0, minEvents: 0 });
+  assert.equal(rk.standings["World Class"].rows[0].score, 98.1); // nothing to anchor to
+});
+
+test("bare 'Open Class Finals' is DCI's name only from 2008", () => {
+  // pre-2008 it's the Dutch championship — it must NOT set the cutoff
+  const evs = [
+    { date: "1996-08-17", name: "DCI World Championships", classes: [
+      { class: "World Class", results: [{ place: 1, corps: "Blue Alpha", score: 97.4 }] }] },
+    { date: "1996-09-28", name: "Open Class Finals", classes: [
+      { class: "International", results: [{ place: 1, corps: "Windmills", score: 83 }] }] },
+    { date: "1996-08-20", name: "Post-Finals Show", classes: [
+      { class: "World Class", results: [{ place: 1, corps: "Blue Alpha", score: 99 }] }] },
+  ];
+  const rk = rankingsFromEvents(evs, { season: 1996, minCorps: 0, minEvents: 0 });
+  // cutoff anchored to Aug 17 (not dragged to Sept 28), so the Aug 20 99 is out
+  assert.equal(rk.standings["World Class"].rows[0].score, 97.4);
+  // …while a 2008 season using the bare names anchors correctly
+  const evs08 = [
+    { date: "2008-08-09", name: "World Class Finals", classes: [
+      { class: "World Class", results: [{ place: 1, corps: "Blue Alpha", score: 98.1 }] }] },
+    { date: "2008-08-12", name: "Post-Finals Show", classes: [
+      { class: "World Class", results: [{ place: 1, corps: "Blue Alpha", score: 99 }] }] },
+  ];
+  const rk08 = rankingsFromEvents(evs08, { season: 2008, minCorps: 0, minEvents: 0 });
+  assert.equal(rk08.standings["World Class"].rows[0].score, 98.1);
+});

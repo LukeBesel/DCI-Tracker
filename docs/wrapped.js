@@ -633,12 +633,12 @@
   var VIEW_CSS =
     ".cad-ov{position:fixed;inset:0;z-index:4200;display:flex;align-items:center;justify-content:center;background:rgba(6,8,14,.74);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);padding:20px;animation:cadFade .18s ease}" +
     "@keyframes cadFade{from{opacity:0}to{opacity:1}}" +
-    ".cad-modal{position:relative;width:min(430px,100%);display:flex;flex-direction:column;align-items:center;gap:13px}" +
+    ".cad-modal{position:relative;width:min(540px,100%);display:flex;flex-direction:column;align-items:center;gap:13px}" +
     ".cad-x{position:absolute;top:-4px;right:-4px;z-index:3;width:40px;height:40px;border-radius:999px;border:none;background:rgba(255,255,255,.15);color:#fff;font-size:25px;line-height:38px;cursor:pointer}" +
     ".cad-x:hover{background:rgba(255,255,255,.26)}" +
     ".cad-cap{color:#fff;font-weight:700;font-size:14px;opacity:.92;text-align:center;min-height:18px}" +
     ".cad-stage{position:relative;width:100%;display:flex;justify-content:center;touch-action:pan-y}" +
-    ".cad-img{width:100%;max-width:380px;max-height:70vh;object-fit:contain;border-radius:18px;box-shadow:0 20px 54px rgba(0,0,0,.55);animation:cadPop .22s ease}" +
+    ".cad-img{width:100%;max-width:500px;max-height:84vh;object-fit:contain;border-radius:18px;box-shadow:0 20px 54px rgba(0,0,0,.55);animation:cadPop .22s ease}" +
     "@keyframes cadPop{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}" +
     ".cad-dots{display:flex;gap:7px;min-height:7px}" +
     ".cad-dot{width:7px;height:7px;border-radius:999px;background:rgba(255,255,255,.32);cursor:pointer;transition:background .15s,width .15s}" +

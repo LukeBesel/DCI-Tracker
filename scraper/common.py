@@ -216,6 +216,8 @@ def norm_space(s: str) -> str:
 # so per-corps history threads correctly across 50 years of typography.
 CORPS_ALIASES = {
     # archive-cleanup merges (data-audit fleet, adversarially verified)
+    "blue stars lacrosse, wi": "Blue Stars",
+    "blue stars lacrosse wi": "Blue Stars",
     "minnesota brass, inc.": "Minnesota Brass",
     "minnesota brass inc.": "Minnesota Brass",
     "minnesota brass, sr.": "Minnesota Brass",
