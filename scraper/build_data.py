@@ -137,6 +137,17 @@ def load_events():
         ev = dict(ev)
         ev["date"] = ev.get("date") or iso_date(ev)
         lower_div = event_is_lower_class(ev.get("name"), ev.get("year"))
+        # …but the name only speaks for a blank division column. A show that
+        # ALREADY carries a distinct Open Class group had a populated column, so
+        # its World Class group is a genuine, explicitly-labelled group — not a
+        # fallback — and must be left alone (2013's "So Cal Classic Open Class
+        # Championships" fielded Pacific Crest and Mandarins in World Class
+        # alongside its Open Class group; the name must not sweep them under).
+        if lower_div and any(
+                not IE_CLASS.search(norm_space(c.get("class") or ""))
+                and canon_class(norm_space(c.get("class") or "")) == "Open Class"
+                for c in ev["classes"]):
+            lower_div = False
         classes = []
         for c in ev["classes"]:
             if IE_CLASS.search(norm_space(c.get("class") or "")):
