@@ -317,16 +317,25 @@ section("shows: expansion, filters panel, event page focus", async (browser, bas
   // can expand it — both directions remembered per device
   const nw = await page.$(".newswrap");
   if (nw) {
-    const inner = await page.$("#newsInner");
+    let inner = await page.$("#newsInner");
     if (!inner) bad("news: no inner content wrapper");
     else if (await inner.isVisible()) bad("news: tile did not start collapsed by default");
     else {
+      // the New badge must survive while the tile stays collapsed — "seen" is
+      // banked only when the reader opens it, so a reload without opening keeps
+      // the badge (regression guard for the flash-once-and-gone bug)
+      if (await page.$(".newshead .knew")) {
+        await page.goHash("#/events"); await page.waitForTimeout(900);
+        if (!(await page.$(".newshead .knew")))
+          bad("news: New badge cleared while collapsed, before the reader opened it");
+        inner = await page.$("#newsInner");
+      }
       await page.click(".newshead"); await page.waitForTimeout(250);
-      if (!await inner.isVisible()) bad("news: could not expand the tile");
+      if (inner && !await inner.isVisible()) bad("news: could not expand the tile");
       if (await page.evaluate(() => localStorage.getItem("cad-news-collapsed")) !== "0")
         bad("news: expanded state not remembered");
       await page.click(".newshead"); await page.waitForTimeout(250);
-      if (await inner.isVisible()) bad("news: could not collapse the tile again");
+      if (inner && await inner.isVisible()) bad("news: could not collapse the tile again");
       if (await page.evaluate(() => localStorage.getItem("cad-news-collapsed")) !== "1")
         bad("news: collapsed state not remembered");
     }

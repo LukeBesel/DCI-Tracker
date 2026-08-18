@@ -126,20 +126,30 @@ class FieldMembershipTests(unittest.TestCase):
         self.assertEqual(classes_of(events, "VFW National Championship"),
                          {"World Class": ["Santa Clara Vanguard", "Madison Scouts"]})
 
-    def test_a_retag_merges_into_the_group_the_show_already_had(self):
-        # the real 2013 So Cal Classic: most rows carried a division, two
-        # didn't, and the show ended up listed under both classes at once
+    def test_an_explicit_world_class_group_survives_an_open_class_name(self):
+        # the real 2013 So Cal Classic: the source separated a genuine World
+        # Class group (Pacific Crest, Mandarins) from the Open Class group. The
+        # event name says "Open Class" but the populated division column is the
+        # authority — the World Class group must NOT be swept into Open Class.
         events = load([
             {"year": 2013, "name": "So Cal Classic Open Class Championships",
              "date": "2013-07-14", "classes": [
                  {"class": "Open Class", "results": results("Vanguard Cadets", "Impulse")},
-                 {"class": "World Class", "results": results("Gold", "Watchmen")},
+                 {"class": "World Class", "results": results("Pacific Crest", "Mandarins")},
              ]},
+            # a plain World Class show for the two of them, so the season has a
+            # world roster that also protects them from the field-membership rule
+            {"year": 2013, "name": "DCI Southwestern", "date": "2013-07-20",
+             "classes": [{"class": "World Class",
+                          "results": results("Pacific Crest", "Mandarins", "Blue Devils")}]},
         ])
-        merged = classes_of(events, "So Cal Classic Open Class Championships")
-        self.assertEqual(list(merged), ["Open Class"])
-        self.assertEqual(sorted(merged["Open Class"]),
-                         ["Gold", "Impulse", "Vanguard Cadets", "Watchmen"])
+        cls = classes_of(events, "So Cal Classic Open Class Championships")
+        self.assertEqual(sorted(cls["World Class"]), ["Mandarins", "Pacific Crest"])
+        self.assertEqual(sorted(cls["Open Class"]), ["Impulse", "Vanguard Cadets"])
+        # …and their other World Class result is untouched
+        self.assertEqual(
+            set(classes_of(events, "DCI Southwestern")["World Class"]),
+            {"Pacific Crest", "Mandarins", "Blue Devils"})
 
     def test_an_unlabelled_field_with_no_evidence_keeps_its_class(self):
         """No open-roster corps in the field and no name to go on: the rule

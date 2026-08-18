@@ -2412,12 +2412,22 @@
     const head = mountEl.querySelector(".newshead");
     const inner = mountEl.querySelector("#newsInner");
     const wrap = mountEl.querySelector(".newswrap");
+    // Marking items "seen" advances cad-news-seen, which clears the New badge.
+    // Only do that once the content is actually on screen — a collapsed tile
+    // has shown the reader nothing, so its New pill must survive until they
+    // open it (otherwise it flashes once and is gone on the next navigation).
+    const maxDate = [...sorted, ...articles].reduce((m, x) => (x.date || "") > m ? x.date : m, "");
+    const markSeen = () => {
+      if (anyNew && maxDate) { try { localStorage.setItem("cad-news-seen", maxDate); } catch (e) {} }
+    };
     if (head) head.onclick = () => {
       const nowCollapsed = !inner.hidden;
       inner.hidden = nowCollapsed;
       wrap.classList.toggle("collapsed", nowCollapsed);
       head.setAttribute("aria-expanded", nowCollapsed ? "false" : "true");
       try { localStorage.setItem("cad-news-collapsed", nowCollapsed ? "1" : "0"); } catch (e) {}
+      // opening it counts as seeing it: bank the date and drop the header badge
+      if (!nowCollapsed) { markSeen(); const pill = head.querySelector(".knew"); if (pill) pill.remove(); }
     };
     const more = mountEl.querySelector(".newsmorebtn");
     if (more) more.onclick = () => {
@@ -2425,9 +2435,7 @@
       p.hidden = !p.hidden;
       more.textContent = p.hidden ? `All corps news (${sorted.length}) ▾` : "Fewer ▴";
     };
-    // everything currently listed is now "seen"
-    const maxDate = [...sorted, ...articles].reduce((m, x) => (x.date || "") > m ? x.date : m, "");
-    if (anyNew && maxDate) { try { localStorage.setItem("cad-news-seen", maxDate); } catch (e) {} }
+    if (!collapsed) markSeen(); // rendered already open → it's been seen
   }
 
   async function renderSeason(year, stale) {
@@ -2609,7 +2617,7 @@
         const plur = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
         html =
           (current.length ? current.map(rowHtml).join("")
-            : `<div class="card"><div class="empty">No upcoming shows — the season's a wrap.</div></div>`) +
+            : `<div class="evdone">No upcoming shows — the season's a wrap.</div>`) +
           (upcoming.length ? sectionBtn("up", `${plur(upcoming.length, "more upcoming event")}`, upOpen)
             + (upOpen ? upcoming.map(rowHtml).join("") : "") : "") +
           (recent.length ? `<div class="evsectlabel">Recent results</div>` + recent.map(rowHtml).join("") : "") +
