@@ -456,6 +456,22 @@ def load_events():
     for ev in out:
         if is_champ_event(ev.get("name"), ev.get("year")):
             continue
+        # judge the EVENT, not each group alone: a lone Open Class group at a
+        # DCI show (Arsenal touring "DCI Dallas" without making championships
+        # week) must not go International just because its own field misses
+        # the roster — the World Class corps on the same bill prove the show
+        # is DCI's. Only an event where NO group touches a roster is another
+        # circuit's.
+        dci_event = False
+        for c in ev["classes"]:
+            if c["class"] not in DCI_RANKED_CLASSES:
+                continue
+            roster = champ_roster.get((ev["year"], c["class"]))
+            if roster and len(roster) >= 10 and {r["corps"] for r in c["results"]} & roster:
+                dci_event = True
+                break
+        if dci_event:
+            continue
         changed = False
         for c in ev["classes"]:
             if c["class"] not in DCI_RANKED_CLASSES:

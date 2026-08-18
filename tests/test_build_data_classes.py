@@ -283,6 +283,31 @@ class ChampionshipAnchorTests(unittest.TestCase):
         finals = classes_of(events, "World Championships Finals")
         self.assertEqual(finals, {"World Class": ["The Cadets"]})
 
+
+
+    def test_dci_show_keeps_its_lone_open_class_group(self):
+        """Arsenal toured 2026 DCI shows but skipped championships week — a
+        solo Open Class group on a DCI bill stays DCI, because the World
+        Class corps beside it prove whose show it is."""
+        wc_champs = [f"WC Corps {i}" for i in range(10)]
+        oc_champs = [f"OC Corps {i}" for i in range(10)]
+        events = load([
+            {"year": 2026, "name": "DCI World Championship Prelims", "date": "2026-08-06",
+             "classes": [
+                 {"class": "World Class", "results": results(*wc_champs)},
+                 {"class": "Open Class", "results": results(*oc_champs)},
+             ]},
+            {"year": 2026, "name": "DCI Dallas", "date": "2026-07-19",
+             "classes": [
+                 {"class": "World Class", "results": results("WC Corps 1", "WC Corps 2")},
+                 {"class": "Open Class", "results": results("Arsenal", "Zephyrus")},
+             ]},
+        ])
+        self.assertEqual(classes_of(events, "DCI Dallas"),
+                         {"World Class": ["WC Corps 1", "WC Corps 2"],
+                          "Open Class": ["Arsenal", "Zephyrus"]})
+
+
     def test_odca_is_not_dca(self):
         # the Ontario circuit's name contains "DCA" only as a substring
         events = load([
