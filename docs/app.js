@@ -2363,7 +2363,7 @@
     const years = meta.seasons.map(sn => sn.year).sort((a, b) => b - a);
     let year = +params.y && years.includes(+params.y) ? +params.y : years[0];
     app.innerHTML = `
-      <h1 class="page">Shows ${yearPickerHtml(year)} <span class="kicker" id="evCount"></span></h1>
+      <h1 class="page">${yearPickerHtml(year)} Shows <span class="kicker" id="evCount"></span></h1>
       <div class="filters" style="justify-content:flex-end">
         <button class="tab" id="fToggle" aria-expanded="false">Filters ▾</button>
       </div>
@@ -2754,15 +2754,14 @@
      loud, obvious entry point — the same treatment the corps page gives its
      season card — at the TOP of every captions block. */
   const CAP_CTA_INNER =
-    `<span class="capcta-ic">${icoSvg(ICO_TROPHY, 23)}</span>` +
-    '<span class="capcta-t"><b>Caption Winners Card</b>' +
-    "<span>See who took GE · Visual · Music — and by how much</span></span>" +
+    `<span class="capcta-ic">${icoSvg(ICO_TROPHY, 19)}</span>` +
+    '<span class="capcta-t"><b>Caption Winners Card</b></span>' +
     '<span class="capcta-go">Open →</span>';
   const capCta = (attrs = "") => `<button type="button" class="capcta"${attrs}>${CAP_CTA_INNER}</button>`;
   // `info` may be a function so the button can read the currently-picked show
   function wireCapCta(btn, info) {
     if (!btn) return;
-    const note = msg => `<span class="capcta-ic">${icoSvg(ICO_TROPHY, 23)}</span><span class="capcta-t"><b>${esc(msg)}</b></span>`;
+    const note = msg => `<span class="capcta-ic">${icoSvg(ICO_TROPHY, 19)}</span><span class="capcta-t"><b>${esc(msg)}</b></span>`;
     btn.onclick = () => {
       if (!window.CadWrapped || !window.CadWrapped.captionsCard) return;
       const i = typeof info === "function" ? info() : info;
