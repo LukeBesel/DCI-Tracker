@@ -450,6 +450,50 @@
     });
     return who;
   }
+
+  // ---- judge-level captions (the official recap sheet) ----------------------
+  // recaps/<year>.json carries every judge's column; the card lists each
+  // judge's caption with its winner — the detail the sheet's winners strip
+  // used to spell out.
+  var REC = {};
+  function loadRecaps(year) {
+    return REC[year] || (REC[year] = fetch("data/recaps/" + year + ".json", { cache: "no-cache" })
+      .then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }));
+  }
+  var SUB_SHORT = [[/^General Effect/, "GE"], [/^Visual Proficiency/, "Visual Prof."],
+    [/^Visual\s*[-–]\s*/, "Visual "], [/^Music\s*[-–]\s*Analysis/, "Music Analysis"], [/^Music\s*[-–]\s*/, ""]];
+  function shortSub(n) {
+    var s = String(n || "");
+    SUB_SHORT.forEach(function (p) { s = s.replace(p[0], p[1]); });
+    return s;
+  }
+  function judgeCaptions(year, date, event, cls) {
+    return loadRecaps(year).then(function (rec) {
+      var ev = rec && (rec.events || []).find(function (e) { return e.d === date && e.e === event; });
+      var cd = ev && (ev.classes || []).find(function (c) { return c.c === cls; });
+      if (!cd) return null;
+      var out = [], i = 0;
+      (cd.groups || []).forEach(function (g) {
+        (g.subs || []).forEach(function (s) {
+          var totI = i + s.cols.length;
+          var hi = -Infinity, who = null, second = -Infinity, secondWho = null;
+          (cd.rows || []).forEach(function (r) {
+            var v = r[1][totI];
+            if (v == null) return;
+            if (v > hi) { second = hi; secondWho = who; hi = v; who = r[0]; }
+            else if (v > second) { second = v; secondWho = r[0]; }
+          });
+          if (who != null) out.push({ group: g.n, name: shortSub(s.n), judge: s.j && s.j !== "." ? s.j : null,
+            winner: who, score: hi,
+            margin: secondWho != null ? Math.round((hi - second) * 1000) / 1000 : null,
+            runnerUp: secondWho });
+          i = totI + 1;         // past this sub's Tot column
+        });
+        i += 1;                 // past the group's Tot column
+      });
+      return out.length ? out : null;
+    });
+  }
   function captionSummary(year, date, event, cls) {
     return loadCaptions(year).then(function (rows) {
       if (!rows || !rows.length) return null;
@@ -478,7 +522,7 @@
       if (!caps.length) return null;
       var champ = _winnerOf(here, CAP_IDX.tot);
       var podium = here.slice().sort(function (a, b) { return (b[CAP_IDX.tot] || 0) - (a[CAP_IDX.tot] || 0); })
-        .slice(0, 10).map(function (r) { return { corps: r[3], score: r[CAP_IDX.tot] }; });
+        .slice(0, 3).map(function (r) { return { corps: r[3], score: r[CAP_IDX.tot] }; });
       return { year: year, date: date, event: event, cls: useCls, prevDate: prevDate,
         caps: caps, champ: champ ? champ.corps : null, podium: podium, corpsN: here.length };
     });
@@ -545,16 +589,27 @@
       g.textAlign = "left";
     });
 
-    // sub-caption winners — two columns, each with score, the margin over the
-    // runner-up, and the hands-changed flag: the full "who won what" story
-    var sTop = tTop + tH + 96;
-    g.fillStyle = "#fff"; g.font = "800 34px " + FONT; g.fillText("Sub-caption winners", PAD, sTop - 30);
-    var colW = (W - PAD * 2) / 2, rowH = 118, perCol = Math.ceil(subs.length / 2);
-    subs.forEach(function (c, i) {
+    // caption winners, judge by judge — the official sheet's full story.
+    // Falls back to the flat sub-captions when no judge-level recap parsed.
+    var jRows = (info.judgeSubs || []).map(function (s) {
+      return { label: s.name + (s.judge ? "  ·  " + s.judge : ""), winner: s.winner,
+        score: s.score, margin: s.margin, runnerUp: s.runnerUp, took: null };
+    });
+    var rowsToDraw = jRows.length >= 4 ? jRows : subs.map(function (c) {
+      return { label: c.label, winner: c.winner, score: c.score,
+        margin: c.margin, runnerUp: c.runnerUp, took: c.took };
+    });
+    var sTop = tTop + tH + 104;
+    g.fillStyle = "#fff"; g.font = "800 34px " + FONT;
+    g.fillText(jRows.length >= 4 ? "Caption winners — every judge" : "Sub-caption winners", PAD, sTop - 32);
+    var colW = (W - PAD * 2) / 2;
+    var perCol = Math.ceil(rowsToDraw.length / 2);
+    var rowH = perCol > 5 ? 112 : 126;
+    rowsToDraw.forEach(function (c, i) {
       var col = i < perCol ? 0 : 1, idx = i < perCol ? i : i - perCol;
       var lx = PAD + col * colW, ly = sTop + idx * rowH, cc = pair(c.winner);
-      g.fillStyle = "rgba(255,255,255,.55)"; g.font = "800 23px " + FONT;
-      g.fillText(c.label.toUpperCase(), lx, ly);
+      g.fillStyle = "rgba(255,255,255,.55)"; g.font = "800 20px " + FONT;
+      g.fillText(ellip(g, c.label.toUpperCase(), colW - 44), lx, ly);
       g.fillStyle = cc.bar; roundRect(g, lx, ly + 16, 18, 18, 5); g.fill();
       g.fillStyle = "#fff"; g.font = "800 31px " + FONT;
       g.fillText(ellip(g, c.winner, colW - 170), lx + 32, ly + 34);
@@ -573,26 +628,20 @@
       }
     });
 
-    // overall standings — the full top of the field, not just a podium
-    var pod = info.podium || [];
+    // overall podium — context for the caption story, kept to the top three
+    var pod = (info.podium || []).slice(0, 3);
     if (pod.length) {
-      var pTop = sTop + perCol * rowH + 58;
+      var pTop = sTop + perCol * rowH + 64;
       g.fillStyle = "#fff"; g.font = "800 34px " + FONT;
       g.fillText("Overall", PAD, pTop);
-      if (info.corpsN > pod.length) {
-        g.fillStyle = "rgba(255,255,255,.45)"; g.font = "700 22px " + FONT;
-        g.fillText("top " + pod.length + " of " + info.corpsN, PAD + 152, pTop);
-      }
       var medal = ["#f0b429", "#c9ccd1", "#cd7f32"];
       pod.forEach(function (r, i) {
-        var py = pTop + 52 + i * 57, cc = pair(r.corps);
-        g.fillStyle = i < 3 ? medal[i] : "rgba(255,255,255,.45)";
-        g.font = (i < 3 ? "900 30px " : "800 26px ") + FONT; g.fillText(String(i + 1), PAD, py);
-        g.fillStyle = cc.bar; roundRect(g, PAD + 46, py - 19, 18, 18, 5); g.fill();
-        g.fillStyle = i < 3 ? "#fff" : "rgba(255,255,255,.82)";
-        g.font = (i < 3 ? "800 30px " : "700 27px ") + FONT;
-        g.fillText(ellip(g, r.corps, W - PAD * 2 - 260), PAD + 78, py);
-        g.fillStyle = accent; g.font = (i < 3 ? "900 31px " : "800 27px ") + FONT;
+        var py = pTop + 56 + i * 64, cc = pair(r.corps);
+        g.fillStyle = medal[i] || "#c9ccd1"; g.font = "900 31px " + FONT; g.fillText(String(i + 1), PAD, py);
+        g.fillStyle = cc.bar; roundRect(g, PAD + 46, py - 20, 19, 19, 5); g.fill();
+        g.fillStyle = "#fff"; g.font = "800 31px " + FONT;
+        g.fillText(ellip(g, r.corps, W - PAD * 2 - 260), PAD + 80, py);
+        g.fillStyle = accent; g.font = "900 32px " + FONT;
         g.textAlign = "right"; g.fillText(fmt3(r.score), W - PAD, py); g.textAlign = "left";
       });
     }
@@ -613,11 +662,14 @@
   function captionsCard(info) {
     return captionSummary(info.year, info.date, info.event, info.cls).then(function (sum) {
       if (!sum) return false;
-      var cv = drawCaptionsCard(sum);
-      openViewer([{ canvas: cv, filename: "cadence-captions-" + sum.date + ".png",
-        title: "Caption winners · " + sum.event,
-        caption: sum.event + " · " + sum.cls + " caption winners" }]);
-      return true;
+      return judgeCaptions(info.year, sum.date, sum.event, sum.cls).then(function (js) {
+        sum.judgeSubs = js || null;
+        var cv = drawCaptionsCard(sum);
+        openViewer([{ canvas: cv, filename: "cadence-captions-" + sum.date + ".png",
+          title: "Caption winners · " + sum.event,
+          caption: sum.event + " · " + sum.cls + " caption winners" }]);
+        return true;
+      });
     });
   }
 
@@ -681,7 +733,14 @@
     ".cad-btn.ghost{width:44px;height:44px;font-size:21px;border:1px solid rgba(255,255,255,.26);background:rgba(255,255,255,.08);color:#fff}" +
     ".cad-btn.ghost:hover{background:rgba(255,255,255,.16)}" +
     ".cad-btn.ghost[hidden]{display:none}" +
-    ".cad-btn.primary svg{width:16px;height:16px}";
+    ".cad-btn.primary svg{width:16px;height:16px}" +
+    // full-screen mode for phone-shaped (9:16) cards: no chrome, the card IS
+    // the screen — just a floating close and the share row beneath
+    ".cad-ov.cad-full{padding:0}" +
+    ".cad-full .cad-modal{width:100vw;gap:8px}" +
+    ".cad-full .cad-cap{display:none}" +
+    ".cad-full .cad-img{max-width:100vw;max-height:calc(100dvh - 88px);border-radius:0}" +
+    ".cad-full .cad-x{top:8px;right:8px;background:rgba(0,0,0,.45)}";
   function ensureStyle() {
     if (document.getElementById("cad-wrapped-css")) return;
     var s = document.createElement("style"); s.id = "cad-wrapped-css"; s.textContent = VIEW_CSS;
@@ -695,7 +754,10 @@
     if (!cards.length) return null;
     ensureStyle();
     var idx = 0, urls = [];
-    var ov = document.createElement("div"); ov.className = "cad-ov";
+    var ov = document.createElement("div");
+    // a phone-shaped card fills the phone — the modal chrome steps aside
+    var tall = cards.some(function (c) { return c.canvas && c.canvas.height / c.canvas.width > 1.3; });
+    ov.className = "cad-ov" + (tall ? " cad-full" : "");
     ov.innerHTML =
       '<div class="cad-modal" role="dialog" aria-modal="true" aria-label="Card">' +
       '<button class="cad-x" aria-label="Close">&times;</button>' +
