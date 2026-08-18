@@ -1205,11 +1205,56 @@
     });
   }
 
+  /* A season's own archive occasionally holds one stray event months away
+     from the tour — 2007's World Class block, for instance, includes an
+     indoor mini-corps contest in March, 91 days before the first real show.
+     Plotted literally, that lone point stretches the axis across an empty
+     quarter of the year and squashes the actual season into a corner.
+
+     So squeeze any stretch of EMPTY calendar wider than TREND_MAX_GAP down
+     to that width, mapping dates through a piecewise-linear scale. Every
+     point still appears, in date order, and tick labels stay truthful
+     because the chart formats them back through the inverse. Returns null
+     when nothing needs squeezing, which is the normal case. */
+  const TREND_MAX_GAP = 12;   // days of empty axis worth showing at most
+  function compressTrendGaps(series, maxGap) {
+    const gapMax = maxGap || TREND_MAX_GAP;
+    const xs = [...new Set(series.flatMap(s => s.points.map(p => p.x)))].sort((a, b) => a - b);
+    if (xs.length < 2) return null;
+    const segs = [];
+    let v = xs[0], squeezed = false;
+    for (let i = 1; i < xs.length; i++) {
+      const x0 = xs[i - 1], x1 = xs[i], gap = x1 - x0;
+      const w = gap > gapMax ? gapMax : gap;
+      if (gap > gapMax) squeezed = true;
+      segs.push({ x0, x1, v0: v, v1: v + w });
+      v += w;
+    }
+    if (!squeezed) return null;
+    const first = segs[0], last = segs[segs.length - 1];
+    const fwd = x => {
+      if (x <= first.x0) return first.v0 + (x - first.x0);
+      for (const s of segs) if (x <= s.x1) return s.v0 + (x - s.x0) / (s.x1 - s.x0) * (s.v1 - s.v0);
+      return last.v1 + (x - last.x1);
+    };
+    const back = t => {
+      if (t <= first.v0) return first.x0 + (t - first.v0);
+      for (const s of segs) if (t <= s.v1) return s.x0 + (t - s.v0) / (s.v1 - s.v0) * (s.x1 - s.x0);
+      return last.x1 + (t - last.v1);
+    };
+    return {
+      series: series.map(s => ({ ...s, points: s.points.map(p => ({ ...p, x: fwd(p.x) })) })),
+      fwd,
+      xFmt: t => dayLabel(back(t)),
+    };
+  }
+
   /* ============ RANKINGS (home) ============ */
   // archived boards are pure functions of a season file, and the class filter
   // re-renders the view — memoise so toggling a class on 1972 (211 events,
   // 322 corps) doesn't rebuild the whole season each time
   const archiveBoards = new Map();
+  const archiveClassPick = new Map();   // year -> classes picked, this visit only
   async function viewRankings(qs, stale) {
     setNav("rankings");
     const meta = await data("meta.json");
@@ -1261,10 +1306,17 @@
       return;
     }
     const defaults = classes.includes("World Class") ? ["World Class"] : [classes[0]];
+    // The current season's class choice is remembered on the device. An
+    // archived season's is remembered only for this visit: its class names
+    // ("Class B", "All-Girl") are meaningless to the live board and must
+    // never overwrite the saved preference — but the choice still has to
+    // survive the re-render the picker triggers, hence the in-memory map.
     let saved = [];
     try {
-      const parsed = JSON.parse(localStorage.getItem("dt-classes") || "[]");
-      if (Array.isArray(parsed)) saved = parsed.filter(c => classes.includes(c));
+      const src = isCurrent
+        ? JSON.parse(localStorage.getItem("dt-classes") || "[]")
+        : archiveClassPick.get(year);
+      if (Array.isArray(src)) saved = src.filter(c => classes.includes(c));
     } catch (e) {}
     let selected = sortClasses([...(saved.length ? new Set(saved) : new Set(defaults.length ? defaults : [classes[0]]))]);
     const savedExclusive = selected.find(c => !COMBINABLE_SCORE_CLASSES.has(c));
@@ -1312,10 +1364,9 @@
           [...selectedSet].filter(c => !COMBINABLE_SCORE_CLASSES.has(c)).forEach(c => selectedSet.delete(c));
         }
         if (!selectedSet.size) previousSelection.forEach(c => selectedSet.add(c));
-        // only the current season's choice is remembered — archived seasons
-        // have their own class names ("Class B", "All-Girl"), and saving one
-        // of those would wipe the live board's preference
-        if (isCurrent) localStorage.setItem("dt-classes", JSON.stringify(sortClasses([...selectedSet])));
+        const picked = sortClasses([...selectedSet]);
+        if (isCurrent) localStorage.setItem("dt-classes", JSON.stringify(picked));
+        else archiveClassPick.set(year, picked);   // this visit only
         viewRankings(qs, stale);   // re-render, staying on the season being viewed
       },
     });
@@ -1336,11 +1387,13 @@
       document.getElementById("trendSub").textContent =
         isDefaultPick() ? "score by date · top 12" : `score by date · ${rows.length} selected`;
       document.getElementById("trendReset").hidden = isDefaultPick();
+      const raw = rows.map(r => ({ name: r.corps, color: corpsColor(r.corps),
+        points: r.trend.map(t => ({ x: dayOfSeason(t[0]), y: t[1] })) }));
+      const squeeze = compressTrendGaps(raw);
       lineChart(el, {
         linearX: true,
-        series: rows.map(r => ({ name: r.corps, color: corpsColor(r.corps),
-          points: r.trend.map(t => ({ x: dayOfSeason(t[0]), y: t[1] })) })),
-        height: 340, xFmt: dayLabel, yFmt: v => v.toFixed(1),
+        series: squeeze ? squeeze.series : raw,
+        height: 340, xFmt: squeeze ? squeeze.xFmt : dayLabel, yFmt: v => v.toFixed(1),
       });
     }
     const msTrend = multiSelect(document.getElementById("trendCorpsSel"), {
@@ -1363,9 +1416,15 @@
       if (!window.CadWrapped || !window.CadWrapped.standingsCard) return;
       // share exactly what's charted right now (the selected corps, in rank order)
       const picked = block.rows.filter(r => trendPick.has(r.corps));
-      const rows = (picked.length ? picked : block.rows).map(r => ({
+      const src = picked.length ? picked : block.rows;
+      // same axis squeeze as the on-screen chart, so a shared card of a
+      // season with a stray off-tour date isn't crammed into a corner either
+      const squeeze = compressTrendGaps(src.map(r => ({
+        points: (r.trend || []).filter(t => t[1] != null).map(t => ({ x: dayOfSeason(t[0]), y: t[1] })) })));
+      const mapX = squeeze ? squeeze.fwd : (x => x);
+      const rows = src.map(r => ({
         corps: r.corps, color: corpsColor(r.corps), rank: r.rank, last: r.score,
-        trend: (r.trend || []).filter(t => t[1] != null).map(t => [dayOfSeason(t[0]), t[1]]),
+        trend: (r.trend || []).filter(t => t[1] != null).map(t => [mapX(dayOfSeason(t[0])), t[1]]),
       }));
       window.CadWrapped.standingsCard({ year: rk.season, cls: classLabel, rows });
     };
