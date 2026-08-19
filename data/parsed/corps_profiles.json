@@ -745,5 +745,29 @@
  "black-gold": {},
  "black-knights": {},
  "arsenal": {},
- "mercedes-marching-band": {}
+ "mercedes-marching-band": {},
+ "atlanta-corpsvets": {},
+ "centurions": {},
+ "ghost-riders": {},
+ "golden-eagles-alumni": {},
+ "hurricanes": {
+  "wiki": "https://en.wikipedia.org/wiki/Connecticut_Hurricanes_Drum_and_Bugle_Corps",
+  "title": "Connecticut Hurricanes Drum and Bugle Corps",
+  "summary": "The Connecticut Hurricanes Drum and Bugle Corps, also known by their nickname the Hurcs, is a 501 (c) (3) non-profit organization based in Seymour, Connecticut existing as an all-age competitive drum and bugle corps. The Hurricanes reigned as the oldest, continually active organization in Drum Corps Associates until its merger with Drum Corps International.",
+  "location": "Seymour, CT",
+  "division": "DCI All-Age",
+  "founded": "1932"
+ },
+ "mass-brass": {},
+ "minne-brass": {
+  "wiki": "https://en.wikipedia.org/wiki/Minnesota_Brass_Drum_and_Bugle_Corps",
+  "title": "Minnesota Brass Drum and Bugle Corps",
+  "summary": "The Minnesota Brass Drum and Bugle Corps is an all-age drum and bugle corps based in St. Paul, Minnesota, United States, that competed in Drum Corps Associates (DCA) and currently competes in Drum Corps International (DCI). A consistent DCA Finalist, Minnesota Brass was the 2011 DCA Open Class World Champion. Since the COVID-19 pandemic, Minnesota Brass has performed as a member of the SoundSport division under Drum Corps International. It also sponsors several indoor groups that currently compete in Winter Guard I",
+  "location": "St. Paul, Minnesota",
+  "division": "DCI All-Age Open (Formerly DCA Open Class)",
+  "founded": "1946",
+  "director": "Jake Esterberg"
+ },
+ "spirit-of-new-jersey": {},
+ "star-united": {}
 }
