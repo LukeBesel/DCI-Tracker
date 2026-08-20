@@ -69,9 +69,12 @@ def http_get(url: str, timeout: int = 30, headers: dict | None = None):
     relayable = bool(DCI_RELAY) and urlparse(url).netloc == "www.dci.org"
     if relayable and not _relay_mode[0]:
         status, text, rh = _raw_get(url, timeout=timeout, headers=headers)
-        if not _is_challenge(status, text, rh):
+        # any 403/429 — the Cloudflare managed challenge OR a plain nginx 403
+        # (the block has arrived as both) — fails over to the relay, which
+        # sits on a different network; direct is retried fresh each run
+        if status not in (403, 429) and not _is_challenge(status, text, rh):
             return status, text, rh
-        log(f"cloudflare challenge on {url} — switching to relay for this run")
+        log(f"dci.org direct gave HTTP {status} on {url} — switching to relay for this run")
         _relay_mode[0] = True
     if relayable:
         return _raw_get(DCI_RELAY + quote(url, safe=""), timeout=timeout + 10, headers=headers)
