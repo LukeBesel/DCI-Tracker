@@ -1747,11 +1747,26 @@
       ? savedCls
       : (classList.includes("World Class") ? "World Class" : "");
 
-    // a deep link picks the corps; otherwise open to a favorited corps if you
-    // have one (falling back to the picker prompt when you don't)
+    // a deep link picks the corps; otherwise a favorited one; otherwise
+    // whoever currently leads the board — the page should always land on a
+    // real corps rather than an empty "pick one" prompt
     const byName = new Map(idx.map(c => [c.name, c]));
     const favSlug = (() => { for (const n of FAVS.list()) { const c = byName.get(n); if (c) return c.slug; } return null; })();
-    const current0 = slug && bySlug.has(slug) ? slug : favSlug;
+    let topSlug = null;
+    if (!(slug && bySlug.has(slug)) && !favSlug) {
+      try {
+        const rk = await data("rankings.json");
+        if (stale()) return;
+        const st = rk.standings || {};
+        const order = rk.listClasses || Object.keys(st);
+        const cl = order.includes("World Class") ? "World Class" : order[0];
+        for (const r of ((st[cl] || {}).rows || [])) {
+          const c = byName.get(r.corps);
+          if (c) { topSlug = c.slug; break; }
+        }
+      } catch (e) { /* no live board — the prompt below still catches it */ }
+    }
+    const current0 = (slug && bySlug.has(slug) ? slug : favSlug) || topSlug;
     let current = current0;
     // the deep-linked corps drives the type filter, not vice versa
     if (current) {
