@@ -274,6 +274,40 @@ section("season picker: browse the archive from the Scoreboard heading", async (
   await ctx.close();
 });
 
+section("corps tab always opens on a corps", async (browser, base) => {
+  // no favorites: it should fall back to whoever currently leads the board
+  const { ctx, page } = await ctxPage(browser, base, { favs: [] });
+  await page.goHash("#/corps");
+  await page.waitForTimeout(1400);
+  const hash = await page.evaluate(() => location.hash);
+  if (!/^#\/corps\/[a-z0-9-]+$/.test(hash)) bad(`#/corps did not auto-open a corps (hash: ${hash})`);
+  if (!await page.$("#corpsDetail .card")) bad("#/corps showed no corps detail with no favorites");
+  // compare slugs, not heading text: the <h1> is the static word "Corps"
+  const leaderSlug = await page.evaluate(async () => {
+    const [rk, idx] = await Promise.all([
+      fetch("data/rankings.json").then(r => r.json()),
+      fetch("data/corps_index.json").then(r => r.json())]);
+    const st = rk.standings || {}, order = rk.listClasses || Object.keys(st);
+    const cl = order.includes("World Class") ? "World Class" : order[0];
+    const top = ((st[cl] || {}).rows || [])[0];
+    const hit = idx.find(c => c.name === (top && top.corps));
+    return hit ? hit.slug : null;
+  });
+  if (leaderSlug && hash !== `#/corps/${leaderSlug}`)
+    bad(`#/corps opened on ${hash} instead of the current leader (#/corps/${leaderSlug})`);
+  if (page._errs.length) bad(page._errs[0]);
+  await ctx.close();
+
+  // with a favorite, that corps wins over the leader
+  const b = await ctxPage(browser, base, { favs: ["Blue Devils"] });
+  await b.page.goHash("#/corps");
+  await b.page.waitForTimeout(1400);
+  if (!/blue-devils/.test(await b.page.evaluate(() => location.hash)))
+    bad("#/corps ignored the stored favorite");
+  if (b.page._errs.length) bad(b.page._errs[0]);
+  await b.ctx.close();
+});
+
 section("favorites drive the app (strip, standings, settings)", async (browser, base) => {
   const { ctx, page } = await ctxPage(browser, base, { favs: ["Bluecoats"] });
   await page.goHash("#/");
