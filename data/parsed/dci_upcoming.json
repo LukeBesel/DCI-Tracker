@@ -583,56 +583,6 @@
   "_seen": "2026-10-26"
  },
  {
-  "url": "https://www.dci.org/events/2026-midcal-showcase/",
-  "name": "MidCal Showcase",
-  "location": "Camarillo, CA",
-  "date_display": "July 2, 2026",
-  "date": "2026-07-02",
-  "lineup": [
-   "Golden Empire",
-   "The Academy",
-   "Pacific Crest",
-   "Bluecoats",
-   "Blue Devils",
-   "Event Concludes"
-  ],
-  "schedule": [
-   [
-    "7:00 PM",
-    "Gates Open"
-   ],
-   [
-    "7:50 PM",
-    "Welcome & National Anthem"
-   ],
-   [
-    "8:00 PM",
-    "Golden Empire"
-   ],
-   [
-    "8:25 PM",
-    "The Academy"
-   ],
-   [
-    "8:50 PM",
-    "Pacific Crest"
-   ],
-   [
-    "9:15 PM",
-    "Bluecoats"
-   ],
-   [
-    "9:40 PM",
-    "Blue Devils"
-   ],
-   [
-    "10:00 PM",
-    "Event Concludes"
-   ]
-  ],
-  "_seen": "2026-10-26"
- },
- {
   "url": "https://www.dci.org/events/2026-preview-of-champions/",
   "name": "Preview of Champions",
   "location": "Nashua, NH",
@@ -808,89 +758,6 @@
   "_seen": "2026-10-26"
  },
  {
-  "url": "https://www.dci.org/events/2026-show-of-shows/",
-  "name": "Show of Shows",
-  "location": "Rockford, IL",
-  "date_display": "July 3, 2026",
-  "date": "2026-07-03",
-  "lineup": [
-   "Conquest Drum & Bugle Corps",
-   "Colt Cadets",
-   "Genesis",
-   "Madison Scouts",
-   "Blue Knights",
-   "Colts",
-   "Troopers",
-   "The Cavaliers",
-   "Blue Stars",
-   "Phantom Regiment"
-  ],
-  "schedule": [
-   [
-    "5:00 PM",
-    "Gates Open"
-   ],
-   [
-    "6:30 PM",
-    "Welcome & National Anthem"
-   ],
-   [
-    "6:40 PM",
-    "Conquest Drum & Bugle Corps"
-   ],
-   [
-    "6:52 PM",
-    "Colt Cadets"
-   ],
-   [
-    "7:10 PM",
-    "Genesis"
-   ],
-   [
-    "7:28 PM",
-    "Madison Scouts"
-   ],
-   [
-    "7:46 PM",
-    "Blue Knights"
-   ],
-   [
-    "8:04 PM",
-    "Colts"
-   ],
-   [
-    "8:22 PM",
-    "Intermission"
-   ],
-   [
-    "8:52 PM",
-    "Troopers"
-   ],
-   [
-    "9:10 PM",
-    "The Cavaliers"
-   ],
-   [
-    "9:28 PM",
-    "Blue Stars"
-   ],
-   [
-    "9:46 PM",
-    "Phantom Regiment"
-   ],
-   [
-    "10:04 PM",
-    "Encore - Phantom Regiment - Rockford, IL"
-   ],
-   [
-    "10:11 PM",
-    "Scores Announced"
-   ]
-  ],
-  "bag_policy": "Swanson Stadium does not have a Clear Bag Policy. All bags are subject to search by event staff and security. For security and efficiency, all attendees are encouraged to keep all items to a minimum.",
-  "_seen": "2026-10-26"
- },
- {
   "url": "https://www.dci.org/events/2026-dci-west/",
   "name": "DCI West",
   "location": "Stanford, CA",
@@ -991,6 +858,89 @@
    ]
   ],
   "bag_policy": "Stanford Stadium will have a clear bag policy in effect for this event, restricting the size and style of bags that will be permitted within the venue. See more details about the clear bag policy on the Stanford website . For more information, visit this page .",
+  "_seen": "2026-10-26"
+ },
+ {
+  "url": "https://www.dci.org/events/2026-river-city-rhapsody/",
+  "name": "River City Rhapsody",
+  "location": "La Crosse, WI",
+  "date_display": "July 5, 2026",
+  "date": "2026-07-05",
+  "lineup": [
+   "Blue Saints",
+   "Sound of Sun Prairie",
+   "Govenaires",
+   "River City Rhythm",
+   "Madison Scouts",
+   "Colts",
+   "Troopers",
+   "The Cavaliers",
+   "Phantom Regiment",
+   "Blue Stars"
+  ],
+  "schedule": [
+   [
+    "5:30 PM",
+    "Gates Open"
+   ],
+   [
+    "7:00 PM",
+    "Welcome & National Anthem"
+   ],
+   [
+    "7:10 PM",
+    "Blue Saints"
+   ],
+   [
+    "7:20 PM",
+    "Sound of Sun Prairie"
+   ],
+   [
+    "7:32 PM",
+    "Govenaires"
+   ],
+   [
+    "7:49 PM",
+    "River City Rhythm"
+   ],
+   [
+    "8:06 PM",
+    "Madison Scouts"
+   ],
+   [
+    "8:23 PM",
+    "Colts"
+   ],
+   [
+    "8:40 PM",
+    "Intermission"
+   ],
+   [
+    "9:00 PM",
+    "Troopers"
+   ],
+   [
+    "9:17 PM",
+    "The Cavaliers"
+   ],
+   [
+    "9:34 PM",
+    "Phantom Regiment"
+   ],
+   [
+    "9:51 PM",
+    "Blue Stars"
+   ],
+   [
+    "10:08 PM",
+    "Encore - Blue Stars - La Crosse, WI"
+   ],
+   [
+    "10:16 PM",
+    "Scores Announced"
+   ]
+  ],
+  "bag_policy": "No bag policy is enforced for this event. For security and efficiency, all attendees are encouraged to keep all items to a minimum.",
   "_seen": "2026-10-26"
  },
  {
