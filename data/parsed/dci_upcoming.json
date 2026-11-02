@@ -127,6 +127,81 @@
   "_seen": "2026-11-02"
  },
  {
+  "url": "https://www.dci.org/events/2026-bluecoats-opening-night-community-celebration/",
+  "name": "Bluecoats Opening Night Community Celebration",
+  "location": "Alliance, OH",
+  "date_display": "June 27, 2026",
+  "date": "2026-06-27",
+  "lineup": [
+   "Columbus Saints",
+   "Rogues Hollow Regiment",
+   "Cincinnati Tradition",
+   "Eclipse",
+   "EN-CORPS by EN-RICH-MENT",
+   "Bluecoats Alumni Legacy Arc",
+   "Rhythm IN BLUE",
+   "The Bluecoats",
+   "The Blue Way Summer Arts Camp",
+   "Event Concludes"
+  ],
+  "schedule": [
+   [
+    "5:15 PM",
+    "Gates Open"
+   ],
+   [
+    "6:00 PM",
+    "Welcome & National Anthem"
+   ],
+   [
+    "6:15 PM",
+    "Columbus Saints"
+   ],
+   [
+    "6:25 PM",
+    "Rogues Hollow Regiment"
+   ],
+   [
+    "6:40 PM",
+    "Cincinnati Tradition"
+   ],
+   [
+    "6:55 PM",
+    "Eclipse"
+   ],
+   [
+    "7:10 PM",
+    "EN-CORPS by EN-RICH-MENT"
+   ],
+   [
+    "7:25 PM",
+    "Bluecoats Alumni Legacy Arc"
+   ],
+   [
+    "7:40 PM",
+    "Rhythm IN BLUE"
+   ],
+   [
+    "7:55 PM",
+    "The Bluecoats"
+   ],
+   [
+    "8:18 PM",
+    "The Blue Way Summer Arts Camp"
+   ],
+   [
+    "8:28 PM",
+    "Encore - Bluecoats - Canton, OH"
+   ],
+   [
+    "8:53 PM",
+    "Event Concludes"
+   ]
+  ],
+  "bag_policy": "There is no bag policy in effect for this event",
+  "_seen": "2026-11-02"
+ },
+ {
   "url": "https://www.dci.org/events/2026-drums-along-the-rockies/",
   "name": "Drums Along the Rockies",
   "location": "Fort Collins, CO",
@@ -2751,80 +2826,6 @@
    ]
   ],
   "bag_policy": "The Alamodome enforces a clear bag policy. More detailed information on the Alamodome bag policy can be found here . All bags are subject to search by event staff and security. For security and efficiency, all attendees are encouraged to keep all items to a minimum.",
-  "_seen": "2026-11-02"
- },
- {
-  "url": "https://www.dci.org/events/2026-the-buccaneer-classic/",
-  "name": "The Buccaneer Classic",
-  "location": "Landisville, PA",
-  "date_display": "July 18, 2026",
-  "date": "2026-07-18",
-  "lineup": [
-   "Buccaneer Banner Brass",
-   "Buccaneers Alumni",
-   "Les Stentors",
-   "Raiders",
-   "Sunrisers",
-   "White Sabers",
-   "Bushwackers",
-   "Reading Buccaneers",
-   "Hawthorne Caballeros Alumni"
-  ],
-  "schedule": [
-   [
-    "5:00 PM",
-    "Gates Open"
-   ],
-   [
-    "6:30 PM",
-    "Welcome & National Anthem"
-   ],
-   [
-    "6:40 PM",
-    "Buccaneer Banner Brass"
-   ],
-   [
-    "6:52 PM",
-    "Buccaneers Alumni"
-   ],
-   [
-    "7:09 PM",
-    "Les Stentors"
-   ],
-   [
-    "7:26 PM",
-    "Raiders"
-   ],
-   [
-    "7:43 PM",
-    "Intermission"
-   ],
-   [
-    "8:00 PM",
-    "Sunrisers"
-   ],
-   [
-    "8:17 PM",
-    "White Sabers"
-   ],
-   [
-    "8:34 PM",
-    "Bushwackers"
-   ],
-   [
-    "8:51 PM",
-    "Reading Buccaneers"
-   ],
-   [
-    "9:08 PM",
-    "Hawthorne Caballeros Alumni"
-   ],
-   [
-    "9:33 PM",
-    "Scores Announced"
-   ]
-  ],
-  "bag_policy": "There is no bag policy for this event.",
   "_seen": "2026-11-02"
  },
  {
