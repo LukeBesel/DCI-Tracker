@@ -202,6 +202,82 @@
   "_seen": "2026-11-02"
  },
  {
+  "url": "https://www.dci.org/events/2026-drums-along-the-rockies/",
+  "name": "Drums Along the Rockies",
+  "location": "Fort Collins, CO",
+  "date_display": "June 27, 2026",
+  "date": "2026-06-27",
+  "lineup": [
+   "Rocky Mountain Brassworks",
+   "BKXperience",
+   "Troopers Legacy Corps",
+   "Genesis",
+   "Troopers",
+   "Phantom Regiment",
+   "Blue Devils",
+   "Blue Knights"
+  ],
+  "schedule": [
+   [
+    "6:00 PM",
+    "Gates Open"
+   ],
+   [
+    "7:15 PM",
+    "Rocky Mountain Brassworks"
+   ],
+   [
+    "7:25 PM",
+    "BKXperience"
+   ],
+   [
+    "7:35 PM",
+    "Welcome & National Anthem"
+   ],
+   [
+    "7:40 PM",
+    "Blue Knights Awards Presentation"
+   ],
+   [
+    "7:45 PM",
+    "Troopers Legacy Corps"
+   ],
+   [
+    "8:03 PM",
+    "Genesis"
+   ],
+   [
+    "8:21 PM",
+    "Troopers"
+   ],
+   [
+    "8:39 PM",
+    "Intermission"
+   ],
+   [
+    "9:00 PM",
+    "Phantom Regiment"
+   ],
+   [
+    "9:18 PM",
+    "Blue Devils"
+   ],
+   [
+    "9:36 PM",
+    "Blue Knights"
+   ],
+   [
+    "9:54 PM",
+    "Encore - Blue Knights - Denver, CO"
+   ],
+   [
+    "10:01 PM",
+    "Scores Announced"
+   ]
+  ],
+  "_seen": "2026-11-02"
+ },
+ {
   "url": "https://www.dci.org/events/2026-corps-encore/",
   "name": "Corps Encore",
   "location": "Ogden, UT",
@@ -659,79 +735,6 @@
   "_seen": "2026-11-02"
  },
  {
-  "url": "https://www.dci.org/events/2026-dci-capital-classic/",
-  "name": "DCI Capital Classic",
-  "location": "Sacramento, CA",
-  "date_display": "July 3, 2026",
-  "date": "2026-07-03",
-  "lineup": [
-   "Sparta Ignite",
-   "Golden Empire",
-   "Impulse",
-   "Gold",
-   "Mandarins Alumni Corps",
-   "Seattle Cascades",
-   "The Academy",
-   "Santa Clara Vanguard",
-   "Bluecoats"
-  ],
-  "schedule": [
-   [
-    "4:00 PM",
-    "Gates Open"
-   ],
-   [
-    "6:30 PM",
-    "Welcome & National Anthem"
-   ],
-   [
-    "6:40 PM",
-    "Sparta Ignite"
-   ],
-   [
-    "6:52 PM",
-    "Golden Empire"
-   ],
-   [
-    "7:07 PM",
-    "Impulse"
-   ],
-   [
-    "7:22 PM",
-    "Gold"
-   ],
-   [
-    "7:37 PM",
-    "Mandarins Alumni Corps"
-   ],
-   [
-    "7:52 PM",
-    "Intermission"
-   ],
-   [
-    "8:22 PM",
-    "Seattle Cascades"
-   ],
-   [
-    "8:40 PM",
-    "The Academy"
-   ],
-   [
-    "8:58 PM",
-    "Santa Clara Vanguard"
-   ],
-   [
-    "9:16 PM",
-    "Bluecoats"
-   ],
-   [
-    "9:41 PM",
-    "Scores Announced"
-   ]
-  ],
-  "_seen": "2026-11-02"
- },
- {
   "url": "https://www.dci.org/events/2026-show-of-shows/",
   "name": "Show of Shows",
   "location": "Rockford, IL",
@@ -1116,6 +1119,83 @@
    ]
   ],
   "bag_policy": "In an effort to enhance security at campus events, to reduce staff touchpoints, and to expedite entry times for guests Minnesota State University, Mankato has implemented a clear bag policy .",
+  "_seen": "2026-11-02"
+ },
+ {
+  "url": "https://www.dci.org/events/2026-celebration-in-brass/",
+  "name": "Celebration in Brass",
+  "location": "Des Moines, IA",
+  "date_display": "July 8, 2026",
+  "date": "2026-07-08",
+  "lineup": [
+   "Colt Cadets",
+   "River City Rhythm",
+   "Genesis",
+   "Crossmen",
+   "Madison Scouts",
+   "Troopers",
+   "Blue Stars",
+   "The Cavaliers",
+   "Colts"
+  ],
+  "schedule": [
+   [
+    "5:30 PM",
+    "Gates Open"
+   ],
+   [
+    "7:00 PM",
+    "Welcome & National Anthem"
+   ],
+   [
+    "7:10 PM",
+    "Colt Cadets"
+   ],
+   [
+    "7:27 PM",
+    "River City Rhythm"
+   ],
+   [
+    "7:44 PM",
+    "Genesis"
+   ],
+   [
+    "8:01 PM",
+    "Crossmen"
+   ],
+   [
+    "8:18 PM",
+    "Intermission"
+   ],
+   [
+    "8:38 PM",
+    "Madison Scouts"
+   ],
+   [
+    "8:55 PM",
+    "Troopers"
+   ],
+   [
+    "9:12 PM",
+    "Blue Stars"
+   ],
+   [
+    "9:29 PM",
+    "The Cavaliers"
+   ],
+   [
+    "9:46 PM",
+    "Colts"
+   ],
+   [
+    "10:03 PM",
+    "Encore - Colts - Dubuque, IA"
+   ],
+   [
+    "10:11 PM",
+    "Scores Announced"
+   ]
+  ],
   "_seen": "2026-11-02"
  },
  {
@@ -2054,75 +2134,6 @@
    ]
   ],
   "bag_policy": "There is no bag policy for this event. However, all bags are subject to search by event staff and/or security. To ensure safety and efficiency, all attendees are encouraged to keep personal items to a minimum.",
-  "_seen": "2026-11-02"
- },
- {
-  "url": "https://www.dci.org/events/2026-dci-broken-arrow/",
-  "name": "DCI Broken Arrow",
-  "location": "Broken Arrow, OK",
-  "date_display": "July 14, 2026",
-  "date": "2026-07-14",
-  "lineup": [
-   "Zephyrus",
-   "Crossmen",
-   "Spirit of Atlanta",
-   "Colts",
-   "The Cavaliers",
-   "Phantom Regiment",
-   "Carolina Crown",
-   "Boston Crusaders"
-  ],
-  "schedule": [
-   [
-    "6:30 PM",
-    "Gates Open"
-   ],
-   [
-    "8:00 PM",
-    "Welcome & National Anthem"
-   ],
-   [
-    "8:10 PM",
-    "Zephyrus"
-   ],
-   [
-    "8:27 PM",
-    "Crossmen"
-   ],
-   [
-    "8:44 PM",
-    "Spirit of Atlanta"
-   ],
-   [
-    "9:01 PM",
-    "Colts"
-   ],
-   [
-    "9:18 PM",
-    "The Cavaliers"
-   ],
-   [
-    "9:35 PM",
-    "Intermission"
-   ],
-   [
-    "9:52 PM",
-    "Phantom Regiment"
-   ],
-   [
-    "10:09 PM",
-    "Carolina Crown"
-   ],
-   [
-    "10:26 PM",
-    "Boston Crusaders"
-   ],
-   [
-    "10:51 PM",
-    "Scores Announced"
-   ]
-  ],
-  "bag_policy": "Broken Arrow Memorial Stadium has a clear bag policy, more information can be found here . All bags are subject to search by event staff and security. For security and efficiency, all attendees are encouraged to keep all items to a minimum.",
   "_seen": "2026-11-02"
  },
  {
