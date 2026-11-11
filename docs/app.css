@@ -411,8 +411,14 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14.5px; }
 .t tr:last-child td { border-bottom: 0; }
 .t tr.rowlink { cursor: pointer; }
 .t tr.hid { display: none; }
-.expandwrap { text-align: center; padding: 10px 0 2px; position: sticky; bottom: 10px; z-index: 5; }
-.expandwrap .tab { box-shadow: 0 4px 16px rgba(22,35,61,0.22); }
+/* Sits at the end of its table, never over it. This used to be
+   position:sticky;bottom:10px so the control stayed reachable inside a long
+   table — but sticky pins it to the VIEWPORT, so on any table taller than the
+   screen the pill floated on top of the rows and hid real data (Records'
+   Championship Titles, the Database rows, the Scoreboard's #1 score). A
+   control that covers the thing it describes is worse than one you scroll to. */
+.expandwrap { text-align: center; padding: 10px 0 2px; }
+.expandwrap .tab { box-shadow: 0 1px 4px rgba(22,35,61,0.12); }
 .t tr.rowlink:hover td { background: var(--surface-2); }
 .t .num { text-align: right; font-variant-numeric: tabular-nums; }
 .t .rank { color: var(--muted); width: 34px; font-variant-numeric: tabular-nums; }
@@ -846,8 +852,15 @@ a.tile:hover { text-decoration: none; }
   #nav a.active { color: var(--on-accent, var(--navy)); background: var(--gold); }
   main { padding: 14px 12px 110px; }
   .foot { padding-bottom: calc(104px + env(safe-area-inset-bottom)); }
-  .expandwrap { bottom: calc(92px + env(safe-area-inset-bottom)); }
   h1.page { font-size: 21px; }
+  /* Database: .tscroll.dense sets white-space:nowrap on every cell, so a long
+     event name ("DCI All-Age World Championship Finals") forced the table wider
+     than the screen and pushed CORPS and SCORE — the two columns anyone opens
+     this view for — into the off-screen scroll. Let the event name be the thing
+     that gives way instead; it's the least informative column when ten rows
+     share the same show. */
+  .tscroll.dense .ev-cell { overflow: hidden; text-overflow: ellipsis; max-width: calc(18vw / var(--fs, 1)); }
+  .tscroll.dense .t td, .tscroll.dense .t th { padding: 6px 3px; }
   .evwhen { font-size: 11px; }
   .evmain b { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   /* card titles stay on one line */

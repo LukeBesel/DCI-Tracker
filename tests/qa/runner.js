@@ -645,6 +645,71 @@ section("2027 rollover: a new season appears with zero code changes", async (bro
   await ctx.close();
 });
 
+// The "show all / show N more" control used to be position:sticky;bottom, which
+// pins it to the VIEWPORT — so on any table taller than the screen it floated
+// on top of the rows and hid real data. The a11y section passed throughout
+// (the control was named, sized and contrasted fine), so nothing caught it.
+// This asserts the thing that actually matters: no control may cover a cell.
+section("no control covers table data", async (browser, base) => {
+  for (const viewport of [PHONE, DESKTOP]) {
+    const { ctx, page } = await ctxPage(browser, base, { viewport });
+    for (const hash of ["#/records", "#/database", "#/"]) {
+      await page.goHash(hash);
+      await page.waitForTimeout(1200);
+      const covered = await page.evaluate(() => {
+        const hits = [];
+        document.querySelectorAll(".expandwrap .tab, .expandwrap button").forEach(btn => {
+          const r = btn.getBoundingClientRect();
+          if (r.width < 4 || r.height < 4) return;
+          for (const dx of [0.2, 0.5, 0.8]) {
+            const x = r.left + r.width * dx, y = r.top + r.height / 2;
+            if (x < 0 || y < 0 || x > innerWidth || y > innerHeight) continue;
+            const stack = document.elementsFromPoint(x, y);
+            const i = stack.indexOf(btn);
+            if (i < 0) continue;
+            const cell = stack.slice(i + 1).find(e => e.tagName === "TD" || e.tagName === "TH");
+            if (cell && (cell.innerText || "").trim())
+              hits.push(`"${btn.innerText.trim().slice(0, 24)}" covers "${cell.innerText.trim().slice(0, 24)}"`);
+          }
+        });
+        return [...new Set(hits)];
+      });
+      if (covered.length)
+        bad(`${hash} @${viewport.width}px: ${covered.join("; ")}`);
+    }
+    if (page._errs.length) bad(page._errs[0]);
+    await ctx.close();
+  }
+});
+
+// The Database exists to answer "what did this corps score". On a phone the
+// dense table's white-space:nowrap once let a long event name push CORPS and
+// SCORE into the off-screen scroll, so the view showed ten identical event
+// names and none of the answer. Assert the answer columns stay on screen.
+section("database keeps corps and score on screen (phone)", async (browser, base) => {
+  const { ctx, page } = await ctxPage(browser, base, { viewport: PHONE });
+  await page.goHash("#/database");
+  await page.waitForSelector("#dbtable tbody tr", { timeout: 15000 }).catch(() => {});
+  await page.waitForTimeout(800);
+  const m = await page.evaluate(() => {
+    const sc = document.querySelector("#dbtable .tscroll");
+    const row = document.querySelector("#dbtable tbody tr");
+    if (!sc || !row) return null;
+    const shown = [...row.children].filter(td => getComputedStyle(td).display !== "none");
+    return {
+      overflow: sc.scrollWidth - sc.clientWidth,
+      last: shown.length ? shown[shown.length - 1].innerText.replace(/\s+/g, " ").trim() : "",
+      cols: shown.length,
+    };
+  });
+  if (!m) { bad("database table did not render"); await ctx.close(); return; }
+  if (m.overflow > 2) bad(`table overflows its scroller by ${m.overflow}px — a column is cut off`);
+  if (!/^\d+\.\d/.test(m.last)) bad(`last visible column is "${m.last}", expected the score`);
+  if (m.cols < 4) bad(`only ${m.cols} columns visible on a phone`);
+  if (page._errs.length) bad(page._errs[0]);
+  await ctx.close();
+});
+
 // ---------------------------------------------------------------------------
 (async () => {
   const { srv, port } = await start();

@@ -665,7 +665,21 @@
     app.innerHTML = h`<div class="crumbs"><a href="#/events">Shows</a> / My Calls</div>
       <h1 class="page">My Calls</h1>`;
     if (!keys.length) {
-      app.innerHTML += `<div class="card"><div class="empty">You haven't called a show yet — open an upcoming show in <a href="#/events">Shows</a> and tap “Call the finish.”</div></div>`;
+      // Off-season this used to read "open an upcoming show and tap Call the
+      // finish" — an instruction nobody can follow for the ~8 months when
+      // upcoming.json is empty. Check first, and when there's nothing to call,
+      // say so and point at something that actually exists.
+      let hasUpcoming = false;
+      try {
+        const up = await data("upcoming.json");
+        if (stale()) return;
+        hasUpcoming = Array.isArray(up) ? up.length > 0 : !!(up && (up.events || []).length);
+      } catch (e) { /* treat an unreachable list as "nothing to call" */ }
+      app.innerHTML += hasUpcoming
+        ? `<div class="card"><div class="empty">You haven't called a show yet — open an upcoming show in <a href="#/events">Shows</a> and tap “Call the finish.”</div></div>`
+        : `<div class="card"><div class="empty">No shows to call right now — the season's a wrap.<br>
+             When the next one starts, open a show in <a href="#/events">Shows</a> and tap “Call the finish” to predict the order.<br>
+             <span class="kicker">In the meantime: <a href="#/">this season's final standings</a> · <a href="#/records">the all-time book</a></span></div></div>`;
       return;
     }
     // pull the seasons we need to grade against, plus upcoming for pending shows
@@ -1460,7 +1474,7 @@
 
     const jump = block.movers && block.movers[0];
     document.getElementById("moveCard").innerHTML = jump ? h`
-      <h2>Biggest Move <span class="sub">${seasonOver ? "last show vs previous" : "latest show vs previous"}</span></h2>
+      <h2>Biggest Move <span class="sub">${seasonOver ? `final two shows of ${rk.season}` : "latest show vs previous"}</span></h2>
       <div style="font-size:20px;font-weight:650">${corpsLink(jump.corps)}</div>
       <div style="color:var(--text-secondary)">${score3(jump.prev_score)} → <b>${score3(jump.score)}</b> ${deltaHtml(jump.delta)}</div>
       ${block.movers.slice(1).map(m => `<div style="font-size:13px;margin-top:6px">${corpsLink(m.corps)} ${deltaHtml(m.delta)}</div>`).join("")}
@@ -1469,7 +1483,7 @@
 
     const b = block.battles && block.battles[0];
     document.getElementById("battleCard").innerHTML = b ? h`
-      <h2>Closest Battle <span class="sub">smallest gap in standings</span></h2>
+      <h2>Closest Battle <span class="sub">${seasonOver ? `closest finish of ${rk.season}` : "smallest gap in standings"}</span></h2>
       <table class="t">
         <tr><td class="rank">${b.ra}</td><td>${corpsLink(b.a)}</td><td class="num score">${score3(b.sa)}</td></tr>
         <tr><td class="rank">${b.rb}</td><td>${corpsLink(b.b)}</td><td class="num score">${score3(b.sb)}</td></tr>
@@ -2398,6 +2412,24 @@
     await load();
   }
 
+  /* An auditions row used to render "<b>Corps</b> — blurb", but every blurb
+     already opens with the corps name ("The Academy’s 2027 interest form…"),
+     so a phone showed the name twice and truncated everything that mattered:
+     "The Academy — The Acade…". When the blurb already names the corps, let it
+     speak for itself; only prefix the name when the blurb doesn't carry it. */
+  function campLabel(n) {
+    const sq = s => String(s || "").replace(/[‘’]/g, "'").replace(/\s+/g, " ").trim();
+    const corps = sq(n.corps), blurb = sq(n.blurb);
+    if (!blurb) return `<b>${esc(n.corps || "")}</b>`;
+    if (!corps) return esc(n.blurb);
+    const lead = blurb.slice(0, corps.length + 24).toLowerCase();
+    const tail = corps.toLowerCase().split(" ").filter(w => w.length > 3).pop() || corps.toLowerCase();
+    // blurb opens with the corps (in full, or by its distinctive last word)
+    if (lead.startsWith(corps.toLowerCase()) || lead.split(/\s+/).slice(0, 3).join(" ").includes(tail))
+      return esc(n.blurb);
+    return `<b>${esc(n.corps)}</b> — ${esc(n.blurb)}`;
+  }
+
   /* News & Announcements: DCI.org headlines + the weekly per-corps roundup
      (auditions, camps, next-season reveals), scraped into news.json. Items
      newer than the last visit get a NEW pill — the in-app "notification". */
@@ -2437,7 +2469,7 @@
         <div class="newscamps">
           <h3>Auditions &amp; camps</h3>
           ${camps.map(n => h`<a href="${encodeURI(n.link || allNews)}" target="_blank" rel="noopener">
-            <span class="newstag">Auditions</span><span><b>${esc(n.corps)}</b> — ${esc(n.blurb)}</span>
+            <span class="newstag">Auditions</span><span>${campLabel(n)}</span>
             <time>${esc(fmtDate(n.date))}</time></a>`).join("")}
           <p class="newsnote">Announcements straight from DCI and the corps — dates and details live in each article.</p>
         </div>` : ""}
@@ -3345,7 +3377,10 @@
     scores: {
       label: "Scores",
       cols: ["Year", "Date", "Event", "Corps", "Class", "Place", "Score"],
-      corpsIdx: 3, clsIdx: 4, evIdx: 2, dateIdx: 1, scoreCols: [6],
+      // Place yields the phone's last ~50px to Score: on a 390px screen the
+      // two together don't fit, and a score with no place still answers the
+      // question; the place is one tap away on the event page.
+      corpsIdx: 3, clsIdx: 4, evIdx: 2, dateIdx: 1, scoreCols: [6], narrowHideIdx: [5],
       load: loadScores,
     },
     captions: {
@@ -3470,13 +3505,14 @@
       if (i === cfg.dateIdx) return `<td style="color:var(--muted);white-space:nowrap">${fmtDate2(r[i])}</td>`;
       if (i === cfg.corpsIdx) return `<td>${corpsLink(r[i])}</td>`;
       if (i === cfg.clsIdx) return `<td class="m-hide"><span class="pill">${esc(r[i] || "")}</span></td>`;
-      if (i === cfg.evIdx) return `<td>${esc(r[i] || "")}</td>`;
+      if (i === cfg.evIdx) return `<td class="ev-cell">${esc(r[i] || "")}</td>`;
+      const hide = (cfg.narrowHideIdx || []).includes(i) ? " m-hide" : "";
       const v = r[i];
       if (typeof v === "number") {
         const strong = cfg.scoreCols.includes(i) ? " score" : "";
-        return `<td class="num${strong}">${cfg.scoreCols.includes(i) ? score3(v) : v.toFixed(v % 1 ? 2 : 0)}</td>`;
+        return `<td class="num${strong}${hide}">${cfg.scoreCols.includes(i) ? score3(v) : v.toFixed(v % 1 ? 2 : 0)}</td>`;
       }
-      return `<td class="num">${v ?? "—"}</td>`;
+      return `<td class="num${hide}">${v ?? "—"}</td>`;
     }
 
     function render() {
@@ -3486,7 +3522,7 @@
       const more = filtered.length - shown;
       document.getElementById("dbtable").innerHTML =
         `<div class="tscroll dense"><table class="t"><thead><tr>${cfg.cols.map((c, i) =>
-          `<th style="cursor:pointer;user-select:none" class="${i === 0 || i === cfg.clsIdx ? "m-hide" : ""}" data-c="${i}">${c}${i === ci ? (dir > 0 ? " ↑" : " ↓") : ""}</th>`).join("")}</tr></thead><tbody>
+          `<th style="cursor:pointer;user-select:none" class="${i === 0 || i === cfg.clsIdx || (cfg.narrowHideIdx || []).includes(i) ? "m-hide" : ""}" data-c="${i}">${c}${i === ci ? (dir > 0 ? " ↑" : " ↓") : ""}</th>`).join("")}</tr></thead><tbody>
         ${filtered.slice(0, shown).map(r =>
           `<tr>${cfg.cols.map((c, i) => cellHtml(r, i)).join("")}</tr>`).join("")}</tbody></table></div>` +
         (more > 0 ? `<div class="expandwrap"><button class="tab" id="dbMore">Show ${Math.min(100, more).toLocaleString()} more ▾ <span class="kicker">(${(shown).toLocaleString()} of ${filtered.length.toLocaleString()})</span></button></div>` : "");
