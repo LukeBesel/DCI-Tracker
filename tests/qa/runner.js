@@ -26,7 +26,7 @@ const DESKTOP = { width: 1280, height: 900 };
 const ROUTES = ["#/", "#/?y=2019", "#/events", "#/corps", "#/corps/bluecoats", "#/stats", "#/captions",
   "#/compare", "#/champions", "#/records", "#/database", "#/predictions", "#/settings",
   "#/suggestions", "#/about", "#/ask", "#/wgi", "#/wgi?y=2019",
-  "#/wgi/events", "#/wgi/units", "#/wgi/stats", "#/judges"];
+  "#/wgi/events", "#/wgi/units", "#/wgi/stats", "#/judges", "#/breakdown"];
 
 const findings = [];
 let currentSection = "";
@@ -847,6 +847,59 @@ section("judges: sampled honestly and explained", async (browser, base) => {
     if (!caps) bad("caption filter emptied the table");
   }
 
+  if (page._errs.length) bad(page._errs[0]);
+  await ctx.close();
+});
+
+// The breakdown is a diagnostic: someone reads it to decide what to fix. So
+// it must not quietly omit a caption the sheet lacks (roughly 2-5% of rows,
+// including the 2026 Finals sheet), and the head-to-head must actually
+// account for the margin it claims.
+section("breakdown: complete captions and an honest margin", async (browser, base) => {
+  const { ctx, page } = await ctxPage(browser, base, { viewport: PHONE });
+  await page.goHash("#/breakdown");
+  await page.waitForTimeout(2000);
+  if (!/Where they stand/.test(await page.textContent("#app")))
+    { bad("breakdown did not render"); await ctx.close(); return; }
+
+  // every caption the app knows about appears, present or explicitly absent
+  const labels = await page.$$eval("tbody tr td:first-child",
+    tds => tds.map(t => t.innerText.trim()));
+  for (const want of ["GE 1", "GE 2", "General Effect", "Brass", "Music"])
+    if (!labels.includes(want)) bad(`standing table is missing the "${want}" line`);
+
+  // a sheet missing a caption must say so rather than drop the row
+  const missing = await page.evaluate(() => {
+    const rows = [...document.querySelectorAll("tbody tr")];
+    return rows.filter(r => /not on this sheet/i.test(r.innerText)).length;
+  });
+  const note = await page.$eval("#app", el => el.innerText);
+  if (missing && !/didn't carry/.test(note))
+    bad("a caption is blank but nothing explains why");
+
+  // head-to-head: the caption margins must sum to the stated total margin
+  await page.goHash("#/breakdown?y=2026&cl=World%20Class&c=Blue%20Devils&v=Bluecoats");
+  await page.waitForTimeout(2000);
+  const h2h = await page.evaluate(() => {
+    const card = [...document.querySelectorAll(".card")].find(c => /^Against /.test(c.querySelector("h2")?.innerText || ""));
+    if (!card) return null;
+    const stated = (card.querySelector(".evdone")?.innerText.match(/([+-]\d+\.\d+)/) || [])[1];
+    const rows = [...card.querySelectorAll("tbody tr")].map(r => {
+      const td = [...r.children];
+      return { label: td[0].innerText.trim(), delta: parseFloat(td[td.length - 1].innerText) };
+    });
+    return { stated: stated == null ? null : parseFloat(stated), rows };
+  });
+  if (!h2h) { bad("head-to-head card did not render for a known pairing"); await ctx.close(); return; }
+  if (h2h.stated == null) bad("head-to-head states no total margin");
+  const groups = h2h.rows.filter(r => ["General Effect", "Visual", "Music"].includes(r.label));
+  if (groups.length === 3 && h2h.stated != null) {
+    const sum = +groups.reduce((n, r) => n + r.delta, 0).toFixed(3);
+    // group totals are what the published total is built from; a penalty can
+    // shift it, so allow a small slack rather than demanding exactness
+    if (Math.abs(sum - h2h.stated) > 0.2)
+      bad(`head-to-head margins don't account for the total: groups ${sum} vs stated ${h2h.stated}`);
+  }
   if (page._errs.length) bad(page._errs[0]);
   await ctx.close();
 });
