@@ -25,7 +25,8 @@ const PHONE = { width: 390, height: 844 };
 const DESKTOP = { width: 1280, height: 900 };
 const ROUTES = ["#/", "#/?y=2019", "#/events", "#/corps", "#/corps/bluecoats", "#/stats", "#/captions",
   "#/compare", "#/champions", "#/records", "#/database", "#/predictions", "#/settings",
-  "#/suggestions", "#/about", "#/ask", "#/wgi", "#/wgi?y=2019"];
+  "#/suggestions", "#/about", "#/ask", "#/wgi", "#/wgi?y=2019",
+  "#/wgi/events", "#/wgi/units", "#/wgi/stats"];
 
 const findings = [];
 let currentSection = "";
@@ -765,13 +766,33 @@ section("wgi: circuit, division and class all switch", async (browser, base) => 
   if (!/Percussion/.test(await page.textContent("h1.page")))
     bad("heading does not name the active activity");
 
-  // and the menu gets back to DCI, where the wordmark drops the suffix
+  // A mode you can leave by tapping the next tab isn't a mode: every nav tab
+  // must stay inside WGI, and none of them may land on "Page not found".
+  for (const tab of ["Shows", "Units", "Stats", "Scoreboard"]) {
+    const el = await page.$(`#nav a:has-text("${tab}")`);
+    if (!el) { bad(`nav tab "${tab}" missing in WGI mode`); continue; }
+    await el.click();
+    await page.waitForTimeout(2200);
+    const state = await page.evaluate(() => ({
+      hash: location.hash,
+      brand: document.querySelector(".brand").innerText.replace(/\s+/g, " ").trim(),
+      notFound: /page not found/i.test(document.body.innerText),
+    }));
+    if (!state.hash.startsWith("#/wgi")) bad(`"${tab}" left WGI mode -> ${state.hash}`);
+    if (state.notFound) bad(`"${tab}" in WGI mode is a dead route (${state.hash})`);
+    if (!/WGI/.test(state.brand)) bad(`"${tab}" dropped the circuit from the wordmark`);
+  }
+
+  // and the menu gets back to DCI, where the wordmark and tabs revert
   await page.goHash("#/");
   await page.waitForTimeout(1200);
   if (!/Scoreboard/.test(await page.textContent("h1.page")))
     bad("did not return to the DCI scoreboard");
   const home = (await page.textContent(".brand")).replace(/\s+/g, " ").trim();
   if (/WGI/.test(home)) bad(`wordmark still says WGI on the DCI board: "${home}"`);
+  const dciHrefs = await page.$$eval("#nav a", as => as.map(a => a.getAttribute("href")));
+  if (dciHrefs.some(h => h.startsWith("#/wgi")))
+    bad(`DCI nav still points into WGI: ${JSON.stringify(dciHrefs)}`);
 
   if (page._errs.length) bad(page._errs[0]);
   await ctx.close();

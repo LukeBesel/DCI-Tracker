@@ -774,7 +774,33 @@
       }
     }
     paintBrandMode();
+    applyNavMode();
   }
+
+  /* A mode you can leave by tapping the next tab isn't a mode. While a WGI
+     circuit is selected the four nav tabs stay inside it; on DCI they point
+     back at the DCI views. The hrefs are rewritten rather than duplicated so
+     every deep link keeps working. */
+  const NAV_MODE = {
+    dci: { rankings: "#/", events: "#/events", corps: ["#/corps", "Corps"], data: "#/stats" },
+    wgi: { rankings: "#/wgi", events: "#/wgi/events", corps: ["#/wgi/units", "Units"], data: "#/wgi/stats" },
+  };
+  function applyNavMode() {
+    const m = currentMode();
+    const wgi = m.id !== "dci";
+    const d = wgi && m.id.startsWith("wgi:") ? m.id.slice(4) : null;
+    const qs = d ? `?d=${encodeURIComponent(d)}` : "";
+    const map = NAV_MODE[wgi ? "wgi" : "dci"];
+    document.querySelectorAll("#nav a").forEach(a => {
+      const spec = map[a.dataset.route];
+      if (!spec) return;
+      const [href, label] = Array.isArray(spec) ? spec : [spec, null];
+      a.setAttribute("href", href + (href.startsWith("#/wgi") ? qs : ""));
+      const span = a.querySelector("span");
+      if (span) span.textContent = label || DEFAULT_NAV_LABEL[a.dataset.route] || span.textContent;
+    });
+  }
+  const DEFAULT_NAV_LABEL = { rankings: "Scoreboard", events: "Shows", corps: "Corps", data: "Stats" };
   // Collapse long tables to the first `n` rows with a Show-all toggle.
   // Safe to call again after a re-render (replaces its own button).
   function collapseRows(tbody, n, noun) {
@@ -1613,8 +1639,10 @@
     });
   }
 
-  async function viewWgi(query, stale) {
-    setNav("rankings");
+  /* Shared setup for every WGI view: resolve the season, the division and the
+     class from the URL, with the data loaded once. Returns null when it has
+     already painted a failure state, so callers just bail. */
+  async function wgiContext(query, stale) {
     const q = new URLSearchParams(query || "");
     let meta;
     try {
@@ -1623,14 +1651,14 @@
       app.innerHTML = `<h1 class="page">WGI</h1>
         <div class="card"><div class="empty">WGI scores aren't available right now.
         <br><span class="kicker">Scores come from <a href="https://www.wgi.org/scores/" target="_blank" rel="noopener">WGI</a> — if this persists the feed may be down.</span></div></div>`;
-      return;
+      return null;
     }
-    if (stale()) return;
+    if (stale()) return null;
     const seasons = (meta.seasons || []);
     if (!seasons.length) {
       app.innerHTML = `<h1 class="page">WGI</h1>
         <div class="card"><div class="empty">No WGI seasons have been published yet.</div></div>`;
-      return;
+      return null;
     }
     const years = seasons.map(s => s.year);
     const year = years.includes(+q.get("y")) ? +q.get("y") : years[0];
@@ -1638,7 +1666,7 @@
 
     let season = [];
     try { season = await data(`wgi/seasons/${year}.json`); } catch (e) { season = []; }
-    if (stale()) return;
+    if (stale()) return null;
 
     // divisions actually present in THIS season (Winds only exists from 2015,
     // and the pre-2024 archive is Color Guard alone)
@@ -1650,11 +1678,23 @@
     const classesInDiv = wgiClassSort([...new Set(season.flatMap(ev =>
       (ev.classes || []).filter(c => c.division === division).map(c => c.class)))].filter(Boolean));
     const cls = classesInDiv.includes(q.get("c")) ? q.get("c") : classesInDiv[0];
+    return { q, meta, seasons, years, year, srec, season, divisions, division,
+             classesInDiv, cls, finalsOnly: !!srec.finals_only };
+  }
+
+  // every WGI route carries the active division (and year) so the mode
+  // survives a tab tap and a shared link lands where the sender was
+  const wgiQS = (c, extra) => `?y=${c.year}&d=${encodeURIComponent(c.division)}${extra || ""}`;
+
+  async function viewWgi(query, stale) {
+    setNav("rankings");
+    const ctx = await wgiContext(query, stale);
+    if (!ctx) return;
+    const { years, year, season, divisions, division, classesInDiv, cls, finalsOnly } = ctx;
 
     const link = (d, c, y) => `#/wgi?y=${y ?? year}` +
       `&d=${encodeURIComponent(d ?? division)}` + (c === null ? "" : `&c=${encodeURIComponent(c ?? cls)}`);
 
-    const finalsOnly = !!srec.finals_only;
     // the division is chosen from the wordmark menu, so the heading names it
     // rather than repeating a strip of tabs under it
     app.innerHTML = `
@@ -1710,6 +1750,182 @@
   function divisionLabelCount(season, division) {
     const n = season.filter(ev => (ev.classes || []).some(c => c.division === division)).length;
     return `${n.toLocaleString()} ${n === 1 ? "show" : "shows"}`;
+  }
+
+  /* ---- WGI Shows: every show in the season for the active division ---- */
+  async function viewWgiEvents(query, stale) {
+    setNav("events");
+    const ctx = await wgiContext(query, stale);
+    if (!ctx) return;
+    const { years, year, season, division, finalsOnly } = ctx;
+    const evs = season.filter(ev => (ev.classes || []).some(c => c.division === division));
+
+    app.innerHTML = `
+      <h1 class="page">${yearPickerHtml(year)} WGI ${esc(division)} Shows
+        <span class="kicker">· ${evs.length.toLocaleString()} ${evs.length === 1 ? "show" : "shows"}</span></h1>
+      ${finalsOnly ? `<div class="evdone">${year} is the World Championship recap — WGI doesn't publish the full season this far back.</div>` : ""}
+      ${evs.length ? [...evs].reverse().map(ev => {
+        const groups = (ev.classes || []).filter(c => c.division === division);
+        const units = groups.reduce((n, g) => n + (g.results || []).length, 0);
+        return `<div class="card">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:baseline">
+            <h2 style="margin:0">${ev.url ? `<a href="${encodeURI(ev.url)}" target="_blank" rel="noopener">${esc(ev.name)}</a>` : esc(ev.name)}</h2>
+            <span class="kicker" style="white-space:nowrap">${esc(ev.date_display || ev.date || "")}</span>
+          </div>
+          <div class="evdone">${groups.length} ${groups.length === 1 ? "class" : "classes"} · ${units} units${
+            ev.recap_url ? ` · <a href="${encodeURI(ev.recap_url)}" target="_blank" rel="noopener">judge recap →</a>` : ""}</div>
+          ${groups.map(g => `<div style="margin-top:8px">
+            <div class="evdone" style="font-weight:700;color:var(--text-primary)">${esc(g.class)}</div>
+            <div class="tscroll"><table class="t"><tbody>${(g.results || []).map((r, i) => `<tr>
+              <td class="rank">${r.place ?? i + 1}</td>
+              <td><a href="#/wgi/unit/${encodeURIComponent(wgiSlug(r.corps))}${wgiQS(ctx)}">${esc(r.corps)}</a></td>
+              <td class="num score">${score3(r.score)}</td></tr>`).join("")}</tbody></table></div>
+          </div>`).join("")}
+        </div>`;
+      }).join("") : `<div class="card"><div class="empty">No ${esc(division)} shows listed for ${year}.</div></div>`}`;
+    wireYearPicker(years, year, y => { location.hash = `#/wgi/events?y=${y}&d=${encodeURIComponent(division)}`; });
+  }
+
+  // units are identified by name — WGI has no stable public id, and the name
+  // is what every one of their own pages keys on
+  const wgiSlug = name => slugOf(name);
+
+  /* ---- WGI Units: the directory, and one unit's season ---- */
+  async function viewWgiUnits(query, stale) {
+    setNav("corps");
+    const ctx = await wgiContext(query, stale);
+    if (!ctx) return;
+    const { years, year, season, division, classesInDiv } = ctx;
+    const byClass = new Map();
+    season.forEach(ev => (ev.classes || []).forEach(g => {
+      if (g.division !== division) return;
+      const set = byClass.get(g.class) || new Map();
+      (g.results || []).forEach(r => {
+        const cur = set.get(r.corps);
+        if (!cur || r.score > cur) set.set(r.corps, r.score);
+      });
+      byClass.set(g.class, set);
+    }));
+    const total = new Set([...byClass.values()].flatMap(m => [...m.keys()])).size;
+
+    app.innerHTML = `
+      <h1 class="page">${yearPickerHtml(year)} WGI ${esc(division)} Units
+        <span class="kicker">· ${total.toLocaleString()} ${total === 1 ? "unit" : "units"}</span></h1>
+      ${classesInDiv.filter(c => byClass.has(c)).map(c => {
+        const rows = [...byClass.get(c).entries()].sort((a, b) => b[1] - a[1]);
+        return `<div class="card"><h2>${esc(c)}</h2>
+          <div class="tscroll"><table class="t"><tbody>${rows.map(([name, sc], i) => `<tr>
+            <td class="rank">${i + 1}</td>
+            <td><a href="#/wgi/unit/${encodeURIComponent(wgiSlug(name))}${wgiQS(ctx)}">${esc(name)}</a></td>
+            <td class="num score">${score3(sc)}</td></tr>`).join("")}</tbody></table></div></div>`;
+      }).join("") || `<div class="card"><div class="empty">No ${esc(division)} units for ${year}.</div></div>`}`;
+    wireYearPicker(years, year, y => { location.hash = `#/wgi/units?y=${y}&d=${encodeURIComponent(division)}`; });
+  }
+
+  async function viewWgiUnit(slug, query, stale) {
+    setNav("corps");
+    const ctx = await wgiContext(query, stale);
+    if (!ctx) return;
+    const { years, year, season, division } = ctx;
+    const perfs = [];
+    let name = null;
+    season.forEach(ev => (ev.classes || []).forEach(g => {
+      if (g.division !== division) return;
+      (g.results || []).forEach(r => {
+        if (wgiSlug(r.corps) !== slug) return;
+        name = name || r.corps;
+        perfs.push({ event: ev.name, date: ev.date, date_display: ev.date_display,
+                     url: ev.url, recap: ev.recap_url, cls: g.class,
+                     place: r.place, score: r.score });
+      });
+    }));
+    if (!name) {
+      app.innerHTML = `<h1 class="page">WGI ${esc(division)}</h1>
+        <div class="card"><div class="empty">No ${year} results for that unit in ${esc(division)}.
+        <br><a href="#/wgi/units${wgiQS(ctx)}">Back to units →</a></div></div>`;
+      return;
+    }
+    perfs.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+    const best = perfs.reduce((m, p) => (p.score > m.score ? p : m), perfs[0]);
+    app.innerHTML = `
+      <div class="crumbs"><a href="#/wgi/units${wgiQS(ctx)}">WGI ${esc(division)} Units</a> / ${esc(name)}</div>
+      <h1 class="page">${yearPickerHtml(year)} ${esc(name)}</h1>
+      <div class="card">
+        <div class="evdone">${esc(perfs[perfs.length - 1].cls)} · ${perfs.length} ${perfs.length === 1 ? "show" : "shows"} in ${year}
+          · season best <b>${score3(best.score)}</b> at ${esc(best.event)}</div>
+        <div class="tscroll"><table class="t"><thead><tr>
+          <th>Date</th><th>Show</th><th class="m-hide">Class</th><th class="num">Place</th><th class="num">Score</th>
+        </tr></thead><tbody>${perfs.slice().reverse().map(p => `<tr>
+          <td style="color:var(--muted);white-space:nowrap">${esc(p.date_display || p.date || "")}</td>
+          <td class="ev-cell">${p.url ? `<a href="${encodeURI(p.url)}" target="_blank" rel="noopener">${esc(p.event)}</a>` : esc(p.event)}</td>
+          <td class="m-hide">${esc(p.cls)}</td>
+          <td class="num">${p.place ?? "—"}</td>
+          <td class="num score">${score3(p.score)}</td></tr>`).join("")}</tbody></table></div>
+      </div>`;
+    wireYearPicker(years, year, y => { location.hash = `#/wgi/unit/${encodeURIComponent(slug)}?y=${y}&d=${encodeURIComponent(division)}`; });
+  }
+
+  /* ---- WGI Stats: champions by year, and the all-time high scores ---- */
+  async function viewWgiStats(query, stale) {
+    setNav("data");
+    const ctx = await wgiContext(query, stale);
+    if (!ctx) return;
+    const { meta, division } = ctx;
+    const relevant = (meta.seasons || []).filter(s => (s.divisions || []).includes(division));
+    app.innerHTML = `<h1 class="page">WGI ${esc(division)} Stats</h1>
+      <div class="card"><div class="empty">Loading ${relevant.length} seasons…</div></div>`;
+
+    // every season this division appears in, so champions and records are
+    // drawn from the whole archive rather than the season in the URL
+    const loaded = await Promise.all(relevant.map(s =>
+      data(`wgi/seasons/${s.year}.json`).then(ev => [s.year, ev]).catch(() => [s.year, []])));
+    if (stale()) return;
+
+    const champs = [];
+    const all = [];
+    loaded.forEach(([yr, evs]) => {
+      const byClass = new Map();
+      evs.forEach(ev => (ev.classes || []).forEach(g => {
+        if (g.division !== division) return;
+        (g.results || []).forEach(r => {
+          all.push({ year: yr, corps: r.corps, score: r.score, cls: g.class, event: ev.name });
+          const cur = byClass.get(g.class);
+          if (!cur || r.score > cur.score)
+            byClass.set(g.class, { corps: r.corps, score: r.score, event: ev.name });
+        });
+      }));
+      wgiClassSort([...byClass.keys()]).forEach(c =>
+        champs.push({ year: yr, cls: c, ...byClass.get(c) }));
+    });
+    champs.sort((a, b) => b.year - a.year || wgiClassSort([a.cls, b.cls])[0] === a.cls ? -1 : 1);
+    all.sort((a, b) => b.score - a.score);
+
+    const titles = new Map();
+    champs.forEach(c => titles.set(c.corps, (titles.get(c.corps) || 0) + 1));
+    const mostTitles = [...titles.entries()].sort((a, b) => b[1] - a[1]).slice(0, 25);
+
+    app.innerHTML = `<h1 class="page">WGI ${esc(division)} Stats
+        <span class="kicker">· ${relevant.length} seasons</span></h1>
+      <div class="card"><h2>Highest Scores</h2>
+        <div class="evdone">${esc(division)} · every season on record</div>
+        <div class="tscroll"><table class="t"><thead><tr><th class="rank">#</th><th>Unit</th>
+          <th class="m-hide">Class</th><th class="num">Year</th><th class="num">Score</th></tr></thead>
+          <tbody>${all.slice(0, 100).map((r, i) => `<tr><td class="rank">${i + 1}</td>
+            <td><a href="#/wgi/unit/${encodeURIComponent(wgiSlug(r.corps))}?y=${r.year}&d=${encodeURIComponent(division)}">${esc(r.corps)}</a></td>
+            <td class="m-hide">${esc(r.cls)}</td><td class="num">${r.year}</td>
+            <td class="num score">${score3(r.score)}</td></tr>`).join("")}</tbody></table></div></div>
+      <div class="card"><h2>Most Class Wins</h2>
+        <div class="tscroll"><table class="t"><tbody>${mostTitles.map(([n, c], i) => `<tr>
+          <td class="rank">${i + 1}</td>
+          <td><a href="#/wgi/units${wgiQS(ctx)}">${esc(n)}</a></td>
+          <td class="num score">${c}</td></tr>`).join("")}</tbody></table></div></div>
+      <div class="card"><h2>Class Winners by Year</h2>
+        <div class="tscroll"><table class="t"><thead><tr><th class="num">Year</th><th>Class</th>
+          <th>Winner</th><th class="num">Score</th></tr></thead>
+          <tbody>${champs.map(c => `<tr><td class="num">${c.year}</td><td class="ev-cell">${esc(c.cls)}</td>
+            <td><a href="#/wgi/unit/${encodeURIComponent(wgiSlug(c.corps))}?y=${c.year}&d=${encodeURIComponent(division)}">${esc(c.corps)}</a></td>
+            <td class="num score">${score3(c.score)}</td></tr>`).join("")}</tbody></table></div></div>`;
+    app.querySelectorAll("tbody").forEach(tb => { if (tb.rows.length > 14) collapseRows(tb, 12, "rows"); });
   }
 
   function wgiEventsCard(season, division, year, finalsOnly) {
@@ -4502,6 +4718,10 @@
     // "#/" is the current season; "#/?y=1994" is that season's board
     [/^#?\/?(?:\?(.*))?$/, (m, st) => viewRankings(m[1], st)],
     [/^#\/wgi(?:\?(.*))?$/, (m, st) => viewWgi(m[1], st)],
+    [/^#\/wgi\/events(?:\?(.*))?$/, (m, st) => viewWgiEvents(m[1], st)],
+    [/^#\/wgi\/units(?:\?(.*))?$/, (m, st) => viewWgiUnits(m[1], st)],
+    [/^#\/wgi\/unit\/([^?]+)(?:\?(.*))?$/, (m, st) => viewWgiUnit(decodeURIComponent(m[1]), m[2], st)],
+    [/^#\/wgi\/stats(?:\?(.*))?$/, (m, st) => viewWgiStats(m[1], st)],
     [/^#\/compare(?:\?(.*))?$/, (m, st) => viewCorpsHub(m[1], st)],
     [/^#\/corps\?(.*)$/, m => { location.replace(`#/compare?${m[1]}`); }],
     [/^#\/corps$/, (m, st) => viewCorpsPage(null, st)],
