@@ -720,9 +720,17 @@ section("wgi: circuit, division and class all switch", async (browser, base) => 
   await page.goHash("#/wgi");
   await page.waitForTimeout(1500);
 
-  const strip = await page.$$eval(".subtabs a", as => as.map(a => a.innerText.trim()));
-  if (!strip.includes("DCI") || !strip.includes("WGI"))
-    bad(`circuit strip missing DCI/WGI: ${JSON.stringify(strip)}`);
+  // the wordmark is the circuit picker: it must open, list every mode, and
+  // name the current one ("Cadence WGI Percussion")
+  await page.click("#brandBtn");
+  await page.waitForTimeout(400);
+  const modes = await page.$$eval(".modeitem", as => as.map(a => a.dataset.mode));
+  for (const want of ["dci", "wgi", "wgi:Color Guard", "wgi:Percussion", "wgi:Winds"])
+    if (!modes.includes(want)) bad(`circuit menu is missing "${want}": ${JSON.stringify(modes)}`);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+  if (!(await page.evaluate(() => document.getElementById("modeMenu").hidden)))
+    bad("circuit menu did not close on Escape");
 
   const rows = await page.$$eval("#wgiBody tbody tr", trs => trs.length);
   if (!rows) { bad("no WGI standings rows rendered"); await ctx.close(); return; }
@@ -748,11 +756,22 @@ section("wgi: circuit, division and class all switch", async (browser, base) => 
   if (!/World Championship/i.test(body))
     bad("a pre-2024 WGI year does not disclose that it is championships-only");
 
-  // and the strip gets back to DCI
+  // picking an activity names it in the wordmark and switches the data
+  await page.goHash("#/wgi?d=Percussion");
+  await page.waitForTimeout(1400);
+  const brand = (await page.textContent(".brand")).replace(/\s+/g, " ").trim();
+  if (!/WGI Percussion/.test(brand))
+    bad(`wordmark does not name the active circuit: "${brand}"`);
+  if (!/Percussion/.test(await page.textContent("h1.page")))
+    bad("heading does not name the active activity");
+
+  // and the menu gets back to DCI, where the wordmark drops the suffix
   await page.goHash("#/");
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(1200);
   if (!/Scoreboard/.test(await page.textContent("h1.page")))
-    bad("circuit strip did not return to the DCI scoreboard");
+    bad("did not return to the DCI scoreboard");
+  const home = (await page.textContent(".brand")).replace(/\s+/g, " ").trim();
+  if (/WGI/.test(home)) bad(`wordmark still says WGI on the DCI board: "${home}"`);
 
   if (page._errs.length) bad(page._errs[0]);
   await ctx.close();

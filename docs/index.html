@@ -37,18 +37,26 @@ var m=document.querySelector('meta[name="theme-color"]'),bar=localStorage.getIte
 </head>
 <body>
 <header class="topbar">
-  <a class="brand" href="#/">
-    <svg viewBox="0 0 64 64" width="30" height="30" aria-hidden="true">
-      <rect x="3" y="3" width="58" height="58" rx="15" fill="#f0b429"/>
-      <g stroke="#16233d" stroke-width="6.5" stroke-linecap="round">
-        <line x1="16" y1="26" x2="16" y2="38"/>
-        <line x1="27" y1="20" x2="27" y2="44"/>
-        <line x1="38" y1="28" x2="38" y2="36"/>
-        <line x1="49" y1="16" x2="49" y2="48"/>
-      </g>
-    </svg>
-    <span>Cadence</span>
-  </a>
+  <!-- the wordmark IS the mode picker: it names what you're looking at
+       ("Cadence WGI Percussion") and opens the circuit/activity menu -->
+  <div class="brandwrap" id="brandWrap">
+    <button class="brand" id="brandBtn" type="button" aria-haspopup="true" aria-expanded="false"
+            title="Switch circuit">
+      <svg viewBox="0 0 64 64" width="30" height="30" aria-hidden="true">
+        <rect x="3" y="3" width="58" height="58" rx="15" fill="#f0b429"/>
+        <g stroke="#16233d" stroke-width="6.5" stroke-linecap="round">
+          <line x1="16" y1="26" x2="16" y2="38"/>
+          <line x1="27" y1="20" x2="27" y2="44"/>
+          <line x1="38" y1="28" x2="38" y2="36"/>
+          <line x1="49" y1="16" x2="49" y2="48"/>
+        </g>
+      </svg>
+      <span class="brandname">Cadence</span><span class="brandmode" id="brandMode"></span>
+      <svg class="brandchev" viewBox="0 0 24 24" width="13" height="13" fill="none"
+           stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+    <div class="modemenu" id="modeMenu" role="menu" aria-label="Circuit" hidden></div>
+  </div>
   <nav id="nav">
     <a href="#/" data-route="rankings" title="Current standings — latest scores and movement"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 20V12"/><path d="M12 20V5"/><path d="M19 20v-6"/><path d="M3 20h18"/></svg><span>Scoreboard</span></a>
     <a href="#/events" data-route="events" title="Every show — schedules, lineups, results, back to 1972"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg><span>Shows</span></a>

@@ -773,6 +773,7 @@
         credit.innerHTML = CREDIT[key];
       }
     }
+    paintBrandMode();
   }
   // Collapse long tables to the first `n` rows with a Show-all toggle.
   // Safe to call again after a re-render (replaces its own button).
@@ -1288,8 +1289,7 @@
     // only the newest season is "live" — past seasons are settled history, so
     // they skip the live-tracking, Following and off-season modules entirely
     const isCurrent = year === latest;
-    // the circuit strip makes WGI reachable without spending a bottom-nav slot
-    const header = circuitNav("") + yearHeaderHtml(year);
+    const header = yearHeaderHtml(year);
     const pickYear = () => wireYearPicker(years, year, y => {
       location.hash = y === latest ? "#/" : `#/?y=${y}`;
     });
@@ -1515,18 +1515,92 @@
      Coverage is honest about itself: 2024+ comes from WGI's API and carries
      every show; 1980-2023 comes from their historical pages and is the World
      Championship finals only, which the year is labelled with. */
-  const CIRCUITS = [["", "DCI"], ["wgi", "WGI"]];
+  /* The wordmark is the circuit picker. It reads as what you're looking at —
+     "Cadence", "Cadence WGI", "Cadence WGI Percussion" — and opens a menu of
+     every mode. WGI itself is selectable (all three activities together), as
+     well as each activity on its own. */
+  const WGI_DIVS = ["Color Guard", "Percussion", "Winds"];
+  const MODES = [
+    { group: "Drum Corps", items: [
+      { id: "dci", label: "DCI", desc: "Live scores & history back to 1972",
+        hash: "#/", mark: "DCI", suffix: "" },
+    ] },
+    { group: "WGI · Sport of the Arts", items: [
+      { id: "wgi", label: "WGI", desc: "All three activities", hash: "#/wgi",
+        mark: "WGI", wgi: true, suffix: " WGI" },
+      ...WGI_DIVS.map(d => ({
+        id: "wgi:" + d, label: d, hash: `#/wgi?d=${encodeURIComponent(d)}`,
+        mark: d.split(" ").map(w => w[0]).join(""), sub: true, suffix: " WGI " + d,
+      })),
+    ] },
+  ];
+  const ALL_MODES = MODES.flatMap(g => g.items);
+
+  // which mode the current URL is in
+  function currentMode() {
+    if (!/^#\/wgi\b/.test(location.hash)) return ALL_MODES[0];
+    const d = new URLSearchParams((location.hash.split("?")[1] || "")).get("d");
+    return ALL_MODES.find(m => m.id === "wgi:" + d) || ALL_MODES.find(m => m.id === "wgi");
+  }
+
+  function paintBrandMode() {
+    const m = currentMode();
+    const el = document.getElementById("brandMode");
+    if (el) el.textContent = m.suffix;
+    // phones drop the word "Cadence" while a circuit is named — otherwise
+    // "Cadence WGI Percussion" wraps the header onto two lines. The mark
+    // still says whose app this is.
+    const wrap = document.getElementById("brandWrap");
+    if (wrap) wrap.dataset.mode = m.id;
+  }
+
+  function buildModeMenu() {
+    const here = currentMode().id;
+    return MODES.map(g => `<div class="modegroup">${esc(g.group)}</div>` +
+      (g.items.some(i => i.sub)
+        ? g.items.filter(i => !i.sub).map(i => modeItemHtml(i, here)).join("") +
+          `<div class="modesub">${g.items.filter(i => i.sub).map(i => modeItemHtml(i, here)).join("")}</div>`
+        : g.items.map(i => modeItemHtml(i, here)).join(""))).join("");
+  }
+  function modeItemHtml(m, here) {
+    return `<a class="modeitem ${m.id === here ? "on" : ""}" href="${m.hash}" role="menuitem" data-mode="${esc(m.id)}">
+      <span class="mi-mark ${m.wgi ? "wgi" : ""}">${esc(m.mark)}</span>
+      <span class="mi-txt">${esc(m.label)}${m.desc ? `<small>${esc(m.desc)}</small>` : ""}</span>
+      ${m.id === here ? `<span class="mi-tick" aria-hidden="true">✓</span>` : ""}
+    </a>`;
+  }
+
+  function wireModeMenu() {
+    const wrap = document.getElementById("brandWrap");
+    const btn = document.getElementById("brandBtn");
+    const menu = document.getElementById("modeMenu");
+    if (!wrap || !btn || !menu) return;
+    const close = () => {
+      wrap.classList.remove("open"); menu.hidden = true;
+      btn.setAttribute("aria-expanded", "false");
+    };
+    btn.addEventListener("click", e => {
+      e.preventDefault();
+      if (!menu.hidden) return close();
+      menu.innerHTML = buildModeMenu();
+      menu.hidden = false; wrap.classList.add("open");
+      btn.setAttribute("aria-expanded", "true");
+    });
+    menu.addEventListener("click", e => { if (e.target.closest(".modeitem")) close(); });
+    document.addEventListener("click", e => {
+      if (!menu.hidden && !wrap.contains(e.target)) close();
+    });
+    document.addEventListener("keydown", e => {
+      if (e.key === "Escape" && !menu.hidden) { close(); btn.focus(); }
+    });
+  }
+
   // The footer credits whoever's scores are actually on screen — crediting
   // DCI.org under a page of WGI results would be plainly wrong.
   const CREDIT = {
     "": `Scores from <a href="https://www.dci.org/scores" rel="noopener">DCI.org</a> · refreshed several times an hour · minute-by-minute on show nights`,
     wgi: `Scores from <a href="https://www.wgi.org/scores/" rel="noopener">WGI</a> · WGI competes January–May`,
   };
-  function circuitNav(active) {
-    requestAnimationFrame(centerSubtab);
-    return `<div class="subtabs">${CIRCUITS.map(([k, l]) =>
-      `<a href="#/${k}" class="${k === active ? "on" : ""}">${l}</a>`).join("")}</div>`;
-  }
 
   function wgiClassSort(names) {
     const TIER = ["World", "Open", "A"];
@@ -1546,7 +1620,7 @@
     try {
       meta = await data("wgi/meta.json");
     } catch (e) {
-      app.innerHTML = `${circuitNav("wgi")}<h1 class="page">WGI</h1>
+      app.innerHTML = `<h1 class="page">WGI</h1>
         <div class="card"><div class="empty">WGI scores aren't available right now.
         <br><span class="kicker">Scores come from <a href="https://www.wgi.org/scores/" target="_blank" rel="noopener">WGI</a> — if this persists the feed may be down.</span></div></div>`;
       return;
@@ -1554,7 +1628,7 @@
     if (stale()) return;
     const seasons = (meta.seasons || []);
     if (!seasons.length) {
-      app.innerHTML = `${circuitNav("wgi")}<h1 class="page">WGI</h1>
+      app.innerHTML = `<h1 class="page">WGI</h1>
         <div class="card"><div class="empty">No WGI seasons have been published yet.</div></div>`;
       return;
     }
@@ -1581,10 +1655,10 @@
       `&d=${encodeURIComponent(d ?? division)}` + (c === null ? "" : `&c=${encodeURIComponent(c ?? cls)}`);
 
     const finalsOnly = !!srec.finals_only;
-    app.innerHTML = `${circuitNav("wgi")}
-      <h1 class="page">${yearPickerHtml(year)} WGI <span class="kicker" id="wgiCount"></span></h1>
-      ${divisions.length > 1 ? `<div class="subtabs" id="wgiDiv">${divisions.map(d =>
-        `<a href="${link(d, null)}" class="${d === division ? "on" : ""}">${esc(d)}</a>`).join("")}</div>` : ""}
+    // the division is chosen from the wordmark menu, so the heading names it
+    // rather than repeating a strip of tabs under it
+    app.innerHTML = `
+      <h1 class="page">${yearPickerHtml(year)} WGI ${esc(division)} <span class="kicker" id="wgiCount"></span></h1>
       ${finalsOnly ? `<div class="evdone">${year} is the World Championship recap — WGI doesn't publish the full season this far back.</div>` : ""}
       <div id="wgiBody"></div>`;
 
@@ -1612,9 +1686,12 @@
 
     body.innerHTML = `
       <div class="card">
-        <h2>${esc(division)} <span class="sub">${finalsOnly ? "World Championship finals" : "each unit's best score of " + year}</span></h2>
         ${classesInDiv.length > 1 ? `<div class="chiprow" id="wgiCls">${classesInDiv.map(c =>
-          `<a class="yearopt ${c === cls ? "on" : ""}" href="${link(null, c)}">${esc(c)}</a>`).join("")}</div>` : ""}
+          `<a class="yearopt ${c === cls ? "on" : ""}" href="${link(null, c)}">${esc(c)}</a>`).join("")}</div>`
+        : `<h2>${esc(cls)}</h2>`}
+        <div class="evdone">${finalsOnly
+          ? `${esc(division)} · World Championship finals`
+          : `${esc(division)} · each unit's best score of ${year}`}</div>
         <div class="tscroll"><table class="t"><thead><tr>
           <th class="rank">#</th><th>Unit</th><th class="num">Score</th>${finalsOnly ? "" : "<th class=\"m-hide\">Best at</th>"}
         </tr></thead><tbody>
@@ -4715,10 +4792,14 @@
 
   window.CadRedraw = route; // theme toggle re-renders the current view
   addEventListener("hashchange", route);
-  // logo tap: home with a clean slate — filters reset, preferences (theme,
-  // favorites) kept
-  const brandEl = document.querySelector(".brand");
-  if (brandEl) brandEl.addEventListener("click", () => {
+  // The wordmark now opens the circuit menu rather than going home, so the
+  // old "logo tap = clean slate" reset moves onto the DCI item — which is
+  // what going home means now. Preferences (theme, favorites) are kept.
+  wireModeMenu();
+  const modeMenuEl = document.getElementById("modeMenu");
+  if (modeMenuEl) modeMenuEl.addEventListener("click", e => {
+    const item = e.target.closest(".modeitem");
+    if (!item || item.dataset.mode !== "dci") return;
     ["dt-class", "dt-corpsclass"].forEach(k => localStorage.removeItem(k));
     ["cmp-corps", "cmp-years", "cad-shows-f",
       "cad-last-rankings", "cad-last-events", "cad-last-corps", "cad-last-data"]
