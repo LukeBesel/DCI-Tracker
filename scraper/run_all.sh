@@ -61,14 +61,27 @@ else
   FETCH_RETRIES=1 STEP_TIMEOUT=120 run "dci news"               python scraper/scrape_news.py
   # the deep passes (profiles + history chunks) add ~15 min — the frequent
   # score runs skip them; the daily RUN_HISTORY=1 run picks them up
+  # WGI runs Jan-May, so its "current" season is this calendar year's; out of
+  # season the API answers with an empty list in three cheap calls. Completed
+  # shows stay in the fetch cache, so a mid-season pass only pays for the
+  # shows that are actually new.
+  FETCH_RETRIES=1 STEP_TIMEOUT=420 run "wgi current season" python scraper/scrape_wgi.py --year "$YEAR"
   if [ "${RUN_HISTORY:-0}" = "1" ]; then
     run "corps profiles"        python scraper/scrape_corps_profiles.py
     run "dci.org history chunk" python scraper/scrape_dci.py --max-fetches 150
     run "dcx history chunk"     python scraper/scrape_history.py --max-fetches 150
+    # WGI's two older API seasons, then the 1980-2019 championship archive.
+    # Both are immutable once fetched, so this is a no-op after the first run.
+    FETCH_RETRIES=1 STEP_TIMEOUT=600 run "wgi api backfill" \
+      python scraper/scrape_wgi.py --year $((YEAR-1)) --year $((YEAR-2))
+    FETCH_RETRIES=1 STEP_TIMEOUT=300 run "wgi history archive" python scraper/scrape_wgi_history.py
   fi
 fi
 
 run "build site data" python scraper/build_data.py
+# WGI builds into its own docs/data/wgi/ namespace, so it cannot disturb the
+# DCI build above and a WGI failure never blocks publishing DCI scores.
+run "build wgi data" python scraper/build_wgi.py
 run "validate site data" python scraper/validate_data.py
 
 echo "finished=$(date -u +'%F %T UTC')" >> "$REPORT"

@@ -417,6 +417,18 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14.5px; }
    screen the pill floated on top of the rows and hid real data (Records'
    Championship Titles, the Database rows, the Scoreboard's #1 score). A
    control that covers the thing it describes is worse than one you scroll to. */
+/* A one-line, horizontally scrolling chip row. .yearrow wraps, which is right
+   for four-character years but turns six WGI class names ("Independent World",
+   "Scholastic Open", ...) into a three-line block that collides with the card
+   heading above it. These scroll instead, like the sub-tab strips. */
+.chiprow {
+  display: flex; gap: 6px; overflow-x: auto; white-space: nowrap;
+  padding: 2px 0 8px; margin-bottom: 2px;
+  scrollbar-width: none; -ms-overflow-style: none;
+}
+.chiprow::-webkit-scrollbar { display: none; }
+.chiprow .yearopt { flex: none; }
+
 .expandwrap { text-align: center; padding: 10px 0 2px; }
 .expandwrap .tab { box-shadow: 0 1px 4px rgba(22,35,61,0.12); }
 .t tr.rowlink:hover td { background: var(--surface-2); }

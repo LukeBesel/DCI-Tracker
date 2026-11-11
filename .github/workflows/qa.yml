@@ -105,4 +105,5 @@ jobs:
         run: |
           export PYTHONPATH=scraper
           python scraper/build_data.py
+          python scraper/build_wgi.py
           python scraper/validate_data.py

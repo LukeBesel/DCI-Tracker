@@ -761,6 +761,18 @@
   function setNav(route) {
     document.querySelectorAll("#nav a").forEach(a =>
       a.classList.toggle("active", a.dataset.route === route));
+    // Every view routes through here, so this is the one place that can keep
+    // the footer's source credit honest: WGI pages credit WGI, everything
+    // else credits DCI. Leaving a WGI credit up on the Stats page would
+    // misattribute DCI's own data.
+    const credit = document.getElementById("srcCredit");
+    if (credit) {
+      const key = /^#\/wgi\b/.test(location.hash) ? "wgi" : "";
+      if (credit.dataset.circuit !== key) {
+        credit.dataset.circuit = key;
+        credit.innerHTML = CREDIT[key];
+      }
+    }
   }
   // Collapse long tables to the first `n` rows with a Show-all toggle.
   // Safe to call again after a re-render (replaces its own button).
@@ -1276,7 +1288,8 @@
     // only the newest season is "live" — past seasons are settled history, so
     // they skip the live-tracking, Following and off-season modules entirely
     const isCurrent = year === latest;
-    const header = yearHeaderHtml(year);
+    // the circuit strip makes WGI reachable without spending a bottom-nav slot
+    const header = circuitNav("") + yearHeaderHtml(year);
     const pickYear = () => wireYearPicker(years, year, y => {
       location.hash = y === latest ? "#/" : `#/?y=${y}`;
     });
@@ -1491,6 +1504,150 @@
       <div style="margin-top:8px;font-size:13px;color:var(--text-secondary)">Gap: <b style="color:var(--bad)">${b.gap.toFixed(3)}</b></div>
       <div style="margin-top:8px;font-size:13px"><a href="#/compare?c=${slugOf(b.a)},${slugOf(b.b)}&y=${rk.season}">Compare head-to-head →</a></div>`
       : "<h2>Closest Battle</h2><div class='empty'>Needs two corps within striking distance.</div>";
+  }
+
+  /* ============ WGI ============
+     WGI is a second circuit, not a second class: it runs Jan-May (DCI runs
+     Jun-Aug), splits into three divisions — Color Guard, Percussion, Winds —
+     and each division has its own classes. Its data lives under data/wgi/,
+     built separately so DCI's own output is untouched.
+
+     Coverage is honest about itself: 2024+ comes from WGI's API and carries
+     every show; 1980-2023 comes from their historical pages and is the World
+     Championship finals only, which the year is labelled with. */
+  const CIRCUITS = [["", "DCI"], ["wgi", "WGI"]];
+  // The footer credits whoever's scores are actually on screen — crediting
+  // DCI.org under a page of WGI results would be plainly wrong.
+  const CREDIT = {
+    "": `Scores from <a href="https://www.dci.org/scores" rel="noopener">DCI.org</a> · refreshed several times an hour · minute-by-minute on show nights`,
+    wgi: `Scores from <a href="https://www.wgi.org/scores/" rel="noopener">WGI</a> · WGI competes January–May`,
+  };
+  function circuitNav(active) {
+    requestAnimationFrame(centerSubtab);
+    return `<div class="subtabs">${CIRCUITS.map(([k, l]) =>
+      `<a href="#/${k}" class="${k === active ? "on" : ""}">${l}</a>`).join("")}</div>`;
+  }
+
+  function wgiClassSort(names) {
+    const TIER = ["World", "Open", "A"];
+    const key = n => [
+      TIER.findIndex(t => new RegExp(`\\b${t}\\b`).test(n)) + 1 || 99,
+      n.startsWith("Independent") ? 0 : 1, n];
+    return [...names].sort((a, b) => {
+      const ka = key(a), kb = key(b);
+      return ka[0] - kb[0] || ka[1] - kb[1] || ka[2].localeCompare(kb[2]);
+    });
+  }
+
+  async function viewWgi(query, stale) {
+    setNav("rankings");
+    const q = new URLSearchParams(query || "");
+    let meta;
+    try {
+      meta = await data("wgi/meta.json");
+    } catch (e) {
+      app.innerHTML = `${circuitNav("wgi")}<h1 class="page">WGI</h1>
+        <div class="card"><div class="empty">WGI scores aren't available right now.
+        <br><span class="kicker">Scores come from <a href="https://www.wgi.org/scores/" target="_blank" rel="noopener">WGI</a> — if this persists the feed may be down.</span></div></div>`;
+      return;
+    }
+    if (stale()) return;
+    const seasons = (meta.seasons || []);
+    if (!seasons.length) {
+      app.innerHTML = `${circuitNav("wgi")}<h1 class="page">WGI</h1>
+        <div class="card"><div class="empty">No WGI seasons have been published yet.</div></div>`;
+      return;
+    }
+    const years = seasons.map(s => s.year);
+    const year = years.includes(+q.get("y")) ? +q.get("y") : years[0];
+    const srec = seasons.find(s => s.year === year) || {};
+
+    let season = [];
+    try { season = await data(`wgi/seasons/${year}.json`); } catch (e) { season = []; }
+    if (stale()) return;
+
+    // divisions actually present in THIS season (Winds only exists from 2015,
+    // and the pre-2024 archive is Color Guard alone)
+    const divisions = srec.divisions && srec.divisions.length
+      ? srec.divisions
+      : [...new Set(season.flatMap(ev => (ev.classes || []).map(c => c.division)))].filter(Boolean);
+    const division = divisions.includes(q.get("d")) ? q.get("d") : divisions[0];
+
+    const classesInDiv = wgiClassSort([...new Set(season.flatMap(ev =>
+      (ev.classes || []).filter(c => c.division === division).map(c => c.class)))].filter(Boolean));
+    const cls = classesInDiv.includes(q.get("c")) ? q.get("c") : classesInDiv[0];
+
+    const link = (d, c, y) => `#/wgi?y=${y ?? year}` +
+      `&d=${encodeURIComponent(d ?? division)}` + (c === null ? "" : `&c=${encodeURIComponent(c ?? cls)}`);
+
+    const finalsOnly = !!srec.finals_only;
+    app.innerHTML = `${circuitNav("wgi")}
+      <h1 class="page">${yearPickerHtml(year)} WGI <span class="kicker" id="wgiCount"></span></h1>
+      ${divisions.length > 1 ? `<div class="subtabs" id="wgiDiv">${divisions.map(d =>
+        `<a href="${link(d, null)}" class="${d === division ? "on" : ""}">${esc(d)}</a>`).join("")}</div>` : ""}
+      ${finalsOnly ? `<div class="evdone">${year} is the World Championship recap — WGI doesn't publish the full season this far back.</div>` : ""}
+      <div id="wgiBody"></div>`;
+
+    document.getElementById("wgiCount").textContent =
+      `· ${divisionLabelCount(season, division)}`;
+    wireYearPicker(years, year, y => { location.hash = link(null, null, y); });
+
+    const body = document.getElementById("wgiBody");
+    if (!classesInDiv.length) {
+      body.innerHTML = `<div class="card"><div class="empty">No ${esc(division)} results for ${year}.</div></div>`;
+      return;
+    }
+
+    // standings for the chosen class: each unit's best score of the season
+    const best = new Map();
+    season.forEach(ev => (ev.classes || []).forEach(g => {
+      if (g.division !== division || g.class !== cls) return;
+      (g.results || []).forEach(r => {
+        const cur = best.get(r.corps);
+        if (!cur || r.score > cur.score)
+          best.set(r.corps, { corps: r.corps, score: r.score, event: ev.name, date: ev.date });
+      });
+    }));
+    const rows = [...best.values()].sort((a, b) => b.score - a.score);
+
+    body.innerHTML = `
+      <div class="card">
+        <h2>${esc(division)} <span class="sub">${finalsOnly ? "World Championship finals" : "each unit's best score of " + year}</span></h2>
+        ${classesInDiv.length > 1 ? `<div class="chiprow" id="wgiCls">${classesInDiv.map(c =>
+          `<a class="yearopt ${c === cls ? "on" : ""}" href="${link(null, c)}">${esc(c)}</a>`).join("")}</div>` : ""}
+        <div class="tscroll"><table class="t"><thead><tr>
+          <th class="rank">#</th><th>Unit</th><th class="num">Score</th>${finalsOnly ? "" : "<th class=\"m-hide\">Best at</th>"}
+        </tr></thead><tbody>
+          ${rows.map((r, i) => `<tr>
+            <td class="rank">${i + 1}</td>
+            <td>${esc(r.corps)}</td>
+            <td class="num score">${score3(r.score)}</td>
+            ${finalsOnly ? "" : `<td class="m-hide" style="color:var(--text-secondary);font-size:12.5px">${esc(r.event || "")}</td>`}
+          </tr>`).join("")}
+        </tbody></table></div>
+      </div>
+      ${wgiEventsCard(season, division, year, finalsOnly)}`;
+    collapseRows(body.querySelector("tbody"), 10, "units");
+  }
+
+  function divisionLabelCount(season, division) {
+    const n = season.filter(ev => (ev.classes || []).some(c => c.division === division)).length;
+    return `${n.toLocaleString()} ${n === 1 ? "show" : "shows"}`;
+  }
+
+  function wgiEventsCard(season, division, year, finalsOnly) {
+    const evs = season.filter(ev => (ev.classes || []).some(c => c.division === division));
+    if (!evs.length || finalsOnly) return "";
+    const list = [...evs].reverse().map(ev => {
+      const groups = (ev.classes || []).filter(c => c.division === division);
+      const units = groups.reduce((n, g) => n + (g.results || []).length, 0);
+      return `<tr><td style="color:var(--muted);white-space:nowrap">${esc(ev.date_display || ev.date || "")}</td>
+        <td>${ev.url ? `<a href="${encodeURI(ev.url)}" target="_blank" rel="noopener">${esc(ev.name)}</a>` : esc(ev.name)}</td>
+        <td class="num m-hide">${units}</td></tr>`;
+    }).join("");
+    return `<div class="card"><h2>${year} Shows <span class="sub">${esc(division)}</span></h2>
+      <div class="tscroll"><table class="t"><thead><tr><th>Date</th><th>Show</th><th class="num m-hide">Units</th></tr></thead>
+      <tbody>${list}</tbody></table></div></div>`;
   }
 
   /* ============ CORPS HUB (directory + compare) ============ */
@@ -4267,6 +4424,7 @@
   const routes = [
     // "#/" is the current season; "#/?y=1994" is that season's board
     [/^#?\/?(?:\?(.*))?$/, (m, st) => viewRankings(m[1], st)],
+    [/^#\/wgi(?:\?(.*))?$/, (m, st) => viewWgi(m[1], st)],
     [/^#\/compare(?:\?(.*))?$/, (m, st) => viewCorpsHub(m[1], st)],
     [/^#\/corps\?(.*)$/, m => { location.replace(`#/compare?${m[1]}`); }],
     [/^#\/corps$/, (m, st) => viewCorpsPage(null, st)],

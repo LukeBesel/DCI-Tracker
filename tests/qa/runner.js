@@ -25,7 +25,7 @@ const PHONE = { width: 390, height: 844 };
 const DESKTOP = { width: 1280, height: 900 };
 const ROUTES = ["#/", "#/?y=2019", "#/events", "#/corps", "#/corps/bluecoats", "#/stats", "#/captions",
   "#/compare", "#/champions", "#/records", "#/database", "#/predictions", "#/settings",
-  "#/suggestions", "#/about", "#/ask"];
+  "#/suggestions", "#/about", "#/ask", "#/wgi", "#/wgi?y=2019"];
 
 const findings = [];
 let currentSection = "";
@@ -706,6 +706,54 @@ section("database keeps corps and score on screen (phone)", async (browser, base
   if (m.overflow > 2) bad(`table overflows its scroller by ${m.overflow}px — a column is cut off`);
   if (!/^\d+\.\d/.test(m.last)) bad(`last visible column is "${m.last}", expected the score`);
   if (m.cols < 4) bad(`only ${m.cols} columns visible on a phone`);
+  if (page._errs.length) bad(page._errs[0]);
+  await ctx.close();
+});
+
+// WGI is a second circuit with its own data namespace, divisions and classes.
+// The things that must hold: it reaches a real standings table, the circuit
+// strip gets you back to DCI, a division/class switch actually changes the
+// rows, and a pre-2024 year admits it is championships-only rather than
+// implying a whole season is listed.
+section("wgi: circuit, division and class all switch", async (browser, base) => {
+  const { ctx, page } = await ctxPage(browser, base, { viewport: PHONE });
+  await page.goHash("#/wgi");
+  await page.waitForTimeout(1500);
+
+  const strip = await page.$$eval(".subtabs a", as => as.map(a => a.innerText.trim()));
+  if (!strip.includes("DCI") || !strip.includes("WGI"))
+    bad(`circuit strip missing DCI/WGI: ${JSON.stringify(strip)}`);
+
+  const rows = await page.$$eval("#wgiBody tbody tr", trs => trs.length);
+  if (!rows) { bad("no WGI standings rows rendered"); await ctx.close(); return; }
+
+  const firstUnit = () => page.$eval("#wgiBody tbody tr td:nth-child(2)", td => td.innerText.trim());
+  const before = await firstUnit();
+
+  // switching class must change what is listed
+  const chips = await page.$$eval(".chiprow a", as => as.map(a => a.getAttribute("href")));
+  if (chips.length > 1) {
+    const other = chips.find(h => !/\bon\b/.test(h)) || chips[1];
+    await page.goHash(other.replace(/^#/, ""));
+    await page.waitForTimeout(1200);
+    const after = await firstUnit().catch(() => "");
+    if (after && after === before)
+      bad(`class switch did not change the standings (still "${before}")`);
+  }
+
+  // a finals-only (pre-2024) year must say so
+  await page.goHash("#/wgi?y=2019");
+  await page.waitForTimeout(1200);
+  const body = await page.textContent("#app");
+  if (!/World Championship/i.test(body))
+    bad("a pre-2024 WGI year does not disclose that it is championships-only");
+
+  // and the strip gets back to DCI
+  await page.goHash("#/");
+  await page.waitForTimeout(1000);
+  if (!/Scoreboard/.test(await page.textContent("h1.page")))
+    bad("circuit strip did not return to the DCI scoreboard");
+
   if (page._errs.length) bad(page._errs[0]);
   await ctx.close();
 });
