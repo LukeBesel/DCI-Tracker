@@ -82,6 +82,8 @@ run "build site data" python scraper/build_data.py
 # WGI builds into its own docs/data/wgi/ namespace, so it cannot disturb the
 # DCI build above and a WGI failure never blocks publishing DCI scores.
 run "build wgi data" python scraper/build_wgi.py
+# judge analytics read the recaps build_data just wrote, so they run after it
+run "build judge analytics" python scraper/build_judges.py
 run "validate site data" python scraper/validate_data.py
 
 echo "finished=$(date -u +'%F %T UTC')" >> "$REPORT"

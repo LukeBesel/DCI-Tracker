@@ -26,7 +26,7 @@ const DESKTOP = { width: 1280, height: 900 };
 const ROUTES = ["#/", "#/?y=2019", "#/events", "#/corps", "#/corps/bluecoats", "#/stats", "#/captions",
   "#/compare", "#/champions", "#/records", "#/database", "#/predictions", "#/settings",
   "#/suggestions", "#/about", "#/ask", "#/wgi", "#/wgi?y=2019",
-  "#/wgi/events", "#/wgi/units", "#/wgi/stats"];
+  "#/wgi/events", "#/wgi/units", "#/wgi/stats", "#/judges"];
 
 const findings = [];
 let currentSection = "";
@@ -793,6 +793,59 @@ section("wgi: circuit, division and class all switch", async (browser, base) => 
   const dciHrefs = await page.$$eval("#nav a", as => as.map(a => a.getAttribute("href")));
   if (dciHrefs.some(h => h.startsWith("#/wgi")))
     bad(`DCI nav still points into WGI: ${JSON.stringify(dciHrefs)}`);
+
+  if (page._errs.length) bad(page._errs[0]);
+  await ctx.close();
+});
+
+// Judge analytics publish numbers people will quote, so the view has to be
+// honest about what is behind them: no agreement figure may appear without
+// enough rooms under it, filters must actually filter, and the page must say
+// what the numbers mean rather than leaving them to be guessed at.
+section("judges: sampled honestly and explained", async (browser, base) => {
+  const { ctx, page } = await ctxPage(browser, base, { viewport: PHONE });
+  await page.goHash("#/judges");
+  await page.waitForTimeout(1800);
+
+  const rows = await page.$$eval("tbody tr", trs => trs.length);
+  if (!rows) { bad("judges view rendered no rows"); await ctx.close(); return; }
+
+  // the floor the build applied, read from the data rather than hard-coded
+  const floor = await page.evaluate(async () => {
+    const idx = await fetch("data/judges/index.json").then(r => r.json());
+    const y = (idx.years || []).find(v => v.judges > 0);
+    const doc = await fetch(`data/judges/${y.year}.json`).then(r => r.json());
+    return {
+      min: doc.floors.agreement_rooms,
+      offenders: doc.judges.filter(j => j.agreement != null
+                                   && j.agreement_rooms < doc.floors.agreement_rooms).length,
+      shown: doc.judges.filter(j => j.agreement != null).length,
+      total: doc.judges.length,
+    };
+  });
+  if (floor.offenders)
+    bad(`${floor.offenders} seats publish an agreement figure below the ${floor.min}-room floor`);
+  if (!floor.shown) bad("no seat qualifies for an agreement figure at all");
+  if (floor.shown === floor.total)
+    bad("every seat shows agreement — the sample floor is not being applied");
+
+  // the page must explain the numbers, not just print them
+  const body = await page.textContent("#app");
+  for (const term of ["Agreement", "Spread", "vs caption"])
+    if (!body.includes(term)) bad(`the judges view never explains "${term}"`);
+
+  // a caption filter narrows the table
+  const chips = await page.$$eval(".chiprow a", as => as.map(a => a.getAttribute("href")));
+  const capChip = chips.find(h => /[?&]c=[^&]+/.test(h) && !/c=&/.test(h));
+  if (capChip) {
+    await page.goHash(capChip);          // goHash wants the leading '#'
+    await page.waitForTimeout(1200);
+    const narrowed = await page.$$eval("tbody tr", trs => trs.length);
+    if (narrowed >= rows) bad(`caption filter did not narrow the table (${rows} -> ${narrowed})`);
+    const caps = await page.$$eval("tbody tr", trs =>
+      [...new Set(trs.map(t => t.innerText.replace(/\s+/g, " ")))].length);
+    if (!caps) bad("caption filter emptied the table");
+  }
 
   if (page._errs.length) bad(page._errs[0]);
   await ctx.close();

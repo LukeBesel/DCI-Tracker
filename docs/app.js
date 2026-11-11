@@ -833,7 +833,7 @@
   const CAP_KEY_NOTE = "<p class='capkey'>GE General Effect · VP Visual Proficiency · VA Visual Analysis · CG Color Guard · BR Brass · MA Music Analysis · PC Percussion</p>";
 
   // underline sub-tabs inside the Data tab (Stats)
-  const DATA_SUBS = [["captions", "Captions"], ["compare", "Compare"], ["champions", "Champions"], ["records", "Records"], ["database", "Database"]];
+  const DATA_SUBS = [["captions", "Captions"], ["judges", "Judges"], ["compare", "Compare"], ["champions", "Champions"], ["records", "Records"], ["database", "Database"]];
   // the strip scrolls horizontally on a narrow screen; once the view's
   // innerHTML lands, nudge the active view into view so landing on "Database"
   // (the rightmost tab) never leaves it clipped off the right edge
@@ -4013,6 +4013,105 @@
   }
 
   /* ============ RECORDS ============ */
+  /* ============ JUDGES ============
+     Every recap names the judge behind each sub-caption and carries their
+     score for every corps in the room, which is enough to say three things a
+     scoreboard never shows: whether a judge scores above or below the rest of
+     the panel on the same corps (tendency), whether they ORDER the field the
+     way the panel does (agreement), and how far they spread it.
+
+     These numbers are easy to misread, so the view says what they mean and
+     refuses the comparison that would be meaningless: captions carry their own
+     offsets (General Effect sits above Color Guard on most sheets), so judges
+     are only ever ranked against others of the SAME caption. */
+  async function viewJudges(query, stale) {
+    setNav("data");
+    const q = new URLSearchParams(query || "");
+    let idx;
+    try { idx = await data("judges/index.json"); } catch (e) { idx = null; }
+    if (stale()) return;
+    const yearsAll = ((idx && idx.years) || []).filter(y => y.judges > 0);
+    if (!yearsAll.length) {
+      app.innerHTML = `${dataSubNav("judges")}<h1 class="page">Judges</h1>
+        <div class="card"><div class="empty">Judge analysis needs the official recaps, which aren't available yet.</div></div>`;
+      return;
+    }
+    const years = yearsAll.map(y => y.year);
+    const year = years.includes(+q.get("y")) ? +q.get("y") : years[0];
+
+    let doc;
+    try { doc = await data(`judges/${year}.json`); } catch (e) { doc = null; }
+    if (stale()) return;
+    if (!doc) {
+      app.innerHTML = `${dataSubNav("judges")}<h1 class="page">Judges</h1>
+        <div class="card"><div class="empty">No judge data for ${year}.</div></div>`;
+      return;
+    }
+
+    const captions = Object.keys(doc.captions || {}).sort();
+    const cap = captions.includes(q.get("c")) ? q.get("c") : "";
+    const sort = ["agreement", "rel", "shows", "spread"].includes(q.get("s")) ? q.get("s") : "agreement";
+    const rows = (doc.judges || []).filter(j => !cap || j.caption === cap);
+    const dir = sort === "rel" ? -1 : -1;
+    rows.sort((a, b) => {
+      const av = a[sort], bv = b[sort];
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      return (bv - av) * (dir < 0 ? 1 : -1) || a.judge.localeCompare(b.judge);
+    });
+    const link = (c, s, y) => `#/judges?y=${y ?? year}` +
+      `&c=${encodeURIComponent(c === null ? cap : c)}&s=${s ?? sort}`;
+
+    const num = (v, plus) => v == null ? "—"
+      : (plus && v > 0 ? "+" : "") + v.toFixed(plus ? 3 : 2);
+
+    app.innerHTML = `${dataSubNav("judges")}
+      <h1 class="page">${yearPickerHtml(year)} Judges <span class="kicker">· ${rows.length} of ${(doc.judges || []).length} panel seats</span></h1>
+      <div class="card">
+        <div class="evdone">Built from ${doc.rooms.toLocaleString()} judged rooms in ${year}. A seat appears once it has
+          judged ${doc.floors.shows}+ shows and ${doc.floors.scores}+ corps.</div>
+        <div class="chiprow">
+          <a class="yearopt ${cap ? "" : "on"}" href="${link("", null)}">All captions</a>
+          ${captions.map(c => `<a class="yearopt ${c === cap ? "on" : ""}" href="${link(c, null)}">${esc(c)}</a>`).join("")}
+        </div>
+        <div class="chiprow">${[["agreement", "Agreement"], ["rel", "Runs high"], ["spread", "Spread"], ["shows", "Shows"]]
+          .map(([k, l]) => `<a class="yearopt ${k === sort ? "on" : ""}" href="${link(null, k)}">${l}</a>`).join("")}</div>
+        <div class="tscroll"><table class="t"><thead><tr>
+          <th>Judge</th><th class="m-hide">Caption</th>
+          <th class="num" title="Shows judged">Shows</th>
+          <th class="num" title="Score relative to the rest of the panel on the same corps, measured against this caption's own norm">vs caption</th>
+          <th class="num" title="How closely this judge's ordering of the field matches the room's">Agreement</th>
+          <th class="num m-hide" title="How widely they spread the field">Spread</th>
+        </tr></thead><tbody>${rows.map(j => `<tr>
+          <td><b>${esc(j.judge)}</b>${cap ? "" : `<div class="evdone" style="padding:0">${esc(j.caption)}</div>`}</td>
+          <td class="m-hide">${esc(j.caption)}</td>
+          <td class="num">${j.shows}</td>
+          <td class="num ${j.rel > 0.05 ? "delta up" : j.rel < -0.05 ? "delta down" : ""}">${num(j.rel, true)}</td>
+          <td class="num score">${j.agreement == null
+            ? `<span class="kicker" title="Needs ${doc.floors.agreement_rooms}+ full rooms; this seat has ${j.agreement_rooms}">—</span>`
+            : j.agreement.toFixed(3)}</td>
+          <td class="num m-hide">${num(j.spread)}</td>
+        </tr>`).join("")}</tbody></table></div>
+      </div>
+      <div class="card">
+        <h2>How to read this</h2>
+        <p style="margin:0 0 8px"><b>vs caption</b> — whether this seat scored above or below the rest of
+          the panel on the same corps at the same show, measured against what that caption normally runs.
+          Captions carry their own offsets, so judges are only compared with others doing the same job.</p>
+        <p style="margin:0 0 8px"><b>Agreement</b> — how closely their ordering of the field matched the room's.
+          1.000 means they placed the corps exactly as the full panel did. A lower number isn't a mistake:
+          a specialist caption legitimately sees a different show. It is only shown once a seat has
+          ${doc.floors.agreement_rooms}+ full rooms behind it — over one or two rooms a perfect score is
+          easy to hit by chance and would top this table while meaning nothing.</p>
+        <p style="margin:0 0 8px"><b>Spread</b> — how far apart they placed the field. A narrow spread
+          compresses the gaps; a wide one separates them.</p>
+        <p class="newsnote" style="margin:0">These are descriptive, not a verdict on anyone's judging. They
+          come from ${esc(String(doc.rooms))} rooms of published recaps and nothing else.</p>
+      </div>`;
+    wireYearPicker(years, year, y => { location.hash = link(null, null, y); });
+  }
+
   async function viewRecords(_m, stale) {
     setNav("data");
     const [rec, idx] = await Promise.all([data("records.json"), data("corps_index.json")]);
@@ -4737,6 +4836,7 @@
     [/^#\/season\/(\d{4})$/, m => { location.replace(`#/events?y=${m[1]}`); }],
     [/^#\/event\/(\d{4})\/(\d+)(?:\?(.*))?$/, (m, st) => viewEvent(m[1], m[2], st, m[3])],
     [/^#\/captions(?:\?(.*))?$/, (m, st) => viewCaptions(m[1], st)],
+    [/^#\/judges(?:\?(.*))?$/, (m, st) => viewJudges(m[1], st)],
     [/^#\/records$/, viewRecords],
     [/^#\/settings$/, viewSettings],
     [/^#\/go(?:\?(.*))?$/, m => viewGo(m[1])],
