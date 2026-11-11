@@ -905,12 +905,15 @@ a.tile:hover { text-decoration: none; }
     box-shadow: 0 -4px 16px rgba(22,35,61,0.25);
     padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
   }
+  /* five tabs share 390px, so the label gives up a point rather than wrapping
+     or clipping ("Scoreboard" is the long one) */
   #nav a {
     flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
-    padding: 7px 2px; font-size: 12px; font-weight: 650; color: rgba(255,255,255,0.75);
+    padding: 7px 1px; font-size: 11px; font-weight: 650; color: rgba(255,255,255,0.75);
     border-radius: 12px; min-width: 0; white-space: nowrap;
   }
-  #nav a svg { display: block; width: 26px; height: 26px; }
+  #nav a[hidden] { display: none; }
+  #nav a svg { display: block; width: 24px; height: 24px; }
   #nav a:hover { background: none; color: rgba(255,255,255,0.9); }
   #nav a.active { color: var(--on-accent, var(--navy)); background: var(--gold); }
   main { padding: 14px 12px 110px; }

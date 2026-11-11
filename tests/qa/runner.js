@@ -92,7 +92,10 @@ section("routes render clean (phone + desktop)", async (browser, base) => {
 section("legacy routes keep redirecting", async (browser, base) => {
   const { ctx, page } = await ctxPage(browser, base);
   const cases = [
-    ["#/data", /#\/captions/], ["#/stats", /#\/captions/],
+    // Captions moved out of the Stats hub to a tab of its own, so the hub now
+    // lands on its own first view. #/captions remains a working top-level URL.
+    ["#/data", /#\/compare/], ["#/stats", /#\/compare/],
+    ["#/captions", /#\/captions/],
     ["#/seasons", /#\/(seasons|champions)/], ["#/today", /#\/(today|$)/],
     ["#/season/2025", /#\/events\?y=2025/], ["#/season/dci/2019", /#\/events\?y=2019/],
   ];
@@ -846,6 +849,58 @@ section("judges: sampled honestly and explained", async (browser, base) => {
       [...new Set(trs.map(t => t.innerText.replace(/\s+/g, " ")))].length);
     if (!caps) bad("caption filter emptied the table");
   }
+
+  if (page._errs.length) bad(page._errs[0]);
+  await ctx.close();
+});
+
+// Captions is the thing most people open the app for, so it is a tab rather
+// than a sub-tab of a seven-item Stats pile. The grouping has to hold: the
+// caption-derived views sit together under Captions, the reference tools under
+// Stats, and no tab may lead somewhere that doesn't exist in the current mode.
+section("captions is a tab of its own", async (browser, base) => {
+  const { ctx, page } = await ctxPage(browser, base, { viewport: PHONE });
+  const visible = () => page.evaluate(() => [...document.querySelectorAll("#nav a")]
+    .filter(a => !a.hidden)
+    .map(a => ({ label: a.querySelector("span").textContent, href: a.getAttribute("href"),
+                 on: a.classList.contains("active") })));
+
+  await page.goHash("#/captions");
+  await page.waitForTimeout(1200);
+  const tabs = await visible();
+  if (!tabs.some(t => t.label === "Captions")) bad("no Captions tab on DCI");
+  if (!tabs.find(t => t.label === "Captions")?.on)
+    bad("the Captions tab is not active on a captions view");
+
+  // the three caption views sit under it, and keep it lit
+  for (const [hash, sub] of [["#/captions", "Sheets"], ["#/breakdown", "Breakdown"], ["#/judges", "Judges"]]) {
+    await page.goHash(hash);
+    await page.waitForTimeout(1300);
+    const subs = await page.$$eval(".subtabs a", as => as.map(a => a.innerText.trim()));
+    for (const want of ["Sheets", "Breakdown", "Judges"])
+      if (!subs.includes(want)) bad(`${hash}: caption sub-tabs missing "${want}"`);
+    if (subs.includes("Database")) bad(`${hash}: still showing the Stats sub-tabs`);
+    const nav = await visible();
+    if (!nav.find(t => t.label === "Captions")?.on) bad(`${hash} does not light the Captions tab`);
+  }
+
+  // Stats keeps the reference tools and nothing caption-derived
+  await page.goHash("#/compare");
+  await page.waitForTimeout(1300);
+  const statSubs = await page.$$eval(".subtabs a", as => as.map(a => a.innerText.trim()));
+  for (const want of ["Compare", "Champions", "Records", "Database"])
+    if (!statSubs.includes(want)) bad(`Stats sub-tabs missing "${want}"`);
+  for (const gone of ["Sheets", "Breakdown", "Judges"])
+    if (statSubs.includes(gone)) bad(`"${gone}" is still under Stats`);
+
+  // WGI has no caption data yet, so it must not show a tab that leads nowhere
+  await page.goHash("#/wgi?d=Percussion");
+  await page.waitForTimeout(1500);
+  const wgiTabs = await visible();
+  if (wgiTabs.some(t => t.label === "Captions"))
+    bad("WGI shows a Captions tab but has no caption data behind it");
+  for (const t of wgiTabs)
+    if (!/^#\/wgi/.test(t.href)) bad(`WGI nav tab "${t.label}" points outside the circuit (${t.href})`);
 
   if (page._errs.length) bad(page._errs[0]);
   await ctx.close();

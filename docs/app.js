@@ -782,8 +782,13 @@
      back at the DCI views. The hrefs are rewritten rather than duplicated so
      every deep link keeps working. */
   const NAV_MODE = {
-    dci: { rankings: "#/", events: "#/events", corps: ["#/corps", "Corps"], data: "#/stats" },
-    wgi: { rankings: "#/wgi", events: "#/wgi/events", corps: ["#/wgi/units", "Units"], data: "#/wgi/stats" },
+    dci: { rankings: "#/", events: "#/events", corps: ["#/corps", "Corps"],
+           captions: "#/captions", data: "#/stats" },
+    // WGI has no caption tab yet: its recaps are captured but not parsed, and
+    // a tab that leads nowhere is worse than one that isn't there. It appears
+    // the moment the data does.
+    wgi: { rankings: "#/wgi", events: "#/wgi/events", corps: ["#/wgi/units", "Units"],
+           captions: null, data: "#/wgi/stats" },
   };
   function applyNavMode() {
     const m = currentMode();
@@ -793,14 +798,17 @@
     const map = NAV_MODE[wgi ? "wgi" : "dci"];
     document.querySelectorAll("#nav a").forEach(a => {
       const spec = map[a.dataset.route];
-      if (!spec) return;
+      if (spec === undefined) return;
+      if (spec === null) { a.hidden = true; return; }
+      a.hidden = false;
       const [href, label] = Array.isArray(spec) ? spec : [spec, null];
       a.setAttribute("href", href + (href.startsWith("#/wgi") ? qs : ""));
       const span = a.querySelector("span");
       if (span) span.textContent = label || DEFAULT_NAV_LABEL[a.dataset.route] || span.textContent;
     });
   }
-  const DEFAULT_NAV_LABEL = { rankings: "Scoreboard", events: "Shows", corps: "Corps", data: "Stats" };
+  const DEFAULT_NAV_LABEL = { rankings: "Scoreboard", events: "Shows", corps: "Corps",
+                              captions: "Captions", data: "Stats" };
   // Collapse long tables to the first `n` rows with a Show-all toggle.
   // Safe to call again after a re-render (replaces its own button).
   function collapseRows(tbody, n, noun) {
@@ -833,7 +841,12 @@
   const CAP_KEY_NOTE = "<p class='capkey'>GE General Effect · VP Visual Proficiency · VA Visual Analysis · CG Color Guard · BR Brass · MA Music Analysis · PC Percussion</p>";
 
   // underline sub-tabs inside the Data tab (Stats)
-  const DATA_SUBS = [["captions", "Captions"], ["breakdown", "Breakdown"], ["judges", "Judges"], ["compare", "Compare"], ["champions", "Champions"], ["records", "Records"], ["database", "Database"]];
+  /* Captions is what most people come for, and it used to sit one level down
+     inside a Stats tab that had grown to seven sub-tabs. It is now a tab of
+     its own holding the three caption-derived views, and Stats keeps the
+     general reference tools. Two shallow groups beat one deep pile. */
+  const CAP_SUBS = [["captions", "Sheets"], ["breakdown", "Breakdown"], ["judges", "Judges"]];
+  const DATA_SUBS = [["compare", "Compare"], ["champions", "Champions"], ["records", "Records"], ["database", "Database"]];
   // the strip scrolls horizontally on a narrow screen; once the view's
   // innerHTML lands, nudge the active view into view so landing on "Database"
   // (the rightmost tab) never leaves it clipped off the right edge
@@ -844,11 +857,13 @@
     const sr = strip.getBoundingClientRect(), ar = on.getBoundingClientRect();
     strip.scrollLeft += (ar.left - sr.left) - (sr.width - ar.width) / 2;
   }
-  const dataSubNav = active => {
+  const subNav = (subs, active) => {
     requestAnimationFrame(centerSubtab);
-    return `<div class="subtabs">${DATA_SUBS.map(([k, l]) =>
+    return `<div class="subtabs">${subs.map(([k, l]) =>
       `<a href="#/${k}" class="${k === active ? "on" : ""}">${l}</a>`).join("")}</div>`;
   };
+  const dataSubNav = active => subNav(
+    CAP_SUBS.some(([k]) => k === active) ? CAP_SUBS : DATA_SUBS, active);
 
   // one-choice slicer with the same look as the checkbox pickers
   function singleSelect(mount, cfg) {
@@ -3515,7 +3530,7 @@
 
   /* ============ CAPTIONS ============ */
   async function viewCaptions(qs, stale) {
-    setNav("data");
+    setNav("captions");
     let cindex;
     try { cindex = await data("captions/index.json"); }
     catch (e) {
@@ -4025,7 +4040,7 @@
      offsets (General Effect sits above Color Guard on most sheets), so judges
      are only ever ranked against others of the SAME caption. */
   async function viewJudges(query, stale) {
-    setNav("data");
+    setNav("captions");
     const q = new URLSearchParams(query || "");
     let idx;
     try { idx = await data("judges/index.json"); } catch (e) { idx = null; }
@@ -4131,7 +4146,7 @@
   const TOTAL_IDX = 16;
 
   async function viewBreakdown(query, stale) {
-    setNav("data");
+    setNav("captions");
     const q = new URLSearchParams(query || "");
     let idx;
     try { idx = await data("captions/index.json"); } catch (e) { idx = null; }
@@ -5022,7 +5037,9 @@
     // Stats hub entry — lands on the captions front page. "#/data" is the
     // legacy name for the same hub; keep both redirecting forever so old
     // shared links never break.
-    [/^#\/(?:stats|data)$/, () => { location.replace("#/captions"); }],
+    // Stats no longer owns the caption views, so it lands on its own first
+    // tab. #/captions is a top-level route now and keeps working untouched.
+    [/^#\/(?:stats|data)$/, () => { location.replace("#/compare"); }],
     [/^#\/season\/(\d{4})$/, m => { location.replace(`#/events?y=${m[1]}`); }],
     [/^#\/event\/(\d{4})\/(\d+)(?:\?(.*))?$/, (m, st) => viewEvent(m[1], m[2], st, m[3])],
     [/^#\/captions(?:\?(.*))?$/, (m, st) => viewCaptions(m[1], st)],
