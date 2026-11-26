@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from datetime import date
 import re
 
 from common import ROOT, fetch, log, norm_space
@@ -229,6 +230,18 @@ def parse_event(html: str, event: dict):
     return sheets, kept, dropped, reasons
 
 
+RECENT_DAYS = 10
+
+
+def _recent(ev: dict, today: date | None = None) -> bool:
+    today = today or date.today()
+    try:
+        d = date.fromisoformat((ev.get("date_iso") or "")[:10])
+    except ValueError:
+        return ev.get("year") == today.year    # undated: refresh only this season
+    return (today - d).days <= RECENT_DAYS
+
+
 def main(years: list[int] | None = None, limit: int | None = None) -> int:
     events = json.loads((PARSED / "wgi_events.json").read_text())
     if years:
@@ -241,7 +254,11 @@ def main(years: list[int] | None = None, limit: int | None = None) -> int:
         if limit and done >= limit:
             break
         done += 1
-        html = fetch(url)
+        # A recap fetched mid-show is partial, and the cache would keep it that
+        # way forever. Refetch any show from the last RECENT_DAYS (or not yet
+        # dated) so late units and score corrections land; older recaps are
+        # final and stay cache-only.
+        html = fetch(url, force=_recent(ev))
         if not html:
             continue
         sheets, k, d, why = parse_event(html, ev)

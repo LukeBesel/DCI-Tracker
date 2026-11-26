@@ -112,7 +112,7 @@ def read_rooms(year: int):
             slots = [(i, c) for i, c in enumerate(cols) if c and c.get("judge")]
             if not slots:
                 continue
-            corps = []
+            corps, totals = [], {}
             for row in cl.get("rows") or []:
                 # a row is [name, values[], ranks[]] — ranks are the sheet's own
                 # per-column placement, which we don't need here. Older rows may
@@ -128,9 +128,18 @@ def read_rooms(year: int):
                         picked[(meta["judge"], meta["caption"])] = float(vals[i])
                 if len(picked) == len(slots):      # complete sheets only
                     corps.append((name, picked))
+                    # the published final score is the row's last value (after
+                    # the sub-total and penalty columns). Agreement must rank the
+                    # room by it: a plain mean of judge scores ignores caption
+                    # weights and penalties and can reverse two corps' order.
+                    if len(vals) > len(cols) and isinstance(vals[-1], (int, float)) and vals[-1] > 0:
+                        totals[name] = float(vals[-1])
             if len(corps) >= MIN_CORPS:
                 rooms.append({"date": ev.get("d"), "event": ev.get("e"),
-                              "cls": cl.get("c"), "corps": corps})
+                              "cls": cl.get("c"), "corps": corps,
+                              # only when every corps has one, so one room is
+                              # never ranked on a mix of totals and means
+                              "totals": totals if len(totals) == len(corps) else {}})
     return rooms
 
 

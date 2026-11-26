@@ -1910,7 +1910,7 @@
       wgiClassSort([...byClass.keys()]).forEach(c =>
         champs.push({ year: yr, cls: c, ...byClass.get(c) }));
     });
-    champs.sort((a, b) => b.year - a.year || wgiClassSort([a.cls, b.cls])[0] === a.cls ? -1 : 1);
+    champs.sort((a, b) => (b.year - a.year) || (a.cls === b.cls ? 0 : wgiClassSort([a.cls, b.cls])[0] === a.cls ? -1 : 1));
     all.sort((a, b) => b.score - a.score);
 
     const titles = new Map();

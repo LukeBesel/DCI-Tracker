@@ -151,3 +151,21 @@ class Event(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Freshness(unittest.TestCase):
+    """A recap first fetched mid-show is partial; it must be refetched until
+    the show is old enough to be final."""
+
+    def test_a_recent_show_is_refetched(self):
+        from datetime import date
+        self.assertTrue(R._recent({"date_iso": "2026-03-01", "year": 2026}, date(2026, 3, 5)))
+
+    def test_an_old_show_reads_from_cache(self):
+        from datetime import date
+        self.assertFalse(R._recent({"date_iso": "2025-03-01", "year": 2025}, date(2026, 3, 5)))
+
+    def test_an_undated_show_refreshes_only_in_its_own_season(self):
+        from datetime import date
+        self.assertTrue(R._recent({"date_iso": "", "year": 2026}, date(2026, 3, 5)))
+        self.assertFalse(R._recent({"date_iso": "", "year": 2024}, date(2026, 3, 5)))

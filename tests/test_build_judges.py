@@ -92,6 +92,20 @@ class Rooms(unittest.TestCase):
         J.read_json = lambda path: None
         self.assertEqual(J.read_rooms(2026), [])
 
+    def test_the_published_total_ranks_the_room_not_the_judge_mean(self):
+        # the sheet ends with sub-total, penalty, total; the total is what
+        # placed the corps, and it can disagree with a plain mean of judges
+        rows = [row(n, 16, 16, 16) for n in "ABCD"]
+        for r, tot in zip(rows, (80.0, 82.5, 79.0, 81.0)):
+            r[1] = r[1] + [tot, 0.0, tot]
+        self.feed([recap(rows)])
+        self.assertEqual(J.read_rooms(2026)[0]["totals"],
+                         {"A": 80.0, "B": 82.5, "C": 79.0, "D": 81.0})
+
+    def test_a_room_with_no_totals_falls_back_to_means(self):
+        self.feed([recap([row(n, 16, 16, 16) for n in "ABCD"])])
+        self.assertEqual(J.read_rooms(2026)[0]["totals"], {})
+
 
 class Season(unittest.TestCase):
     def setUp(self):
