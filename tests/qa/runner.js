@@ -348,15 +348,8 @@ section("shows: expansion, filters panel, event page focus", async (browser, bas
     await page.waitForTimeout(600);
     if (!await page.$(".evrow .evres, .evrow table")) bad("expanding a show revealed no results/schedule");
   }
-  const ft = await page.$("#fToggle");
-  if (!ft) bad("no Filters toggle");
-  else {
-    const panel = await page.$(".fpanel");
-    const before = panel && await panel.isVisible();
-    await ft.click(); await page.waitForTimeout(300);
-    const after = panel && await panel.isVisible();
-    if (before === after) bad("Filters toggle did not change panel visibility");
-  }
+  // filters sit in plain view, in the same filter bar every view uses
+  if (!(await page.$("#fPanel .fbtn")) || !(await page.isVisible("#fQ"))) bad("shows: the filter bar is not visible");
 
   // the year is the same picker as the Scoreboard — pick a season, the URL and
   // heading follow, and a real board for it renders

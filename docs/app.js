@@ -864,18 +864,27 @@
     CAP_SUBS.some(([k]) => k === active) ? CAP_SUBS : DATA_SUBS, active);
 
   // one-choice slicer with the same look as the checkbox pickers
+  // A single choice is always the filter-bar button + picker sheet, so every
+  // dropdown in the app (season, set, type, sort…) looks and works the same.
   function singleSelect(mount, cfg) {
-    const selected = new Set(cfg.value != null ? [String(cfg.value)] : []);
-    const ms = multiSelect(mount, {
-      label: cfg.label || "", single: true, searchable: cfg.searchable, searchHint: cfg.searchHint,
-      options: cfg.options, selected,
-      onChange: v => cfg.onChange(v[0]),
-    });
+    let value = cfg.value != null ? String(cfg.value) : "";
+    let options = cfg.options || [];
+    mount.classList.add("ssel");
+    function paint() {
+      const cur = options.find(o => String(o.value) === value);
+      mount.innerHTML = filterBar([{ id: "ss", label: cfg.label || "", value: cur ? cur.label : (cfg.placeholder || "Choose") }]);
+      mount.querySelector(".fbtn").addEventListener("click", () => pickSheet({
+        title: cfg.title || cfg.label || "Choose", value, search: cfg.searchable,
+        options: options.map(o => ({ value: String(o.value), label: o.label, sub: o.hint })),
+        onPick: v => { value = v; paint(); cfg.onChange(v); },
+      }));
+    }
+    paint();
     return {
-      get: () => [...selected][0],
-      set: v => { selected.clear(); if (v != null) selected.add(String(v)); ms.refresh(); },
-      setOptions: opts => ms.setOptions(opts),
-      refresh: () => ms.refresh(),
+      get: () => value,
+      set: v => { value = v == null ? "" : String(v); paint(); },
+      setOptions: opts => { options = opts; paint(); },
+      refresh: paint,
     };
   }
 
@@ -946,7 +955,7 @@
     mount.classList.add("msel");
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "ctrl msel-btn";
+    btn.className = "ctrl msel-btn fbtn";
     btn.setAttribute("aria-haspopup", "listbox");
     btn.setAttribute("aria-expanded", "false");
     const panel = document.createElement("div");
@@ -1880,26 +1889,41 @@
       <h1 class="page">${yearPickerHtml(year)} WGI ${esc(division)} Shows
         <span class="kicker">· ${evs.length.toLocaleString()} ${evs.length === 1 ? "show" : "shows"}</span></h1>
       ${finalsOnly ? `<div class="evdone">${year} is the World Championship recap — WGI doesn't publish the full season this far back.</div>` : ""}
-      ${evs.length ? [...evs].reverse().map(ev => {
+      ${evs.length ? `<div id="evlist">${[...evs].reverse().map(ev => {
+        // the same show row the DCI Shows tab uses: date · show · winner, tap to open
         const groups = (ev.classes || []).filter(c => c.division === division);
         const units = groups.reduce((n, g) => n + (g.results || []).length, 0);
-        return `<div class="card">
-          <div style="display:flex;justify-content:space-between;gap:12px;align-items:baseline">
-            <h2 style="margin:0">${ev.url ? `<a href="${encodeURI(ev.url)}" target="_blank" rel="noopener">${esc(ev.name)}</a>` : esc(ev.name)}</h2>
-            <span class="kicker" style="white-space:nowrap">${esc(ev.date_display || ev.date || "")}</span>
+        const top = groups.map(g => (g.results || [])[0]).filter(Boolean).sort((x, y) => y.score - x.score)[0];
+        return `<div class="evrow card evshow">
+          <button class="evhead" aria-expanded="false">
+            <span class="evwhen">${fmtDate2(ev.date, ev.date_display)}</span>
+            <span class="evmain"><b>${esc(ev.name)}${ev.recap_url ? ' <span class="pill evpill">recap</span>' : ""}</b>
+              <span class="evloc">${groups.length} ${groups.length === 1 ? "class" : "classes"} · ${units} units</span></span>
+            <span class="evwin">${top ? `${esc(top.corps)}<b>${score3(top.score)}</b>` : ""}</span>
+            <span class="caret">▸</span>
+          </button>
+          <div class="evbody" hidden>
+            ${groups.map(g => `<div style="margin-top:8px">
+              <div class="evdone" style="font-weight:700;color:var(--text-primary)">${esc(g.class)}</div>
+              <div class="tscroll"><table class="t"><tbody>${(g.results || []).map((r, i) => `<tr>
+                <td class="rank">${r.place ?? i + 1}</td>
+                <td><a href="#/wgi/unit/${encodeURIComponent(wgiSlug(r.corps))}${wgiQS(ctx)}">${esc(r.corps)}</a></td>
+                <td class="num score">${score3(r.score)}</td></tr>`).join("")}</tbody></table></div>
+            </div>`).join("")}
+            <div class="evdone">${ev.url ? `<a href="${encodeURI(ev.url)}" target="_blank" rel="noopener">WGI scores page →</a>` : ""}${
+              ev.recap_url ? ` · <a href="${encodeURI(ev.recap_url)}" target="_blank" rel="noopener">Judge recap →</a>` : ""}</div>
           </div>
-          <div class="evdone">${groups.length} ${groups.length === 1 ? "class" : "classes"} · ${units} units${
-            ev.recap_url ? ` · <a href="${encodeURI(ev.recap_url)}" target="_blank" rel="noopener">judge recap →</a>` : ""}</div>
-          ${groups.map(g => `<div style="margin-top:8px">
-            <div class="evdone" style="font-weight:700;color:var(--text-primary)">${esc(g.class)}</div>
-            <div class="tscroll"><table class="t"><tbody>${(g.results || []).map((r, i) => `<tr>
-              <td class="rank">${r.place ?? i + 1}</td>
-              <td><a href="#/wgi/unit/${encodeURIComponent(wgiSlug(r.corps))}${wgiQS(ctx)}">${esc(r.corps)}</a></td>
-              <td class="num score">${score3(r.score)}</td></tr>`).join("")}</tbody></table></div>
-          </div>`).join("")}
         </div>`;
-      }).join("") : `<div class="card"><div class="empty">No ${esc(division)} shows listed for ${year}.</div></div>`}`;
+      }).join("")}</div>` : `<div class="card"><div class="empty">No ${esc(division)} shows listed for ${year}.</div></div>`}`;
     wireYearPicker(years, year, y => { location.hash = `#/wgi/events?y=${y}&d=${encodeURIComponent(division)}`; });
+    app.querySelectorAll(".evrow .evhead").forEach(hd => hd.addEventListener("click", () => {
+      const row = hd.closest(".evrow"), open = !row.classList.contains("open");
+      row.classList.toggle("open", open);
+      hd.setAttribute("aria-expanded", open);
+      row.querySelector(".evbody").hidden = !open;
+    }));
+    // a single show this season opens straight away
+    if (evs.length === 1) app.querySelector(".evrow .evhead")?.click();
   }
 
   // units are identified by name — WGI has no stable public id, and the name
@@ -1923,11 +1947,20 @@
       byClass.set(g.class, set);
     }));
     const total = new Set([...byClass.values()].flatMap(m => [...m.keys()])).size;
+    // same shape as the DCI corps page: Class ▾ narrows the list, Unit ▾ jumps
+    // straight to any unit's page
+    const q = new URLSearchParams(query || "");
+    const have = classesInDiv.filter(c => byClass.has(c));
+    const showCls = have.includes(q.get("c")) ? q.get("c") : "";
+    const unitsLink = c => `#/wgi/units?y=${year}&d=${encodeURIComponent(division)}${c ? `&c=${encodeURIComponent(c)}` : ""}`;
+    const unitIndex = [...new Map(have.flatMap(c => [...byClass.get(c).keys()].map(n => [n, c]))).entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]));
 
     app.innerHTML = `
       <h1 class="page">${yearPickerHtml(year)} WGI ${esc(division)} Units
         <span class="kicker">· ${total.toLocaleString()} ${total === 1 ? "unit" : "units"}</span></h1>
-      ${classesInDiv.filter(c => byClass.has(c)).map(c => {
+      ${filterBar([{ id: "cls", label: "Class", value: showCls || "All classes" }, { id: "unit", label: "Unit", value: "Find a unit" }])}
+      ${have.filter(c => !showCls || c === showCls).map(c => {
         const rows = [...byClass.get(c).entries()].sort((a, b) => b[1] - a[1]);
         return `<div class="card"><h2>${esc(c)}</h2>
           <div class="tscroll"><table class="t"><tbody>${rows.map(([name, sc], i) => `<tr>
@@ -1936,6 +1969,14 @@
             <td class="num score">${score3(sc)}</td></tr>`).join("")}</tbody></table></div></div>`;
       }).join("") || `<div class="card"><div class="empty">No ${esc(division)} units for ${year}.</div></div>`}`;
     wireYearPicker(years, year, y => { location.hash = `#/wgi/units?y=${y}&d=${encodeURIComponent(division)}`; });
+    wireFilterBar(app, {
+      cls: () => pickSheet({ title: `${division} class`, value: showCls,
+        options: [{ value: "", label: "All classes" }, ...have.map(c => ({ value: c, label: c, sub: `${byClass.get(c).size} units` }))],
+        onPick: c => { location.hash = unitsLink(c); } }),
+      unit: () => pickSheet({ title: `${year} ${division} units`, value: "", search: true,
+        options: unitIndex.map(([n, c]) => ({ value: n, label: n, sub: c })),
+        onPick: n => { location.hash = `#/wgi/unit/${encodeURIComponent(wgiSlug(n))}${wgiQS(ctx)}`; } }),
+    });
   }
 
   async function viewWgiUnit(slug, query, stale) {
@@ -1963,12 +2004,38 @@
     }
     perfs.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
     const best = perfs.reduce((m, p) => (p.score > m.score ? p : m), perfs[0]);
+    const cls = perfs[perfs.length - 1].cls;
+    // class rank by season best, the same way the scoreboard ranks the class
+    const bestIn = new Map();
+    season.forEach(ev => (ev.classes || []).forEach(g => {
+      if (g.division !== division || g.class !== cls) return;
+      (g.results || []).forEach(r => { if (!(bestIn.get(r.corps) >= r.score)) bestIn.set(r.corps, r.score); });
+    }));
+    const rank = [...bestIn.values()].filter(v => v > best.score).length + 1;
+    const gained = perfs.length > 1 ? perfs[perfs.length - 1].score - perfs[0].score : 0;
+    const ordinal = n => { const sx = ["th", "st", "nd", "rd"], v = n % 100; return n + (sx[(v - 20) % 10] || sx[v] || sx[0]); };
+    const initials = name.split(/\s+/).filter(w => /^[A-Za-z0-9]/.test(w)).slice(0, 2).map(w => w[0]).join("").toUpperCase();
+    const cell = (v, l) => `<div class="corpshero-stat"><div class="b"></div><div class="v">${v}</div><div class="l">${l}</div></div>`;
+    const favLabel = () => FAVS.has(name) ? "★ Favorited" : "☆ Favorite";
     app.innerHTML = `
       <div class="crumbs"><a href="#/wgi/units${wgiQS(ctx)}">WGI ${esc(division)} Units</a> / ${esc(name)}</div>
-      <h1 class="page">${yearPickerHtml(year)} ${esc(name)}</h1>
+      <div class="corpshero unithero">
+        <div class="corpshero-top">
+          <span class="unit-badge" aria-hidden="true">${esc(initials || "?")}</span>
+          <div class="corpshero-id">
+            <div class="corpshero-kicker">${esc(division)} · ${esc(cls)}</div>
+            <div class="corpshero-name">${esc(name)}</div>
+            <div class="corpshero-sub">${year} season · by the numbers</div>
+          </div>
+        </div>
+        <div class="corpshero-stats">${cell(score3(best.score), "Season high")}${cell(ordinal(rank), "Class rank")}${
+          cell((gained >= 0 ? "+" : "") + gained.toFixed(2), "Points gained")}${cell(perfs.length, "Shows")}</div>
+        <div class="corpshero-actions"><button id="unitFav" class="ch-btn${FAVS.has(name) ? " on" : ""}">${favLabel()}</button></div>
+      </div>
+      <h1 class="page" style="margin-top:14px">${yearPickerHtml(year)} Season</h1>
+      ${perfs.length > 1 ? `<div class="card"><h2>${year} Season Progression</h2><div class="chartwrap" id="unitTrend"></div></div>` : ""}
       <div class="card">
-        <div class="evdone">${esc(perfs[perfs.length - 1].cls)} · ${perfs.length} ${perfs.length === 1 ? "show" : "shows"} in ${year}
-          · season best <b>${score3(best.score)}</b> at ${esc(best.event)}</div>
+        <h2>Every show <span class="sub">season best ${score3(best.score)} at ${esc(best.event)}</span></h2>
         <div class="tscroll"><table class="t"><thead><tr>
           <th>Date</th><th>Show</th><th class="m-hide">Class</th><th class="num">Place</th><th class="num">Score</th>
         </tr></thead><tbody>${perfs.slice().reverse().map(p => `<tr>
@@ -1979,6 +2046,19 @@
           <td class="num score">${score3(p.score)}</td></tr>`).join("")}</tbody></table></div>
       </div>`;
     wireYearPicker(years, year, y => { location.hash = `#/wgi/unit/${encodeURIComponent(slug)}?y=${y}&d=${encodeURIComponent(division)}`; });
+    const favBtn = document.getElementById("unitFav");
+    favBtn.addEventListener("click", () => {
+      FAVS.toggle(name);
+      favBtn.classList.toggle("on", FAVS.has(name));
+      favBtn.textContent = favLabel();
+    });
+    const tr = document.getElementById("unitTrend");
+    if (tr) {
+      const doy = iso => { const [y, m, d] = iso.split("-").map(Number); return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(y, 0, 1)) / 864e5); };
+      lineChart(tr, { linearX: true, height: 260, yFmt: v => v.toFixed(1),
+        xFmt: x => { const dt = new Date(Date.UTC(2001, 0, 1 + Math.round(x))); return `${MONTHS[dt.getUTCMonth()]} ${dt.getUTCDate()}`; },
+        series: [{ name, color: "#0c8599", points: perfs.filter(p => p.date).map(p => ({ x: doy(p.date), y: p.score })) }] });
+    }
   }
 
   /* ---- WGI Stats: champions by year, and the all-time high scores ---- */
@@ -2498,10 +2578,7 @@
 
     app.innerHTML = `
       <h1 class="page" id="corpsPageTitle">Corps</h1>
-      <div class="filters">
-        <div id="cpCls"></div>
-        <div id="cpCorps"></div>
-      </div>
+      <div id="cpBar"></div>
       <div id="corpsDetail"><div class="loading">Loading…</div></div>`;
 
 
@@ -2509,24 +2586,24 @@
       .filter(c => !clsFilter || corpsClass(c) === clsFilter)
       .sort((a, b) => b.last - a.last || a.name.localeCompare(b.name))
       .map(c => ({ value: c.slug, label: c.name, hint: c.first === c.last ? String(c.first) : `${c.first}–${c.last}` }));
-    const pickSet = new Set(current ? [current] : []);
-    const msPick = multiSelect(document.getElementById("cpCorps"), {
-      label: "Pick a corps…", searchable: true, single: true,
-      labelFor: v => (bySlug.get(v) || { name: v }).name,
-      options: corpsOpts(),
-      selected: pickSet,
-      onChange: v => { if (v[0] && v[0] !== current) { current = v[0]; load(); } },
-    });
-    singleSelect(document.getElementById("cpCls"), {
-      label: "Type",
-      options: [{ value: "", label: "All types" }, ...classList.map(c => ({ value: c, label: c }))],
-      value: clsFilter,
-      onChange: v => {
-        clsFilter = v || "";
-        localStorage.setItem("dt-corpsclass", clsFilter);
-        msPick.setOptions(corpsOpts());
-      },
-    });
+    // same filter bar + sheet as every other view: Type ▾  Corps ▾
+    function paintBar() {
+      const bar = document.getElementById("cpBar");
+      if (!bar) return;
+      bar.innerHTML = filterBar([
+        { id: "type", label: "Type", value: clsFilter || "All" },
+        { id: "corps", label: "Corps", value: current ? (bySlug.get(current) || { name: current }).name : "Pick one" },
+      ]);
+      wireFilterBar(bar, {
+        type: () => pickSheet({ title: "Corps type", value: clsFilter,
+          options: [{ value: "", label: "All types" }, ...classList.map(c => ({ value: c, label: c }))],
+          onPick: v => { clsFilter = v || ""; localStorage.setItem("dt-corpsclass", clsFilter); paintBar(); } }),
+        corps: () => pickSheet({ title: clsFilter ? `${clsFilter} corps` : "All corps", value: current || "", search: true,
+          options: corpsOpts().map(o => ({ value: o.value, label: o.label, sub: o.hint })),
+          onPick: v => { current = v; paintBar(); load(); } }),
+      });
+    }
+    paintBar();
 
     let detailGen = 0;
     async function load() {
@@ -3101,9 +3178,6 @@
     let year = +params.y && years.includes(+params.y) ? +params.y : years[0];
     app.innerHTML = `
       <h1 class="page">${yearPickerHtml(year)} Shows <span class="kicker" id="evCount"></span></h1>
-      <div class="filters" style="justify-content:flex-end">
-        <button class="tab" id="fToggle" aria-expanded="false">Filters ▾</button>
-      </div>
       <div id="seasonMount"><div class="loading">Loading…</div></div>`;
     let gen = 0;
     async function load() {
@@ -3299,11 +3373,11 @@
     const cnt = document.getElementById("evCount");
     if (cnt) cnt.textContent = `· ${events.filter(e => !e.future).length} events${events.some(e => e.future) ? `, ${events.filter(e => e.future).length} upcoming` : ""}`;
     mount().innerHTML = h`
-      <div class="filters fpanel" id="fPanel" hidden>
+      <div class="fbar evfbar" id="fPanel">
         <div id="fCls"></div>
         <div id="fCorps"></div>
-        <input class="ctrl" id="fQ" placeholder="Search event or city…">
-        <button class="tab" id="toggleAll">Expand all ▾</button>
+        <input class="ctrl fsearch" id="fQ" type="search" placeholder="Search shows or cities…" aria-label="Search shows">
+        <button class="fbtn" id="toggleAll" type="button">Expand all</button>
       </div>
       <div id="evcount" class="kicker" style="margin:0 0 10px"></div>
       ${recordStrip}
@@ -3439,7 +3513,7 @@
       } catch (e) {}
     };
     singleSelect(document.getElementById("fCls"), {
-      label: "All classes",
+      label: "Class", title: "Class",
       options: [{ value: "", label: "All classes" }, ...clsList.map(c => ({ value: c, label: c }))],
       value: fClsVal,
       onChange: v => { fClsVal = v || ""; persistF(); allOpen = false; syncToggle(); render(); },
@@ -3459,7 +3533,7 @@
       onChange: () => { persistF(); allOpen = false; syncToggle(); render(); },
     });
     const toggleBtn = document.getElementById("toggleAll");
-    function syncToggle() { toggleBtn.textContent = allOpen ? "Collapse all ▴" : "Expand all ▾"; }
+    function syncToggle() { toggleBtn.textContent = allOpen ? "Collapse all" : "Expand all"; }
     toggleBtn.onclick = () => {
       allOpen = !allOpen;
       upOpen = pastOpen = allOpen; // reveal (or hide) every section too
@@ -3467,17 +3541,6 @@
       if (!allOpen) list.querySelectorAll(".evrow").forEach(r => toggle(r, false));
       syncToggle();
     };
-    // filters collapse behind a toggle — default is just the show list
-    const fPanel = document.getElementById("fPanel");
-    const fToggleBtn = document.getElementById("fToggle");
-    const anyFilter = () => !!(fClsVal || corpsPick.size || (fQEl.value || "").trim());
-    function syncFilterBtn() {
-      fToggleBtn.setAttribute("aria-expanded", String(!fPanel.hidden));
-      fToggleBtn.textContent = (anyFilter() ? "Filters ● " : "Filters ") + (fPanel.hidden ? "▾" : "▴");
-    }
-    fToggleBtn.onclick = () => { fPanel.hidden = !fPanel.hidden; syncFilterBtn(); };
-    if (anyFilter()) fPanel.hidden = false; // reveal it so an active filter isn't a mystery
-    syncFilterBtn();
     render();
 
     // Live running-order tracker: while a show runs today, keep the LIVE pills

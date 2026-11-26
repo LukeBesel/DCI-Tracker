@@ -1416,3 +1416,18 @@ body.sheet-open { overflow: hidden; }
 .custombuild > summary { cursor: pointer; font-weight: 700; color: var(--text-secondary); padding: 4px 0; }
 .setfoot a { color: var(--link); }
 @media (max-width: 380px) { .alertgrp { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.ssel .fbar { margin: 0; }
+.filters .ssel, .fpanel .ssel { display: inline-flex; }
+.evfbar { align-items: center; }
+.evfbar .fsearch { flex: 1 1 180px; min-width: 0; min-height: 40px; border-radius: 999px; padding: 8px 14px; }
+.evfbar .msel { display: inline-flex; }
+/* multi-selects share the filter-button look (and don't stretch full width) */
+.msel-btn.fbtn { width: auto !important; max-width: 100%; justify-content: flex-start; }
+.msel-btn.fbtn .msel-sum { font-size: 14px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msel-btn.fbtn .msel-caret { color: var(--muted); }
+/* WGI unit pages use the corps hero, in Cadence navy and gold */
+.unithero { --ch-bar1: #0e4a7d; --ch-bar2: #061d33; --ch-accent: #f0b429; --ch-glow: rgba(240,180,41,.3); }
+.unit-badge {
+  width: 74px; height: 74px; flex: none; border-radius: 18px; display: inline-flex; align-items: center; justify-content: center;
+  background: #fff; color: #0a3f6b; font-weight: 900; font-size: 28px; letter-spacing: -1px;
+}
