@@ -95,7 +95,22 @@ var m=document.querySelector('meta[name="theme-color"]'),bar=localStorage.getIte
 <script src="app.js"></script>
 <script>
 if ("serviceWorker" in navigator) {
-  addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  // Updates: a new release installs in the background, but the open page keeps
+  // running the old code until it reloads, and an installed app on a phone is
+  // rarely reloaded. So: check for a new release whenever the app comes back to
+  // the foreground, and reload once (only if this page was already controlled,
+  // i.e. it's a true upgrade, not a first visit) as soon as the new one takes over.
+  addEventListener("load", () => navigator.serviceWorker.register("sw.js").then(function (reg) {
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState === "visible") reg.update().catch(function () {});
+    });
+  }).catch(() => {}));
+  var hadController = !!navigator.serviceWorker.controller, reloaded = false;
+  navigator.serviceWorker.addEventListener("controllerchange", function () {
+    if (!hadController || reloaded) { hadController = true; return; }
+    reloaded = true;
+    location.reload();
+  });
   // when a tapped notification asks the already-open app to open a show, route to it
   navigator.serviceWorker.addEventListener("message", function (e) {
     var m = e.data;
