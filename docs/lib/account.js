@@ -102,38 +102,51 @@
   }
 
   // ---- sync ---------------------------------------------------------------
+  // every synced key, present or not: an absent key is sent as null, so a
+  // reset (which removes the key) reaches the account as a reset
   function localPrefs() {
     var o = {};
-    SYNC.forEach(function (k) { var v = raw(k); if (v != null) o[k] = v; });
+    SYNC.forEach(function (k) { o[k] = raw(k); });
     return o;
   }
   function localFavs() { try { var v = JSON.parse(raw(FAVS) || "[]"); return Array.isArray(v) ? v : []; } catch (e) { return []; } }
 
-  // first sync after sign-in: merge, so nothing set on either side is lost
-  async function pull() {
+  // Two kinds of sync:
+  //  merge   — the moment someone signs in on a device. Whatever that device
+  //            built up while signed out is folded into the account (union of
+  //            favorites; the account's copy wins for settings it has), then
+  //            uploaded.
+  //  replace — every later app open. The account is the truth: the device
+  //            takes its favorites and settings exactly, including removals
+  //            and resets made elsewhere, and uploads nothing.
+  // Returns whether anything on this device changed.
+  async function pull(mode) {
     var uid = api.user() && api.user().id;
-    if (!uid) return;
+    if (!uid) return false;
     syncing = true;
     var changed = false;
     try {
       var prefs = await rest("preferences?select=settings&user_id=eq." + uid);
       var remote = (prefs && prefs[0] && prefs[0].settings) || {};
-      var local = localPrefs();
+      var fresh = Object.keys(remote).length === 0;        // account never synced yet
       SYNC.forEach(function (k) {
-        // the account's copy wins for anything it has; local fills the gaps
-        if (remote[k] != null && remote[k] !== local[k]) {
-          try { localStorage.setItem(k, remote[k]); changed = true; } catch (e) {}
-        }
+        var has = Object.prototype.hasOwnProperty.call(remote, k);
+        if (mode === "merge" && (fresh || !has || remote[k] == null)) return;   // keep this device's
+        if (!has && mode === "replace" && fresh) return;
+        var want = has ? remote[k] : null, cur = raw(k);
+        if (want === cur) return;
+        try { want == null ? localStorage.removeItem(k) : localStorage.setItem(k, want); changed = true; } catch (e) {}
       });
       var favRows = await rest("favorites?select=name,position&circuit=eq.dci&order=position");
       var rf = (favRows || []).map(function (r) { return r.name; });
       var lf = localFavs();
-      var merged = rf.concat(lf.filter(function (n) { return rf.indexOf(n) < 0; }));
-      if (JSON.stringify(merged) !== JSON.stringify(lf)) {
-        try { localStorage.setItem(FAVS, JSON.stringify(merged)); changed = true; } catch (e) {}
+      var next = mode === "merge" ? rf.concat(lf.filter(function (n) { return rf.indexOf(n) < 0; }))
+        : (fresh && !rf.length ? lf : rf);
+      if (JSON.stringify(next) !== JSON.stringify(lf)) {
+        try { localStorage.setItem(FAVS, JSON.stringify(next)); changed = true; } catch (e) {}
       }
     } finally { syncing = false; }
-    await push();          // upload the merged result (and anything only local had)
+    if (mode === "merge") await push();   // the folded-in result becomes the account's
     return changed;
   }
   async function push() {
@@ -257,7 +270,7 @@
     afterSignIn: async function () {
       await loadUser();
       var changed = false;
-      try { changed = await pull(); } catch (e) {}
+      try { changed = await pull("merge"); } catch (e) {}
       await refreshPlus();
       if (window.CadPush && CadPush.resync) CadPush.resync();   // link alerts to the account
       return changed;
@@ -274,8 +287,17 @@
 
   // returning visitor: refresh the profile, sync and Plus status quietly
   if (session && enabled()) {
+    // The app has already read favorites and settings into memory by now, so
+    // if the account changed anything, reload once to show it (and so the
+    // stale in-memory copy can never be written back over it). The guard
+    // stops a reload loop if storage is failing.
     var boot = function () {
-      loadUser().then(function (u) { if (u) return pull(); }).then(refreshPlus).catch(function () {});
+      loadUser().then(function (u) { return u ? pull("replace") : false; }).then(function (changed) {
+        var k = "cad-sync-reloaded";
+        if (changed && !sessionStorage.getItem(k)) { sessionStorage.setItem(k, "1"); location.reload(); return; }
+        sessionStorage.removeItem(k);
+        return refreshPlus();
+      }).catch(function () {});
     };
     if (document.readyState === "complete") setTimeout(boot, 0); else addEventListener("load", boot);
   }
