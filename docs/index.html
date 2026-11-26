@@ -34,6 +34,7 @@ r.setAttribute("data-corps",name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replac
 var m=document.querySelector('meta[name="theme-color"]'),bar=localStorage.getItem("cad-corps-bar");if(m&&bar)m.content=bar;}})();</script>
 <link rel="stylesheet" href="app.css">
 <script src="lib/config.js"></script>
+<script src="lib/account.js"></script>
 </head>
 <body>
 <header class="topbar">
@@ -189,8 +190,12 @@ window.CadPush = (function () {
     catch (e) { return null; }
   }
   function favList() { try { return JSON.parse(localStorage.getItem("cad-favs") || "[]"); } catch (e) { return []; } }
-  function post(path, body) {
-    return fetch(SERVER + path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  // signed in: send the account token so the relay links this device's
+  // alerts to the account (Plus alerts lead with your corps' placement)
+  async function post(path, body) {
+    var headers = { "content-type": "application/json" };
+    try { var t = window.CadAccount && await CadAccount.token(); if (t) headers.authorization = "Bearer " + t; } catch (e) {}
+    return fetch(SERVER + path, { method: "POST", headers: headers, body: JSON.stringify(body) });
   }
   async function status() {
     if (!canPush) return isIOS && !standalone() ? "ios-install" : "unsupported";
@@ -253,7 +258,7 @@ window.CadPush = (function () {
   return {
     supported: function () { return canPush; }, isIOS: function () { return isIOS; }, standalone: standalone,
     status: status, enable: enable, disable: disable, scope: scope, setScope: setScope,
-    classes: classes, setClasses: setClasses,
+    classes: classes, setClasses: setClasses, resync: syncSub,
     onChange: function (cb) { listeners.push(cb); },
   };
 })();

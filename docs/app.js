@@ -4742,8 +4742,23 @@
     const CLASS_OPTS = ["World Class", "Open Class", "All-Age"];
     const clsOn = c => !selClasses || selClasses.includes(c);
 
+    const acct = window.CadAccount && CadAccount.enabled() ? CadAccount : null;
+    const me = acct && acct.user();
+    const plusOn = !!(acct && acct.plus());
+    const colorsLocked = plusEnforced() && !plusOn;
     app.innerHTML = h`
       <h1 class="page">Settings</h1>
+
+      ${acct ? `
+      <a class="card setacct" href="#/account">
+        <span class="acct-av ${me && me.avatar ? "" : "acct-av--txt"}">${me && me.avatar ? `<img src="${esc(me.avatar)}" alt="" referrerpolicy="no-referrer">` : (me ? esc((me.name || me.email || "?").slice(0, 1).toUpperCase()) : "👤")}</span>
+        <span class="setacct-txt"><b>${me ? esc(me.name || me.email) : "Sign in or create an account"}</b>
+          <span class="setsub">${me ? "Synced across your devices" : "Free · keeps favorites, colors and alerts in sync"}</span></span>
+        ${plusOn ? PLUS_MARK : ""}<span class="setacct-go" aria-hidden="true">›</span>
+      </a>
+      ${plusOn ? "" : `<a class="card setplus" href="#/plus"><span class="pluscard-logo">Cadence<span>+</span></span>
+        <span class="setsub">Every caption, every judge, head-to-head, projections and your colors · ${esc((window.CadConfig || {}).PLUS_PRICE || "$10/year")}</span>
+        <span class="setacct-go" aria-hidden="true">›</span></a>`}` : ""}
 
       ${(window.CadInstall && !window.CadInstall.standalone()) ? `
       <div class="card setcard" id="installCard">
@@ -4790,8 +4805,9 @@
           <div class="corpslist" id="corpsList">${all.map(corpsRow).join("")}</div>
           <div class="corpslist-empty" id="corpsEmpty" hidden>No corps match “<span id="corpsEmptyQ"></span>”.</div>
         </div>
-        <div class="custombuild">
-          <div class="custombuild-h">Or build your own <span class="kicker">just for fun</span></div>
+        <div class="custombuild${colorsLocked ? " locked" : ""}">
+          <div class="custombuild-h">Or build your own ${PLUS_MARK}</div>
+          ${colorsLocked ? `<p class="setnote"><a href="#/plus">Cadence+</a> unlocks custom colors.</p>` : ""}
           <div class="customrow">
             <label class="custompick"><input type="color" id="custBar" value="${custInit[0]}"><span>Primary</span></label>
             <label class="custompick"><input type="color" id="custAcc" value="${custInit[1]}"><span>Accent</span></label>
@@ -4824,7 +4840,7 @@
         </div>
       </div>
 
-      <p class="setfoot">Preferences are saved on this device. Created by Lucas Besel.</p>`;
+      <p class="setfoot">${me ? "Preferences sync to your account." : "Preferences are saved on this device — sign in to sync them."} Created by Lucas Besel.</p>`;
     if (stale()) return;
 
     // appearance
@@ -4883,6 +4899,7 @@
     if (custBar) custBar.addEventListener("input", paintCustPreview);
     if (custAcc) custAcc.addEventListener("input", paintCustPreview);
     if (custApply) custApply.addEventListener("click", () => {
+      if (colorsLocked) { location.hash = "#/plus"; return; }
       applyCustomTheme(custBar.value, custAcc.value);
       app.querySelectorAll("[data-corps-set]").forEach(x => x.classList.remove("on"));
       const reset = app.querySelector(".setreset");
@@ -5082,7 +5099,7 @@
 
   // About, data sources, non-affiliation, and privacy — the app's honest
   // self-description. Everything stated here must stay true to the actual
-  // implementation (no accounts, no trackers, relay stores only what /subscribe
+  // implementation (optional accounts, no trackers, relay stores only what /subscribe
   // is sent). Update this page whenever that reality changes.
   function viewAbout() {
     setNav("");
@@ -5092,12 +5109,14 @@
       <h1 class="page">About Cadence</h1>
       <div class="card cardgap">
         <h2>What This Is</h2>
-        <p class="abouttxt">Cadence is a free scores dashboard for Drum Corps International (DCI)
-          competition: live season standings, judge-level caption recaps, corps histories, and
-          complete published results back to 1972. It covers DCI's World Class, Open Class, and
-          All-Age divisions. It does not currently cover other circuits.</p>
-        <p class="abouttxt"><b>Cadence is an independent fan project.</b> It is not affiliated with,
-          sponsored by, or endorsed by Drum Corps International, CompetitionSuite, or any corps.
+        <p class="abouttxt">Cadence is a scores app for Drum Corps International (DCI) and WGI Sport
+          of the Arts: live standings, instant score alerts, show results, and corps and unit
+          histories, free. DCI covers World Class, Open Class and All-Age with published results
+          back to 1972; WGI covers Color Guard, Percussion and Winds, with every show since 2024
+          and World Championship finals back to 1980. Cadence+ adds judge-level caption sheets,
+          caption breakdowns, judge analytics, head-to-head and projections.</p>
+        <p class="abouttxt"><b>Cadence is an independent project.</b> It is not affiliated with,
+          sponsored by, or endorsed by Drum Corps International, WGI, CompetitionSuite, or any corps or unit.
           All corps names and event names belong to their respective organizations.</p>
       </div>
       <div class="card cardgap">
@@ -5114,16 +5133,21 @@
       </div>
       <div class="card cardgap">
         <h2>Privacy</h2>
-        <p class="abouttxt">Cadence has no accounts and no sign-in. Your favorites, theme, team
-          colors, text size, predictions, and seen-item markers are stored only in this browser
-          — they never leave your device.</p>
+        <p class="abouttxt"><b>Accounts are optional.</b> Without one, your favorites, theme, team
+          colors, text size, predictions, and seen-item markers are stored only in this browser.
+          If you create an account, Cadence stores your email, your favorites, and your display
+          settings (theme, colors, text size, alert choices) so they follow you across devices —
+          and nothing else. Your predictions and seen-item markers stay on the device. You can
+          delete your account and everything synced to it at any time from the Account page.</p>
+        <p class="abouttxt"><b>Cadence+</b> is paid through Stripe, which handles your card;
+          Cadence never sees card numbers and stores only your subscription status and renewal date.</p>
         <p class="abouttxt">There is no advertising and no behavioral analytics. The app makes no
           requests to tracking services.</p>
         <p class="abouttxt"><b>Score alerts</b> are the one optional feature that stores anything
           off-device: turning them on registers an anonymous browser push endpoint${relayHost ? ` with the
           alert relay (<span class="mono">${esc(relayHost)}</span>)` : ""} along with your starred corps and
-          class preferences, so notifications can be personalized. No name, email, or identifier
-          is attached. Turning alerts off asks the relay to delete that registration, and you can
+          class preferences, so notifications can be personalized. If you're signed in, the
+          registration is linked to your account; otherwise no name, email, or identifier is attached. Turning alerts off asks the relay to delete that registration, and you can
           also revoke notification permission in your browser or device settings at any time. The
           relay keeps only aggregate counters and recent error messages for troubleshooting; its
           hosting provider may keep standard server request logs.</p>
@@ -5178,6 +5202,193 @@
   }
 
   /* ============ router ============ */
+  /* ===== Cadence+ and accounts =====
+     Free: live scores, standings, show results, corps pages, alerts for
+     every show. Cadence+ ($10/yr): the analysis staff and members use, plus
+     personal touches. The gate is one table (PLUS_ROUTES) so what's paid is
+     always visible in one place. While CadConfig.PLUS_ENFORCED is false the
+     features stay open and are only labelled. */
+  const PLUS_ROUTES = [
+    [/^#\/captions/, "Caption sheets"], [/^#\/breakdown/, "Caption breakdown"], [/^#\/judges/, "Judges"],
+    [/^#\/wgi\/captions/, "Caption sheets"], [/^#\/wgi\/breakdown/, "Caption breakdown"], [/^#\/wgi\/judges/, "Judges"],
+    [/^#\/compare/, "Head-to-head"], [/^#\/predictions/, "Projections"],
+  ];
+  const PLUS_PERKS = [
+    ["Every caption, every judge", "Full judge-by-judge recaps for DCI and WGI, caption leaders, and how each judge scores."],
+    ["Caption breakdown", "Where every point is won and lost, show by show, with the margin to the leader."],
+    ["Head-to-head & projections", "Compare any corps or unit, track gaps over the season, and see where Finals is heading."],
+    ["Alerts that lead with you", "Your corps first in every alert, with placement, the moment scores post."],
+    ["Your colors", "Paint Cadence in any corps' colors or build your own."],
+  ];
+  const plusEnforced = () => !!(window.CadConfig || {}).PLUS_ENFORCED;
+  const hasPlus = () => !plusEnforced() || !!(window.CadAccount && CadAccount.plus());
+  const plusFeature = hash => { const hit = PLUS_ROUTES.find(([re]) => re.test(hash)); return hit ? hit[1] : null; };
+  const PLUS_MARK = `<span class="plusmark" title="Cadence+">PLUS</span>`;
+
+  function plusCard(feature) {
+    const cfg = window.CadConfig || {};
+    const signed = !!(window.CadAccount && CadAccount.signedIn());
+    return `
+      <div class="pluscard">
+        <div class="pluscard-top">
+          <div class="pluscard-logo">Cadence<span>+</span></div>
+          <div class="pluscard-price">${esc(cfg.PLUS_PRICE || "$10/year")}<small>less than a program</small></div>
+        </div>
+        ${feature ? `<p class="pluscard-lead"><b>${esc(feature)}</b> is part of Cadence+.</p>` : `<p class="pluscard-lead">The full picture, for fans, members and staff.</p>`}
+        <ul class="pluscard-perks">${PLUS_PERKS.map(([t, d]) => `<li><b>${esc(t)}</b><span>${esc(d)}</span></li>`).join("")}</ul>
+        <div class="pluscard-cta">
+          ${signed
+            ? `<button class="btn-plus" id="plusBuy" type="button">Get Cadence+ · ${esc(cfg.PLUS_PRICE || "$10/year")}</button>`
+            : `<a class="btn-plus" href="#/account?next=plus">Create a free account to start</a>`}
+          <p class="pluscard-fine">Billed yearly through Stripe. Cancel anytime from Settings — you keep Plus until the year ends.</p>
+          <p class="pluscard-err" id="plusErr" hidden></p>
+        </div>
+      </div>`;
+  }
+  function wirePlusCard() {
+    const b = document.getElementById("plusBuy");
+    if (b) b.addEventListener("click", async () => {
+      b.disabled = true; b.textContent = "Opening checkout…";
+      try { await CadAccount.checkout(); }
+      catch (e) {
+        const err = document.getElementById("plusErr");
+        if (err) { err.hidden = false; err.textContent = e.message; }
+        b.disabled = false; b.textContent = "Try again";
+      }
+    });
+  }
+
+  function viewPaywall(feature) {
+    setNav(sectionOf(location.hash) || "");
+    app.innerHTML = `<h1 class="page">${esc(feature)} ${PLUS_MARK}</h1>${plusCard(feature)}`;
+    wirePlusCard();
+  }
+
+  function viewPlus() {
+    setNav("");
+    const on = window.CadAccount && CadAccount.plus();
+    const info = window.CadAccount && CadAccount.plusInfo();
+    app.innerHTML = on ? `
+      <h1 class="page">Cadence+ ${PLUS_MARK}</h1>
+      <div class="card setcard">
+        <h2>You're a Cadence+ member</h2>
+        <p class="setnote">${info && info.until ? `${info.cancel ? "Ends" : "Renews"} ${new Date(info.until).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}.` : ""}
+          Thank you — Cadence+ keeps the lights on and the alerts fast.</p>
+        <button class="tab" id="plusManage" type="button">Manage billing</button>
+      </div>
+      <ul class="pluscard-perks pluscard-perks--on">${PLUS_PERKS.map(([t, d]) => `<li><b>${esc(t)}</b><span>${esc(d)}</span></li>`).join("")}</ul>`
+      : `<h1 class="page">Cadence+</h1>${plusCard(null)}`;
+    wirePlusCard();
+    const m = document.getElementById("plusManage");
+    if (m) m.addEventListener("click", () => CadAccount.portal().catch(e => alert(e.message)));
+  }
+
+  // sign in / create account / account details
+  function viewAccount(qs) {
+    setNav("");
+    const A = window.CadAccount;
+    const p = new URLSearchParams(qs || "");
+    const cfg = window.CadConfig || {};
+    if (!A || !A.enabled()) {
+      app.innerHTML = `<h1 class="page">Account</h1><div class="card"><div class="empty">Accounts aren't available in this build.</div></div>`;
+      return;
+    }
+    if (A.recovering()) {
+      app.innerHTML = `<h1 class="page">Set a new password</h1>
+        <form class="card authcard" id="pwForm">
+          <label class="authfield"><span>New password</span><input class="ctrl" type="password" id="pwNew" minlength="8" autocomplete="new-password" required></label>
+          <button class="btn-plus" type="submit">Save password</button>
+          <p class="autherr" id="pwErr" hidden></p>
+        </form>`;
+      document.getElementById("pwForm").addEventListener("submit", async ev => {
+        ev.preventDefault();
+        try { await A.setPassword(document.getElementById("pwNew").value); location.hash = "#/account"; route(); }
+        catch (e) { const er = document.getElementById("pwErr"); er.hidden = false; er.textContent = e.message; }
+      });
+      return;
+    }
+    const u = A.user();
+    if (A.signedIn()) {
+      const plus = A.plus();
+      app.innerHTML = `
+        <h1 class="page">Account</h1>
+        <div class="card acctcard">
+          <div class="acct-id">
+            ${u && u.avatar ? `<img class="acct-av" src="${esc(u.avatar)}" alt="" referrerpolicy="no-referrer">` : `<span class="acct-av acct-av--txt">${esc(((u && (u.name || u.email)) || "?").slice(0, 1).toUpperCase())}</span>`}
+            <div><b>${esc((u && u.name) || (u && u.email) || "Signed in")}</b>
+              <div class="setsub">${esc((u && u.email) || "")}${u && u.provider === "google" ? " · Google" : ""}</div></div>
+            ${plus ? PLUS_MARK : ""}
+          </div>
+          <p class="setnote">Your favorites, colors, text size and alert settings follow you to every device you sign in on.</p>
+          <div class="acct-actions">
+            <a class="tab" href="#/plus">${plus ? "Cadence+ membership" : "Get Cadence+"}</a>
+            <a class="tab" href="#/settings">Settings</a>
+            <button class="tab" id="signOut" type="button">Sign out</button>
+          </div>
+        </div>
+        <details class="card acctdanger"><summary>Delete account</summary>
+          <p class="setnote">Deletes your account and everything synced to it. Cancel Cadence+ first from Manage billing. This can't be undone.</p>
+          <button class="tab tab-danger" id="delAcct" type="button">Delete my account</button></details>`;
+      document.getElementById("signOut").addEventListener("click", async () => { await A.signOut(); location.hash = "#/"; });
+      document.getElementById("delAcct").addEventListener("click", async () => {
+        if (!confirm("Delete your Cadence account and all synced data?")) return;
+        try { await A.deleteAccount(); location.hash = "#/"; } catch (e) { alert(e.message); }
+      });
+      return;
+    }
+    const mode = p.get("mode") === "signup" || p.get("next") === "plus" ? "signup" : "signin";
+    const err = p.get("err");
+    app.innerHTML = `
+      <h1 class="page">${mode === "signup" ? "Create your account" : "Sign in"}</h1>
+      <div class="card authcard">
+        <p class="setnote">${mode === "signup"
+          ? "Free. Keeps your favorites, colors and alerts in sync across your phone and computer — and it's how you get Cadence+."
+          : "Welcome back. Your favorites and settings sync as soon as you're in."}</p>
+        ${cfg.GOOGLE_SIGNIN ? `<button class="btn-google" id="gBtn" type="button"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="#4285F4" d="M22.5 12.3c0-.8-.1-1.5-.2-2.3H12v4.3h5.9a5 5 0 0 1-2.2 3.3v2.7h3.6c2-1.9 3.2-4.7 3.2-8z"/><path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.7l-3.6-2.7c-1 .7-2.2 1-3.7 1-2.9 0-5.3-1.9-6.2-4.5H2.1v2.8A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.8 14.1a6.6 6.6 0 0 1 0-4.2V7.1H2.1a11 11 0 0 0 0 9.8z"/><path fill="#EA4335" d="M12 5.4c1.6 0 3 .6 4.2 1.6l3.1-3.1A11 11 0 0 0 2.1 7.1l3.7 2.8C6.7 7.3 9.1 5.4 12 5.4z"/></svg>Continue with Google</button>
+        <div class="author"><span>or</span></div>` : ""}
+        <form id="authForm" novalidate>
+          <label class="authfield"><span>Email</span><input class="ctrl" type="email" id="authEmail" autocomplete="email" required></label>
+          <label class="authfield"><span>Password</span><input class="ctrl" type="password" id="authPw" minlength="8" autocomplete="${mode === "signup" ? "new-password" : "current-password"}" required></label>
+          <button class="btn-plus" type="submit" id="authGo">${mode === "signup" ? "Create account" : "Sign in"}</button>
+        </form>
+        <p class="autherr" id="authErr"${err ? "" : " hidden"}>${esc(err || "")}</p>
+        <p class="authok" id="authOk" hidden></p>
+        <div class="authalt">
+          ${mode === "signup" ? `Have an account? <a href="#/account">Sign in</a>` : `New here? <a href="#/account?mode=signup">Create a free account</a> · <a href="#" id="forgot">Forgot password?</a>`}
+        </div>
+      </div>
+      <p class="setfoot">Signing in is optional. Everything free in Cadence works without an account.</p>`;
+    const g = document.getElementById("gBtn");
+    if (g) g.addEventListener("click", () => A.google());
+    const showErr = m => { const e = document.getElementById("authErr"); e.hidden = !m; e.textContent = m || ""; };
+    const showOk = m => { const e = document.getElementById("authOk"); e.hidden = !m; e.textContent = m || ""; };
+    document.getElementById("authForm").addEventListener("submit", async ev => {
+      ev.preventDefault();
+      const email = document.getElementById("authEmail").value.trim();
+      const pw = document.getElementById("authPw").value;
+      if (!/^\S+@\S+\.\S+$/.test(email)) return showErr("Enter a valid email address.");
+      if (pw.length < 8) return showErr("Use a password of at least 8 characters.");
+      const go = document.getElementById("authGo");
+      go.disabled = true; showErr("");
+      try {
+        if (mode === "signup") {
+          const r = await A.signUp(email, pw);
+          if (r.confirm) { showOk("Check your email to confirm your account, then sign in."); go.disabled = false; return; }
+        } else await A.signIn(email, pw);
+        location.replace(p.get("next") === "plus" ? "#/plus" : "#/account");
+        location.reload();     // re-apply synced theme, colors and favorites everywhere
+      } catch (e) { showErr(e.message); go.disabled = false; }
+    });
+    const f = document.getElementById("forgot");
+    if (f) f.addEventListener("click", async ev => {
+      ev.preventDefault();
+      const email = document.getElementById("authEmail").value.trim();
+      if (!/^\S+@\S+\.\S+$/.test(email)) return showErr("Type your email above first.");
+      try { await A.resetPassword(email); showOk("If that email has an account, a reset link is on its way."); showErr(""); }
+      catch (e) { showErr(e.message); }
+    });
+  }
+
   const routes = [
     // "#/" is the current season; "#/?y=1994" is that season's board
     [/^#?\/?(?:\?(.*))?$/, (m, st) => viewRankings(m[1], st)],
@@ -5211,6 +5422,8 @@
     [/^#\/breakdown(?:\?(.*))?$/, (m, st) => viewBreakdown(m[1], st)],
     [/^#\/records$/, viewRecords],
     [/^#\/settings$/, viewSettings],
+    [/^#\/account(?:\?(.*))?$/, m => viewAccount(m[1])],
+    [/^#\/plus$/, viewPlus],
     [/^#\/go(?:\?(.*))?$/, m => viewGo(m[1])],
     [/^#\/ask$/, viewAsk],
     [/^#\/about$/, viewAbout],
@@ -5261,7 +5474,14 @@
     for (const [re, fn] of routes) {
       const m = hashv.match(re);
       if (m) {
-        try { await fn(m, stale); } catch (e) {
+        const feature = plusFeature(hashv);
+        if (feature && !hasPlus()) { viewPaywall(feature); return; }
+        try {
+          await fn(m, stale);
+          // label paid features (while Plus is in preview, they stay open)
+          const h1 = !stale() && feature && app.querySelector("h1.page");
+          if (h1 && !h1.querySelector(".plusmark")) h1.insertAdjacentHTML("beforeend", " " + PLUS_MARK);
+        } catch (e) {
           if (stale()) return; // a view we already left failed — ignore
           console.error(e);
           app.innerHTML = firstBuildPending

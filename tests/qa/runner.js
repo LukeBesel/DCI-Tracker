@@ -27,7 +27,7 @@ const ROUTES = ["#/", "#/?y=2019", "#/events", "#/corps", "#/corps/bluecoats", "
   "#/compare", "#/champions", "#/records", "#/database", "#/predictions", "#/settings",
   "#/suggestions", "#/about", "#/ask", "#/wgi", "#/wgi?y=2019",
   "#/wgi/events", "#/wgi/units", "#/wgi/stats", "#/judges", "#/breakdown",
-  "#/wgi/captions", "#/wgi/breakdown", "#/wgi/judges"];
+  "#/wgi/captions", "#/wgi/breakdown", "#/wgi/judges", "#/account", "#/account?mode=signup", "#/plus"];
 
 const findings = [];
 let currentSection = "";
@@ -1018,6 +1018,53 @@ section("breakdown: complete captions and an honest margin", async (browser, bas
 });
 
 // ---------------------------------------------------------------------------
+
+// Accounts and Cadence+. Never touches the network: sign-in itself is tested
+// against the live project by hand, not in CI. What must hold here: the forms
+// validate before sending anything, paid features are labelled while Plus is
+// in preview, and when enforcement is on the gate really closes.
+section("accounts and Cadence+: forms, labels, gate", async (browser, base) => {
+  const { ctx, page } = await ctxPage(browser, base, { viewport: PHONE });
+  let authCalls = 0;
+  await page.route(/supabase\.co\/auth\//, r => { authCalls++; r.abort(); });
+
+  await page.goHash("#/account?mode=signup");
+  await page.waitForSelector("#authForm");
+  await page.fill("#authEmail", "not-an-email");
+  await page.fill("#authPw", "short");
+  await page.click("#authGo");
+  const err = (await page.textContent("#authErr")) || "";
+  if (!/valid email/i.test(err)) bad(`a bad email was not caught before sending (got "${err}")`);
+  if (authCalls) bad("the form called the auth server with invalid input");
+  if (!(await page.textContent("#app")).includes("optional"))
+    bad("the account page never says signing in is optional");
+
+  // preview: paid views render, carrying the PLUS label
+  for (const h of ["#/captions", "#/judges", "#/wgi/captions"]) {
+    await page.goHash(h);
+    await page.waitForTimeout(1200);
+    if (!(await page.$("h1.page .plusmark"))) bad(`${h} is a Plus feature but isn't labelled`);
+    if (await page.$(".pluscard")) bad(`${h} is paywalled while Plus is still in preview`);
+  }
+  // free views never carry the label
+  await page.goHash("#/");
+  await page.waitForTimeout(1000);
+  if (await page.$("h1.page .plusmark")) bad("the free Scoreboard is labelled Plus");
+
+  // enforcement on, signed out: the gate closes and offers a free account first
+  await page.evaluate(() => { window.CadConfig.PLUS_ENFORCED = true; });
+  await page.goHash("#/judges");
+  await page.waitForTimeout(600);
+  if (!(await page.$(".pluscard"))) bad("with Plus enforced, a signed-out visitor still sees Judges");
+  if (await page.$("tbody tr")) bad("the paywall rendered the paid table behind it");
+  const cta = await page.$eval(".pluscard .btn-plus", a => a.getAttribute("href") || "");
+  if (!/#\/account/.test(cta)) bad("the signed-out paywall does not lead to account creation");
+  await page.goHash("#/");
+  await page.waitForTimeout(800);
+  if (await page.$(".pluscard")) bad("with Plus enforced, the free Scoreboard got paywalled");
+  await ctx.close();
+});
+
 (async () => {
   const { srv, port } = await start();
   const base = `http://127.0.0.1:${port}`;
