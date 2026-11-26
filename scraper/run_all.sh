@@ -66,6 +66,10 @@ else
   # shows stay in the fetch cache, so a mid-season pass only pays for the
   # shows that are actually new.
   FETCH_RETRIES=1 STEP_TIMEOUT=420 run "wgi current season" python scraper/scrape_wgi.py --year "$YEAR"
+  # Judge-level caption sheets for every WGI show with a recap. Finished
+  # recaps parse from the fetch cache; only shows new since the last pass
+  # touch the network. Each row must reconcile three ways or it is dropped.
+  FETCH_RETRIES=1 STEP_TIMEOUT=420 run "wgi caption recaps" python scraper/scrape_wgi_recaps.py
   if [ "${RUN_HISTORY:-0}" = "1" ]; then
     run "corps profiles"        python scraper/scrape_corps_profiles.py
     run "dci.org history chunk" python scraper/scrape_dci.py --max-fetches 150

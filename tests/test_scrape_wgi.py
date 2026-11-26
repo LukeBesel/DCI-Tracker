@@ -1,4 +1,5 @@
 """Unit tests for the WGI scraper's pure parsing logic — no network."""
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -113,3 +114,80 @@ class Coverage(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LiveSeason(unittest.TestCase):
+    """The fetch cache never re-asks. That is right for a finished season and
+    wrong for a live one, where WGI keeps adding shows and correcting scores."""
+
+    def setUp(self):
+        self.calls = []
+        self._se, self._sd = scrape_wgi.season_events, scrape_wgi.show_detail
+        today = scrape_wgi.date.today()
+        self.recent = (today - scrape_wgi.timedelta(days=2)).isoformat() if hasattr(scrape_wgi, "timedelta") else None
+
+        def season_events(sid, division, force=False):
+            self.calls.append(("season", sid, force))
+            return [{"show-id-key": "OLD", "Name": "Old Show", "Show_Date__c": "2001-01-01"},
+                    {"show-id-key": "NEW", "Name": "New Show", "Show_Date__c": today.isoformat()}]
+
+        def show_detail(show_id, division, force=False):
+            self.calls.append(("show", show_id, force))
+            return {"Results": {"Independent A": {"Round 0": [group("X", "80.0", 1)]}}}
+
+        scrape_wgi.season_events, scrape_wgi.show_detail = season_events, show_detail
+
+    def tearDown(self):
+        scrape_wgi.season_events, scrape_wgi.show_detail = self._se, self._sd
+
+    def forced(self, kind, key):
+        return [f for k, x, f in self.calls if k == kind and x == key]
+
+    def test_the_live_season_relists_its_shows_every_run(self):
+        live = max(scrape_wgi.SEASONS)
+        scrape_wgi.build_year(live)
+        self.assertTrue(all(self.forced("season", scrape_wgi.SEASONS[live])))
+
+    def test_a_recent_show_refetches_and_an_old_one_trusts_the_cache(self):
+        scrape_wgi.build_year(max(scrape_wgi.SEASONS))
+        self.assertTrue(all(self.forced("show", "NEW")))
+        self.assertFalse(any(self.forced("show", "OLD")))
+
+    def test_a_finished_season_never_refetches(self):
+        past = min(scrape_wgi.SEASONS)
+        scrape_wgi.build_year(past)
+        self.assertFalse(any(f for _k, _x, f in self.calls))
+
+
+class Merge(unittest.TestCase):
+    """The pipeline runs the scraper twice — the live season often, the older
+    ones daily — so a run may only replace the years it was given."""
+
+    def setUp(self):
+        import tempfile
+        self.tmp = Path(tempfile.mkdtemp())
+        self._parsed, self._by = scrape_wgi.PARSED, scrape_wgi.build_year
+        scrape_wgi.PARSED = self.tmp
+        (self.tmp / "wgi_events.json").write_text(json.dumps(
+            [{"year": 2024, "name": "A", "classes": [1]}, {"year": 2025, "name": "B", "classes": [1]}]))
+
+    def tearDown(self):
+        scrape_wgi.PARSED, scrape_wgi.build_year = self._parsed, self._by
+
+    def held(self):
+        return sorted((e["year"], e["name"]) for e in json.loads((self.tmp / "wgi_events.json").read_text()))
+
+    def test_rebuilding_one_year_leaves_the_others_alone(self):
+        scrape_wgi.build_year = lambda y, limit=None: [{"year": y, "name": "C", "classes": [1]}] if y == 2026 else []
+        scrape_wgi.main([2026])
+        self.assertEqual(self.held(), [(2024, "A"), (2025, "B"), (2026, "C")])
+
+    def test_a_rebuilt_year_replaces_its_old_events(self):
+        scrape_wgi.build_year = lambda y, limit=None: [{"year": 2025, "name": "B2", "classes": [1]}]
+        scrape_wgi.main([2025])
+        self.assertEqual(self.held(), [(2024, "A"), (2025, "B2")])
+
+    def test_a_year_that_comes_back_empty_is_kept_not_wiped(self):
+        scrape_wgi.build_year = lambda y, limit=None: []          # WGI's API down
+        scrape_wgi.main([2024, 2025])
+        self.assertEqual(self.held(), [(2024, "A"), (2025, "B")])

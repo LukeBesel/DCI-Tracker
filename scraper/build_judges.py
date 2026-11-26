@@ -134,8 +134,22 @@ def read_rooms(year: int):
     return rooms
 
 
-def build_year(year: int) -> dict | None:
-    rooms = read_rooms(year)
+def analyse(rooms: list[dict], year: int, baseline: str = "room") -> dict | None:
+    """The shared analysis, for either circuit.
+
+    baseline="room"     DCI. Every DCI sub-caption is scored out of 20, so a
+                        judge can fairly be compared with the corps' own mean
+                        across every sub-caption in the room.
+    baseline="caption"  WGI. Captions sit on different scales (Percussion's
+                        Effect - Music is out of 30, a Color Guard analysis
+                        judge out of 20), so a cross-caption mean would measure
+                        scale, not the judge. The honest comparison is the other
+                        judges on the SAME caption for the SAME unit in the same
+                        room — available wherever WGI doubles a panel. A seat
+                        that never sat on a doubled panel gets no tendency at
+                        all rather than an invented one.
+    Agreement orders the room by each unit's total where the sheet gives one.
+    """
     if not rooms:
         return None
 
@@ -143,14 +157,22 @@ def build_year(year: int) -> dict | None:
                                "shows": set(), "captions": set(), "classes": set()})
     for room in rooms:
         names = [c[0] for c in room["corps"]]
-        # the room's own view of each corps: its mean across every sub-caption
         corps_mean = {n: (sum(p.values()) / len(p)) for n, p in room["corps"]}
-        order = [corps_mean[n] for n in names]
+        totals = room.get("totals") or {}
+        order = [totals.get(n, corps_mean[n]) for n in names]
         per_judge = defaultdict(list)
         for name, picked in room["corps"]:
+            by_cap = defaultdict(list)
+            for (judge, caption), v in picked.items():
+                by_cap[caption].append((judge, v))
             for (judge, caption), v in picked.items():
                 key = (judge, caption)
-                acc[key]["devs"].append(v - corps_mean[name])
+                if baseline == "room":
+                    acc[key]["devs"].append(v - corps_mean[name])
+                else:
+                    peers = [pv for pj, pv in by_cap[caption] if pj != judge]
+                    if peers:
+                        acc[key]["devs"].append(v - sum(peers) / len(peers))
                 acc[key]["scores"].append(v)
                 acc[key]["shows"].add((room["date"], room["event"], room["cls"]))
                 acc[key]["captions"].add(caption)
@@ -172,12 +194,14 @@ def build_year(year: int) -> dict | None:
         sc = a["scores"]
         mu = mean(sc)
         var = sum((x - mu) ** 2 for x in sc) / len(sc) if len(sc) > 1 else 0.0
+        tendency = (round(mean(a["devs"]), 3)
+                    if len(a["devs"]) >= (MIN_SCORES if baseline == "caption" else 1) else None)
         judges.append({
             "judge": judge, "caption": caption,
             "shows": len(a["shows"]), "scores": len(sc),
             "classes": sorted(a["classes"]),
             "mean": round(mu, 3),
-            "tendency": round(mean(a["devs"]), 3),
+            "tendency": tendency,
             "spread": round(math.sqrt(var), 3),
             "agreement": (round(mean(a["agrees"]), 3)
                           if len(a["agrees"]) >= AGREE_MIN_ROOMS else None),
@@ -193,16 +217,76 @@ def build_year(year: int) -> dict | None:
         by_caption[j["caption"]].append(j)
     captions = {}
     for cap, js in by_caption.items():
-        t = [j["tendency"] for j in js]
-        captions[cap] = {"judges": len(js), "tendency": round(sum(t) / len(t), 3)}
+        t = [j["tendency"] for j in js if j["tendency"] is not None]
+        norm = round(sum(t) / len(t), 3) if t else None
+        captions[cap] = {"judges": len(js), "tendency": norm}
         for j in js:                      # tendency relative to this caption's own norm
-            j["rel"] = round(j["tendency"] - captions[cap]["tendency"], 3)
+            j["rel"] = (round(j["tendency"] - norm, 3)
+                        if j["tendency"] is not None and norm is not None else None)
 
     judges.sort(key=lambda j: (j["caption"], -j["shows"], j["judge"]))
     return {"year": year, "judges": judges, "captions": captions,
-            "rooms": len(rooms),
+            "rooms": len(rooms), "baseline": baseline,
             "floors": {"corps": MIN_CORPS, "shows": MIN_SHOWS, "scores": MIN_SCORES,
                        "agreement_rooms": AGREE_MIN_ROOMS}}
+
+
+def build_year(year: int) -> dict | None:
+    return analyse(read_rooms(year), year, baseline="room")
+
+
+def read_wgi_rooms(recaps: list[dict], year: int) -> list[dict]:
+    """WGI recaps (data/parsed/wgi_recaps.json) as rooms. Captions are keyed
+    "Division · Caption" so Percussion's Music and Winds' Music Analysis can
+    never be compared with each other."""
+    rooms = []
+    for ev in recaps:
+        if ev.get("year") != year:
+            continue
+        for sh in ev.get("sheets") or []:
+            div = sh.get("division") or ""
+            corps, totals = [], {}
+            for row in sh.get("rows") or []:
+                picked = {}
+                for j in row.get("judges") or []:
+                    if j.get("j") and j.get("c") and isinstance(j.get("v"), (int, float)):
+                        picked[(j["j"], f"{div} · {j['c']}")] = float(j["v"])
+                if picked:
+                    corps.append((row["unit"], picked))
+                    totals[row["unit"]] = row.get("total")
+            # complete sheets only: every unit judged by the same seats
+            if corps:
+                seats = set(corps[0][1])
+                corps = [c for c in corps if set(c[1]) == seats]
+            if len(corps) >= MIN_CORPS:
+                rooms.append({"date": ev.get("date"), "event": ev.get("event"),
+                              "cls": f"{div} · {sh.get('class')}", "corps": corps,
+                              "totals": {n: totals[n] for n, _ in corps}})
+    return rooms
+
+
+def main_wgi() -> int:
+    p = ROOT / "data" / "parsed" / "wgi_recaps.json"
+    if not p.exists():
+        log("judges: no WGI recaps yet")
+        return 0
+    recaps = json.loads(p.read_text())
+    index = []
+    for year in sorted({e["year"] for e in recaps}, reverse=True):
+        built = analyse(read_wgi_rooms(recaps, year), year, baseline="caption")
+        if not built:
+            continue
+        rooms = read_wgi_rooms(recaps, year)
+        built["rooms_by"] = {}
+        for r in rooms:                     # cls is "Division · Class"
+            dv = r["cls"].split(" · ")[0]
+            built["rooms_by"][dv] = built["rooms_by"].get(dv, 0) + 1
+        write_json(f"wgi/{OUT_PREFIX}/{year}.json", built)
+        index.append({"year": year, "judges": len(built["judges"]), "rooms": built["rooms"],
+                      "divisions": sorted({c.split(" · ")[0] for c in built["captions"]})})
+    write_json(f"wgi/{OUT_PREFIX}/index.json", {"years": index})
+    log(f"judges: built {len(index)} WGI season(s)")
+    return len(index)
 
 
 def main() -> int:
@@ -223,6 +307,7 @@ def main() -> int:
     index.sort(key=lambda r: -r["year"])
     write_json(f"{OUT_PREFIX}/index.json", {"years": index})
     log(f"judges: built {len(index)} season(s)")
+    main_wgi()
     return len(index)
 
 

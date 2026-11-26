@@ -42,6 +42,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+from datetime import date
 from typing import Any
 
 from common import ROOT, fetch, log, norm_space, slugify
@@ -65,12 +66,13 @@ SEASONS: dict[int, str] = {
     2024: "a0s4P00000f8CALQA2",
 }
 
+RECENT_DAYS = 10      # a show this recent may still change; after this it is final
 SCORE_RE = re.compile(r"^\s*-?\d+(?:\.\d+)?\s*$")
 
 
-def _api(kind: str, **params) -> Any:
+def _api(kind: str, force: bool = False, **params) -> Any:
     qs = "&".join(f"{k}={v}" for k, v in params.items())
-    raw = fetch(f"{BASE}/{kind}={API_KEY}?{qs}", accept_json=True)
+    raw = fetch(f"{BASE}/{kind}={API_KEY}?{qs}", accept_json=True, force=force)
     if not raw:
         return None
     try:
@@ -80,13 +82,13 @@ def _api(kind: str, **params) -> Any:
         return None
 
 
-def season_events(season_id: str, division: str) -> list[dict]:
-    d = _api("seasonapi", Division=division, SeasonId=season_id)
+def season_events(season_id: str, division: str, force: bool = False) -> list[dict]:
+    d = _api("seasonapi", force=force, Division=division, SeasonId=season_id)
     return d if isinstance(d, list) else []
 
 
-def show_detail(show_id: str, division: str) -> dict | None:
-    d = _api("showapi", Division=division, ShowId=show_id)
+def show_detail(show_id: str, division: str, force: bool = False) -> dict | None:
+    d = _api("showapi", force=force, Division=division, ShowId=show_id)
     return d if isinstance(d, dict) else None
 
 
@@ -164,9 +166,26 @@ def build_year(year: int, limit: int | None = None) -> list[dict]:
         log(f"wgi: no season id for {year} — this source does not cover it")
         return []
 
+    # The fetch cache serves anything it has and never re-asks, which is right
+    # for a finished season and wrong for a live one: the first January pass
+    # would cache WGI's show list and every later pass would re-read it, so no
+    # new show would ever appear. The live season re-lists every run, and a
+    # show re-fetches its results while it is upcoming or within RECENT_DAYS of
+    # having happened (late scores, corrections); after that it is final.
+    live = year == max(SEASONS)
+    today = date.today()
+
+    def fresh(iso: str) -> bool:
+        if not live:
+            return False
+        try:
+            return (today - date.fromisoformat(iso)).days <= RECENT_DAYS
+        except ValueError:
+            return True                     # undated: don't trust the cache
+
     merged: dict[str, dict] = {}
     for division in DIVISIONS:
-        evs = season_events(season_id, division)
+        evs = season_events(season_id, division, force=live)
         log(f"wgi {year} {division}: {len(evs)} events listed")
         for i, ev in enumerate(evs):
             if limit and i >= limit:
@@ -176,7 +195,7 @@ def build_year(year: int, limit: int | None = None) -> list[dict]:
             iso = norm_space(str(ev.get("Show_Date__c") or ""))[:10]
             if not show_id or not name:
                 continue
-            detail = show_detail(show_id, division)
+            detail = show_detail(show_id, division, force=fresh(iso))
             if not detail:
                 continue
             classes = _results(detail, division)
@@ -209,13 +228,31 @@ def build_year(year: int, limit: int | None = None) -> list[dict]:
 
 
 def main(years: list[int], limit: int | None = None) -> int:
-    all_events: list[dict] = []
-    for y in years:
-        all_events.extend(build_year(y, limit=limit))
+    """Rebuild the given seasons and MERGE them into wgi_events.json.
+
+    The pipeline runs this twice — the frequent pass for the live season and
+    the daily pass for the older ones — so a run must only replace the years it
+    was asked for. (It used to rewrite the whole file, so each pass erased the
+    other's seasons.) A year that comes back empty — WGI's API down, say — keeps
+    what was there rather than being wiped."""
     PARSED.mkdir(parents=True, exist_ok=True)
     out = PARSED / "wgi_events.json"
+    try:
+        existing = json.loads(out.read_text()) if out.exists() else []
+    except ValueError:
+        existing = []
+    rebuilt: dict[int, list[dict]] = {}
+    for y in years:
+        evs = build_year(y, limit=limit)
+        if evs:
+            rebuilt[y] = evs
+        else:
+            log(f"wgi {y}: nothing came back — keeping the {y} data already held")
+    kept = [e for e in existing if e.get("year") not in rebuilt]
+    all_events = sorted(kept + [e for evs in rebuilt.values() for e in evs],
+                        key=lambda e: (e.get("year") or 0, e.get("date_iso") or "", e.get("name") or ""))
     out.write_text(json.dumps(all_events, indent=1, ensure_ascii=False))
-    log(f"wgi: wrote {len(all_events)} events -> {out}")
+    log(f"wgi: {len(all_events)} events held ({', '.join(str(y) for y in sorted(rebuilt)) or 'none'} rebuilt)")
     return len(all_events)
 
 

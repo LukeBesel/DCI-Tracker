@@ -26,7 +26,8 @@ const DESKTOP = { width: 1280, height: 900 };
 const ROUTES = ["#/", "#/?y=2019", "#/events", "#/corps", "#/corps/bluecoats", "#/stats", "#/captions",
   "#/compare", "#/champions", "#/records", "#/database", "#/predictions", "#/settings",
   "#/suggestions", "#/about", "#/ask", "#/wgi", "#/wgi?y=2019",
-  "#/wgi/events", "#/wgi/units", "#/wgi/stats", "#/judges", "#/breakdown"];
+  "#/wgi/events", "#/wgi/units", "#/wgi/stats", "#/judges", "#/breakdown",
+  "#/wgi/captions", "#/wgi/breakdown", "#/wgi/judges"];
 
 const findings = [];
 let currentSection = "";
@@ -893,15 +894,72 @@ section("captions is a tab of its own", async (browser, base) => {
   for (const gone of ["Sheets", "Breakdown", "Judges"])
     if (statSubs.includes(gone)) bad(`"${gone}" is still under Stats`);
 
-  // WGI has no caption data yet, so it must not show a tab that leads nowhere
+  // WGI's Captions tab is served by the verified recaps: it must be there,
+  // and like every WGI tab it must stay inside the circuit
   await page.goHash("#/wgi?d=Percussion");
   await page.waitForTimeout(1500);
   const wgiTabs = await visible();
-  if (wgiTabs.some(t => t.label === "Captions"))
-    bad("WGI shows a Captions tab but has no caption data behind it");
+  if (!wgiTabs.some(t => t.label === "Captions")) bad("WGI has caption data but no Captions tab");
   for (const t of wgiTabs)
     if (!/^#\/wgi/.test(t.href)) bad(`WGI nav tab "${t.label}" points outside the circuit (${t.href})`);
 
+  if (page._errs.length) bad(page._errs[0]);
+  await ctx.close();
+});
+
+// WGI caption sheets are rebuilt from recaps that had to reconcile three ways
+// in the scraper. QA re-checks the published result independently: every row
+// still adds up, every division is reachable through all three views, and
+// the judges page states its OWN division's sample, not the circuit's.
+section("wgi captions: every division, reconciled and honest", async (browser, base) => {
+  const { ctx, page } = await ctxPage(browser, base, { viewport: PHONE });
+  await page.goHash("#/wgi/captions");     // relative data URLs need a real page first
+  const facts = await page.evaluate(async () => {
+    const idx = await fetch("data/wgi/captions/index.json").then(r => r.json()).catch(() => null);
+    if (!idx || !idx.seasons || !idx.seasons.length) return null;
+    const y = idx.seasons[0].year;
+    const doc = await fetch(`data/wgi/captions/${y}.json`).then(r => r.json());
+    let rows = 0, broken = [];
+    for (const sh of doc.sheets) for (const r of sh.rows) {
+      rows++;
+      const sum = r[1].reduce((n, v) => n + (typeof v === "number" ? v : 0), 0);
+      if (Math.abs(sum - (r[3] || 0) - r[2]) > 0.011) broken.push(`${sh.e} / ${r[0]}: ${sum.toFixed(3)} - ${r[3]} != ${r[2]}`);
+    }
+    const jd = await fetch(`data/wgi/judges/${y}.json`).then(r => r.json()).catch(() => null);
+    return { y, rows, broken: broken.slice(0, 3), nBroken: broken.length,
+             divisions: idx.seasons[0].divisions, roomsBy: jd && jd.rooms_by, rooms: jd && jd.rooms };
+  });
+  if (!facts) { bad("no WGI caption data published"); await ctx.close(); return; }
+  if (facts.nBroken) bad(`${facts.nBroken}/${facts.rows} published WGI rows don't add up, e.g. ${facts.broken[0]}`);
+
+  for (const d of facts.divisions) {
+    const q = `?d=${encodeURIComponent(d)}`;
+    for (const [route, must] of [["wgi/captions", /Caption wins/], ["wgi/breakdown", /Where they stand/], ["wgi/judges", /How to read this/]]) {
+      await page.goHash(`#/${route}${q}`);
+      await page.waitForTimeout(1500);
+      const st = await page.evaluate(() => ({
+        text: document.getElementById("app").innerText,
+        brand: document.querySelector(".brand").innerText.replace(/\s+/g, " "),
+        capOn: [...document.querySelectorAll("#nav a")].find(a => a.dataset.route === "captions")?.classList.contains("active"),
+        subs: [...document.querySelectorAll(".subtabs a")].map(a => a.getAttribute("href")),
+      }));
+      if (!must.test(st.text)) bad(`${route} (${d}) did not render its content`);
+      if (!st.capOn) bad(`${route} (${d}) does not light the Captions tab`);
+      if (!st.brand.includes(d)) bad(`${route} (${d}) dropped the division from the wordmark`);
+      if (st.subs.some(h => !h.includes(`d=${encodeURIComponent(d)}`)))
+        bad(`${route} (${d}): a caption sub-tab drops the division`);
+    }
+    // the judges page must state this division's rooms, not the circuit total
+    if (facts.roomsBy && facts.roomsBy[d] != null) {
+      await page.goHash(`#/wgi/judges${q}`);
+      await page.waitForTimeout(1300);
+      const t = await page.evaluate(() => document.getElementById("app").innerText);
+      const m = t.match(/Built from ([\d,]+) judged rooms/);
+      const n = m && +m[1].replace(/,/g, "");
+      if (n !== facts.roomsBy[d]) bad(`${d} judges page claims ${n} rooms; its own sample is ${facts.roomsBy[d]}`);
+      if (!/mirror-image/.test(t)) bad(`${d} judges page omits the co-judge mirror-image caveat`);
+    }
+  }
   if (page._errs.length) bad(page._errs[0]);
   await ctx.close();
 });

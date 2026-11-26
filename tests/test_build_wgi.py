@@ -125,3 +125,55 @@ class Rankings(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Captions(unittest.TestCase):
+    """build_captions only reshapes rows the scraper already verified; it must
+    not reorder a row's scores away from its caption headings."""
+
+    def setUp(self):
+        self.tmp = Path(self.enterContext(__import__("tempfile").TemporaryDirectory()))
+        self._parsed, self._write = B.PARSED, B.write_json
+        B.PARSED = self.tmp
+        self.out = {}
+        B.write_json = lambda path, obj: self.out.__setitem__(path, obj)
+        (self.tmp / "wgi_recaps.json").write_text(json.dumps([{
+            "year": 2026, "event": "Show", "date": "2026-03-01", "url": "u", "recap_url": "r",
+            "sheets": [{"class": "Independent World", "division": "Percussion",
+                        "captions": ["Effect - Music", "Music"],
+                        "rows": [
+                            {"unit": "Low", "caps": {"Music": 20.0, "Effect - Music": 21.0},
+                             "judges": [{"j": "A", "c": "Music", "v": 20.0}], "total": 41.0, "pen": 0},
+                            {"unit": "High", "caps": {"Effect - Music": 25.0, "Music": 24.0},
+                             "judges": [{"j": "B", "c": "Effect - Music", "v": 25.0},
+                                        {"j": "A", "c": "Music", "v": 24.0}], "total": 48.9, "pen": 0.1}]}]}]))
+
+    def tearDown(self):
+        B.PARSED, B.write_json = self._parsed, self._write
+
+    def test_scores_stay_under_their_own_caption_heading(self):
+        B.build_captions()
+        sh = self.out["wgi/captions/2026.json"]["sheets"][0]
+        self.assertEqual(sh["caps"], ["Effect - Music", "Music"])
+        by = {r[0]: r for r in sh["rows"]}
+        self.assertEqual(by["Low"][1], [21.0, 20.0])     # dict order in the input didn't matter
+        self.assertEqual(by["High"][1], [25.0, 24.0])
+
+    def test_rows_are_ranked_by_total_and_keep_their_penalty(self):
+        B.build_captions()
+        rows = self.out["wgi/captions/2026.json"]["sheets"][0]["rows"]
+        self.assertEqual([r[0] for r in rows], ["High", "Low"])
+        self.assertEqual(rows[0][3], 0.1)
+
+    def test_the_panel_lists_each_judge_once_under_their_caption(self):
+        B.build_captions()
+        panel = self.out["wgi/captions/2026.json"]["sheets"][0]["panel"]
+        self.assertEqual(panel, {"Effect - Music": ["B"], "Music": ["A"]})
+
+    def test_the_index_names_the_divisions_present(self):
+        B.build_captions()
+        self.assertEqual(self.out["wgi/captions/index.json"]["seasons"][0]["divisions"], ["Percussion"])
+
+    def test_no_recaps_is_not_an_error(self):
+        (self.tmp / "wgi_recaps.json").unlink()
+        self.assertEqual(B.build_captions(), [])

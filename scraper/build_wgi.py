@@ -180,7 +180,54 @@ def build_rankings(events) -> dict:
     }
 
 
+def build_captions() -> list[dict]:
+    """Caption sheets for the WGI Captions tab, from the verified recaps.
+
+    Every row here already passed scrape_wgi_recaps' three checks (captions
+    sum to the sub-total, sub-total minus penalty is the total, and the total
+    is the score WGI's API published), so this step only reshapes. One file per
+    season: each sheet is one class at one show, with its caption columns, the
+    judges behind each caption, and a row per unit aligned to those columns.
+    """
+    p = PARSED / "wgi_recaps.json"
+    if not p.exists():
+        return []
+    try:
+        recaps = json.loads(p.read_text())
+    except ValueError:
+        log("wgi: wgi_recaps.json is not valid JSON — captions skipped")
+        return []
+    by_year = defaultdict(list)
+    for ev in recaps:
+        for sh in ev.get("sheets") or []:
+            caps = sh.get("captions") or []
+            panel = {c: [] for c in caps}
+            for row in sh.get("rows") or []:
+                for j in row.get("judges") or []:
+                    if j.get("c") in panel and j.get("j") and j["j"] not in panel[j["c"]]:
+                        panel[j["c"]].append(j["j"])
+            rows = [[r["unit"], [r["caps"].get(c) for c in caps], r.get("total"), r.get("pen") or 0]
+                    for r in sh.get("rows") or []]
+            rows.sort(key=lambda r: -(r[2] or 0))
+            by_year[ev["year"]].append({
+                "d": ev.get("date"), "e": ev.get("event"), "u": ev.get("url"),
+                "r": ev.get("recap_url"), "v": sh.get("division"), "c": sh.get("class"),
+                "caps": caps, "panel": panel, "rows": rows})
+    index = []
+    for year, sheets in sorted(by_year.items()):
+        sheets.sort(key=lambda s: (s["d"] or "", s["e"] or "", s["v"] or "", s["c"] or ""))
+        write_json(f"{PREFIX}/captions/{year}.json", {"year": year, "sheets": sheets})
+        index.append({"year": year, "sheets": len(sheets),
+                      "rows": sum(len(s["rows"]) for s in sheets),
+                      "divisions": sort_divisions({s["v"] for s in sheets})})
+    write_json(f"{PREFIX}/captions/index.json",
+               {"seasons": sorted(index, key=lambda s: -s["year"])})
+    log(f"wgi: caption sheets for {len(index)} season(s)")
+    return index
+
+
 def main() -> int:
+    build_captions()
     events = load_events()
     if not events:
         # still publish an empty, well-formed meta so the app can say

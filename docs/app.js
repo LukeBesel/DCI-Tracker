@@ -784,11 +784,9 @@
   const NAV_MODE = {
     dci: { rankings: "#/", events: "#/events", corps: ["#/corps", "Corps"],
            captions: "#/captions", data: "#/stats" },
-    // WGI has no caption tab yet: its recaps are captured but not parsed, and
-    // a tab that leads nowhere is worse than one that isn't there. It appears
-    // the moment the data does.
+    // WGI's Captions tab is served by the verified recaps (scrape_wgi_recaps)
     wgi: { rankings: "#/wgi", events: "#/wgi/events", corps: ["#/wgi/units", "Units"],
-           captions: null, data: "#/wgi/stats" },
+           captions: "#/wgi/captions", data: "#/wgi/stats" },
   };
   function applyNavMode() {
     const m = currentMode();
@@ -1941,6 +1939,143 @@
             <td><a href="#/wgi/unit/${encodeURIComponent(wgiSlug(c.corps))}?y=${c.year}&d=${encodeURIComponent(division)}">${esc(c.corps)}</a></td>
             <td class="num score">${score3(c.score)}</td></tr>`).join("")}</tbody></table></div></div>`;
     app.querySelectorAll("tbody").forEach(tb => { if (tb.rows.length > 14) collapseRows(tb, 12, "rows"); });
+  }
+
+  /* ---- WGI Captions: Sheets, Breakdown, Judges ----
+     Built on the verified recaps (every row's captions sum to its sub-total,
+     sub-total less penalty is its total, and that total is the score WGI
+     published). The sub-tabs carry the division so the mode never drops. */
+  const WGI_CAP_SUBS = [["wgi/captions", "Sheets"], ["wgi/breakdown", "Breakdown"], ["wgi/judges", "Judges"]];
+  function wgiCapNav(active, division) {
+    requestAnimationFrame(centerSubtab);
+    const qs = `?d=${encodeURIComponent(division)}`;
+    return `<div class="subtabs">${WGI_CAP_SUBS.map(([k, l]) =>
+      `<a href="#/${k}${qs}" class="${k === active ? "on" : ""}">${l}</a>`).join("")}</div>`;
+  }
+
+  async function wgiCaptionData(q, stale) {
+    let idx;
+    try { idx = await data("wgi/captions/index.json"); } catch (e) { idx = null; }
+    if (stale()) return null;
+    const seasons = ((idx && idx.seasons) || []).filter(s => s.rows > 0);
+    const allDivs = [...new Set(seasons.flatMap(s => s.divisions || []))];
+    const division = allDivs.includes(q.get("d")) ? q.get("d") : (allDivs[0] || "Color Guard");
+    const years = seasons.filter(s => (s.divisions || []).includes(division)).map(s => s.year).sort((a, b) => b - a);
+    if (!years.length) return { division, years: [], sheets: [] };
+    const year = years.includes(+q.get("y")) ? +q.get("y") : years[0];
+    let doc;
+    try { doc = await data(`wgi/captions/${year}.json`); } catch (e) { doc = null; }
+    if (stale()) return null;
+    const sheets = ((doc && doc.sheets) || []).filter(s => s.v === division);
+    return { division, years, year, sheets };
+  }
+
+  async function viewWgiCaptions(query, stale) {
+    setNav("captions");
+    const q = new URLSearchParams(query || "");
+    const ctx = await wgiCaptionData(q, stale);
+    if (!ctx) return;
+    const { division, years, year, sheets } = ctx;
+    const nav = wgiCapNav("wgi/captions", division);
+    if (!sheets.length) {
+      app.innerHTML = `${nav}<h1 class="page">WGI ${esc(division)} Sheets</h1>
+        <div class="card"><div class="empty">No verified ${esc(division)} caption sheets yet.</div></div>`;
+      return;
+    }
+    // one entry per show, newest first
+    const shows = [];
+    sheets.forEach(s => { const k = `${s.d}|${s.e}`; if (!shows.some(x => x.k === k)) shows.push({ k, d: s.d, e: s.e }); });
+    shows.sort((a, b) => (b.d || "").localeCompare(a.d || ""));
+    const showKey = shows.some(s => s.k === q.get("e")) ? q.get("e") : shows[0].k;
+    const atShow = sheets.filter(s => `${s.d}|${s.e}` === showKey);
+    const classes = wgiClassSort(atShow.map(s => s.c));
+    const cls = classes.includes(q.get("c")) ? q.get("c") : classes[0];
+    const sh = atShow.find(s => s.c === cls);
+    const link = o => `#/wgi/captions?d=${encodeURIComponent(division)}&y=${o.y ?? year}` +
+      `&e=${encodeURIComponent(o.e ?? showKey)}&c=${encodeURIComponent(o.c ?? cls)}`;
+
+    // caption winners at this show: who topped each column. A unit can win the
+    // night and still lose captions, which is exactly what a sheet should show.
+    const best = sh.caps.map((_c, i) => Math.max(...sh.rows.map(r => (typeof r[1][i] === "number" ? r[1][i] : -1))));
+    const wins = new Map();
+    sh.caps.forEach((_c, i) => sh.rows.forEach(r => {
+      if (r[1][i] === best[i] && best[i] >= 0) wins.set(r[0], (wins.get(r[0]) || 0) + 1);
+    }));
+    const winnerLine = [...wins.entries()].sort((a, b) => b[1] - a[1])
+      .map(([u, n]) => `${esc(u)} ${n}`).join(" · ");
+    const leaderSwept = sh.rows.length && wins.get(sh.rows[0][0]) === sh.caps.length;
+
+    app.innerHTML = `${nav}
+      <h1 class="page">${yearPickerHtml(year)} WGI ${esc(division)} Sheets</h1>
+      <div class="filters" style="margin-bottom:10px">
+        <select class="ctrl" id="wsShow">${shows.map(s => `<option value="${esc(s.k)}"${s.k === showKey ? " selected" : ""}>${esc(fmtDate(s.d))} · ${esc(s.e)}</option>`).join("")}</select>
+      </div>
+      ${classes.length > 1 ? `<div class="chiprow">${classes.map(c =>
+        `<a class="yearopt ${c === cls ? "on" : ""}" href="${link({ c })}">${esc(c)}</a>`).join("")}</div>` : ""}
+      <div class="card">
+        <h2>${esc(cls)} <span class="sub">${sh.rows.length} ${sh.rows.length === 1 ? "unit" : "units"}</span></h2>
+        <div class="evdone"><b>Caption wins:</b> ${winnerLine || "—"}${leaderSwept && sh.rows.length > 1 ? " — a clean sweep" : ""}.
+          Every row here reconciles: its captions add to the sub-total, the penalty explains the total, and the total is
+          the score WGI published.${sh.r ? ` <a href="${encodeURI(sh.r)}" target="_blank" rel="noopener">Original recap →</a>` : ""}</div>
+        <div class="tscroll dense"><table class="t"><thead><tr><th class="rank">#</th><th>Unit</th>
+          ${sh.caps.map(c => `<th class="num" title="${esc((sh.panel[c] || []).join(", "))}">${esc(c)}
+            <div class="kicker" style="font-weight:500;text-transform:none;letter-spacing:0">${esc((sh.panel[c] || []).join(" · "))}</div></th>`).join("")}
+          <th class="num m-hide">Pen</th><th class="num">Total</th></tr></thead>
+          <tbody>${sh.rows.map((r, i) => `<tr><td class="rank">${i + 1}</td>
+            <td><a href="#/wgi/unit/${encodeURIComponent(wgiSlug(r[0]))}?y=${year}&d=${encodeURIComponent(division)}">${esc(r[0])}</a></td>
+            ${r[1].map((v, k) => `<td class="num${v === best[k] ? " score" : ""}"${v === best[k] ? ' style="color:var(--accent-ink,var(--link))"' : ""}>${typeof v === "number" ? v.toFixed(3) : "—"}</td>`).join("")}
+            <td class="num m-hide">${r[3] ? "−" + r[3].toFixed(1) : ""}</td>
+            <td class="num score">${typeof r[2] === "number" ? r[2].toFixed(3) : "—"}</td></tr>`).join("")}</tbody></table></div>
+      </div>`;
+    wireYearPicker(years, year, y => { location.hash = `#/wgi/captions?d=${encodeURIComponent(division)}&y=${y}`; });
+    const sel = document.getElementById("wsShow");
+    if (sel) sel.onchange = () => { location.hash = link({ e: sel.value, c: "" }); };
+  }
+
+  async function viewWgiBreakdown(query, stale) {
+    setNav("captions");
+    const q = new URLSearchParams(query || "");
+    const ctx = await wgiCaptionData(q, stale);
+    if (!ctx) return;
+    const { division, years, year, sheets } = ctx;
+    const nav = wgiCapNav("wgi/breakdown", division);
+    if (!sheets.length) return breakdownEmpty(nav, `No verified ${esc(division)} caption sheets yet.`);
+    const capOrder = [];
+    sheets.forEach(s => s.caps.forEach(c => { if (!capOrder.includes(c)) capOrder.push(c); }));
+    const rows = sheets.flatMap(s => s.rows.map(r => ({
+      date: s.d, event: s.e, cls: s.c, unit: r[0], total: r[2],
+      s: Object.fromEntries(s.caps.map((c, i) => [c, r[1][i]])),
+    })));
+    renderBreakdown({
+      q, years, year, rows, noun: "unit", subnav: nav,
+      caps: capOrder.map(label => ({ label, group: false })),
+      defaultClass: null, sortClasses: wgiClassSort, title: `WGI ${division} Breakdown`,
+      href: o => `#/wgi/breakdown?d=${encodeURIComponent(division)}&y=${o.y}&cl=${encodeURIComponent(o.cl)}` +
+        `&c=${encodeURIComponent(o.c)}&v=${encodeURIComponent(o.v)}`,
+    });
+  }
+
+  async function viewWgiJudges(query, stale) {
+    setNav("captions");
+    const q = new URLSearchParams(query || "");
+    let division = q.get("d");
+    if (!WGI_DIVS.includes(division)) division = "Color Guard";
+    const pre = `${division} · `;
+    return renderJudges(query, stale, {
+      prefix: "wgi/", noun: "unit", subnav: wgiCapNav("wgi/judges", division),
+      title: `WGI ${division} Judges`,
+      yearOk: y => (y.divisions || []).includes(division),
+      href: o => `#/wgi/judges?d=${encodeURIComponent(division)}&y=${o.y}&c=${encodeURIComponent(o.c)}&s=${o.s}`,
+      capFilter: c => c.startsWith(pre), capLabel: c => c.slice(pre.length),
+      rooms: doc => (doc.rooms_by && doc.rooms_by[division]) || 0,
+      vsText: `whether this seat scored above or below the OTHER judge on the same caption, for the same unit,
+        at the same show. WGI's captions are scored on different scales, so comparing a judge with the rest of the
+        panel would measure the scale rather than the judge; the only fair comparison is a second judge doing the
+        same job. That exists wherever WGI doubles a panel — usually finals and larger classes — so seats that
+        always judged alone show no figure here rather than an invented one. One consequence worth knowing: two
+        judges who usually sit together will show near mirror-image figures. That tells you they see the caption
+        differently — it cannot tell you which of them is right.`,
+    });
   }
 
   function wgiEventsCard(season, division, year, finalsOnly) {
@@ -4041,88 +4176,99 @@
      are only ever ranked against others of the SAME caption. */
   async function viewJudges(query, stale) {
     setNav("captions");
+    return renderJudges(query, stale, {
+      prefix: "", noun: "corps", subnav: dataSubNav("judges"),
+      href: (o) => `#/judges?y=${o.y}&c=${encodeURIComponent(o.c)}&s=${o.s}`,
+      capFilter: () => true, capLabel: c => c,
+      vsText: `whether this seat scored above or below the rest of the panel on the same corps at the
+        same show, measured against what that caption normally runs. Captions carry their own offsets,
+        so judges are only compared with others doing the same job.`,
+    });
+  }
+
+  /* One Judges view for both circuits; cfg supplies the data prefix, the
+     division filter and — because the two circuits are measured differently —
+     the plain-language explanation of what "vs caption" means. */
+  async function renderJudges(query, stale, cfg) {
     const q = new URLSearchParams(query || "");
     let idx;
-    try { idx = await data("judges/index.json"); } catch (e) { idx = null; }
+    try { idx = await data(`${cfg.prefix}judges/index.json`); } catch (e) { idx = null; }
     if (stale()) return;
-    const yearsAll = ((idx && idx.years) || []).filter(y => y.judges > 0);
+    const yearsAll = ((idx && idx.years) || []).filter(y => y.judges > 0 && (!cfg.yearOk || cfg.yearOk(y)));
     if (!yearsAll.length) {
-      app.innerHTML = `${dataSubNav("judges")}<h1 class="page">Judges</h1>
+      app.innerHTML = `${cfg.subnav}<h1 class="page">Judges</h1>
         <div class="card"><div class="empty">Judge analysis needs the official recaps, which aren't available yet.</div></div>`;
       return;
     }
     const years = yearsAll.map(y => y.year);
     const year = years.includes(+q.get("y")) ? +q.get("y") : years[0];
-
     let doc;
-    try { doc = await data(`judges/${year}.json`); } catch (e) { doc = null; }
+    try { doc = await data(`${cfg.prefix}judges/${year}.json`); } catch (e) { doc = null; }
     if (stale()) return;
     if (!doc) {
-      app.innerHTML = `${dataSubNav("judges")}<h1 class="page">Judges</h1>
+      app.innerHTML = `${cfg.subnav}<h1 class="page">Judges</h1>
         <div class="card"><div class="empty">No judge data for ${year}.</div></div>`;
       return;
     }
-
-    const captions = Object.keys(doc.captions || {}).sort();
+    const all = (doc.judges || []).filter(j => cfg.capFilter(j.caption));
+    const captions = Object.keys(doc.captions || {}).filter(cfg.capFilter).sort();
     const cap = captions.includes(q.get("c")) ? q.get("c") : "";
     const sort = ["agreement", "rel", "shows", "spread"].includes(q.get("s")) ? q.get("s") : "agreement";
-    const rows = (doc.judges || []).filter(j => !cap || j.caption === cap);
-    const dir = sort === "rel" ? -1 : -1;
+    const rows = all.filter(j => !cap || j.caption === cap);
     rows.sort((a, b) => {
       const av = a[sort], bv = b[sort];
-      if (av == null && bv == null) return 0;
+      if (av == null && bv == null) return b.shows - a.shows || a.judge.localeCompare(b.judge);
       if (av == null) return 1;
       if (bv == null) return -1;
-      return (bv - av) * (dir < 0 ? 1 : -1) || a.judge.localeCompare(b.judge);
+      return bv - av || b.shows - a.shows || a.judge.localeCompare(b.judge);
     });
-    const link = (c, s, y) => `#/judges?y=${y ?? year}` +
-      `&c=${encodeURIComponent(c === null ? cap : c)}&s=${s ?? sort}`;
+    const link = (c, s, y) => cfg.href({ y: y ?? year, c: c === null ? cap : c, s: s ?? sort });
+    const num = (v, plus) => v == null ? "—" : (plus && v > 0 ? "+" : "") + v.toFixed(plus ? 3 : 2);
+    const noVs = all.length && all.every(j => j.rel == null);
 
-    const num = (v, plus) => v == null ? "—"
-      : (plus && v > 0 ? "+" : "") + v.toFixed(plus ? 3 : 2);
-
-    app.innerHTML = `${dataSubNav("judges")}
-      <h1 class="page">${yearPickerHtml(year)} Judges <span class="kicker">· ${rows.length} of ${(doc.judges || []).length} panel seats</span></h1>
+    app.innerHTML = `${cfg.subnav}
+      <h1 class="page">${yearPickerHtml(year)} ${cfg.title || "Judges"} <span class="kicker">· ${rows.length} of ${all.length} panel seats</span></h1>
       <div class="card">
-        <div class="evdone">Built from ${doc.rooms.toLocaleString()} judged rooms in ${year}. A seat appears once it has
-          judged ${doc.floors.shows}+ shows and ${doc.floors.scores}+ corps.</div>
-        <div class="chiprow">
+        <div class="evdone">Built from ${(cfg.rooms ? cfg.rooms(doc) : doc.rooms).toLocaleString()} judged rooms in ${year}. A seat appears once it has
+          judged ${doc.floors.shows}+ shows and ${doc.floors.scores}+ ${cfg.noun === "corps" ? "corps" : "units"}.</div>
+        ${captions.length ? `<div class="chiprow">
           <a class="yearopt ${cap ? "" : "on"}" href="${link("", null)}">All captions</a>
-          ${captions.map(c => `<a class="yearopt ${c === cap ? "on" : ""}" href="${link(c, null)}">${esc(c)}</a>`).join("")}
-        </div>
+          ${captions.map(c => `<a class="yearopt ${c === cap ? "on" : ""}" href="${link(c, null)}">${esc(cfg.capLabel(c))}</a>`).join("")}
+        </div>` : ""}
         <div class="chiprow">${[["agreement", "Agreement"], ["rel", "Runs high"], ["spread", "Spread"], ["shows", "Shows"]]
           .map(([k, l]) => `<a class="yearopt ${k === sort ? "on" : ""}" href="${link(null, k)}">${l}</a>`).join("")}</div>
-        <div class="tscroll"><table class="t"><thead><tr>
+        ${rows.length ? `<div class="tscroll"><table class="t"><thead><tr>
           <th>Judge</th><th class="m-hide">Caption</th>
           <th class="num" title="Shows judged">Shows</th>
-          <th class="num" title="Score relative to the rest of the panel on the same corps, measured against this caption's own norm">vs caption</th>
+          <th class="num" title="Score relative to comparable judges — see How to read this">vs caption</th>
           <th class="num" title="How closely this judge's ordering of the field matches the room's">Agreement</th>
           <th class="num m-hide" title="How widely they spread the field">Spread</th>
         </tr></thead><tbody>${rows.map(j => `<tr>
-          <td><b>${esc(j.judge)}</b>${cap ? "" : `<div class="evdone" style="padding:0">${esc(j.caption)}</div>`}</td>
-          <td class="m-hide">${esc(j.caption)}</td>
+          <td><b>${esc(j.judge)}</b>${cap ? "" : `<div class="evdone" style="padding:0">${esc(cfg.capLabel(j.caption))}</div>`}</td>
+          <td class="m-hide">${esc(cfg.capLabel(j.caption))}</td>
           <td class="num">${j.shows}</td>
-          <td class="num ${j.rel > 0.05 ? "delta up" : j.rel < -0.05 ? "delta down" : ""}">${num(j.rel, true)}</td>
+          <td class="num ${j.rel > 0.05 ? "delta up" : j.rel < -0.05 ? "delta down" : ""}">${j.rel == null
+            ? `<span class="kicker" title="No comparable judge sat beside this seat">—</span>` : num(j.rel, true)}</td>
           <td class="num score">${j.agreement == null
             ? `<span class="kicker" title="Needs ${doc.floors.agreement_rooms}+ full rooms; this seat has ${j.agreement_rooms}">—</span>`
             : j.agreement.toFixed(3)}</td>
           <td class="num m-hide">${num(j.spread)}</td>
-        </tr>`).join("")}</tbody></table></div>
+        </tr>`).join("")}</tbody></table></div>`
+        : `<div class="empty">No seats meet the sample floor for ${esc(cfg.title || "this view")} in ${year}.</div>`}
       </div>
       <div class="card">
         <h2>How to read this</h2>
-        <p style="margin:0 0 8px"><b>vs caption</b> — whether this seat scored above or below the rest of
-          the panel on the same corps at the same show, measured against what that caption normally runs.
-          Captions carry their own offsets, so judges are only compared with others doing the same job.</p>
+        <p style="margin:0 0 8px"><b>vs caption</b> — ${cfg.vsText}${noVs ? ` <b>No seat this season sat on a
+          doubled panel often enough to measure, so this column is empty rather than guessed.</b>` : ""}</p>
         <p style="margin:0 0 8px"><b>Agreement</b> — how closely their ordering of the field matched the room's.
-          1.000 means they placed the corps exactly as the full panel did. A lower number isn't a mistake:
-          a specialist caption legitimately sees a different show. It is only shown once a seat has
-          ${doc.floors.agreement_rooms}+ full rooms behind it — over one or two rooms a perfect score is
-          easy to hit by chance and would top this table while meaning nothing.</p>
+          1.000 means they placed the ${cfg.noun === "corps" ? "corps" : "units"} exactly as the room's final totals did.
+          A lower number isn't a mistake: a specialist caption legitimately sees a different show. It is only shown once a
+          seat has ${doc.floors.agreement_rooms}+ full rooms behind it — over one or two rooms a perfect score is easy to
+          hit by chance and would top this table while meaning nothing.</p>
         <p style="margin:0 0 8px"><b>Spread</b> — how far apart they placed the field. A narrow spread
           compresses the gaps; a wide one separates them.</p>
         <p class="newsnote" style="margin:0">These are descriptive, not a verdict on anyone's judging. They
-          come from ${esc(String(doc.rooms))} rooms of published recaps and nothing else.</p>
+          come from ${esc(String(cfg.rooms ? cfg.rooms(doc) : doc.rooms))} rooms of published recaps and nothing else.</p>
       </div>`;
     wireYearPicker(years, year, y => { location.hash = link(null, null, y); });
   }
@@ -4145,6 +4291,10 @@
   ];
   const TOTAL_IDX = 16;
 
+  /* One Breakdown for both circuits. Each adapter turns its own caption
+     data into rows of {date, event, cls, unit, s: {caption: score}, total} and
+     a caption list; everything below that is shared, so a fix to how a rank
+     or a margin is computed lands on DCI and WGI at once. */
   async function viewBreakdown(query, stale) {
     setNav("captions");
     const q = new URLSearchParams(query || "");
@@ -4152,163 +4302,168 @@
     try { idx = await data("captions/index.json"); } catch (e) { idx = null; }
     if (stale()) return;
     const seasons = ((idx && idx.seasons) || []).filter(s => s.rows > 0);
-    if (!seasons.length) {
-      app.innerHTML = `${dataSubNav("breakdown")}<h1 class="page">Breakdown</h1>
-        <div class="card"><div class="empty">Caption sheets aren't available yet.</div></div>`;
-      return;
-    }
     const years = seasons.map(s => s.year).sort((a, b) => b - a);
+    if (!years.length) return breakdownEmpty(dataSubNav("breakdown"), "Caption sheets aren't available yet.");
     const year = years.includes(+q.get("y")) ? +q.get("y") : years[0];
-
-    let rows;
-    try { rows = await data(`captions/${year}.json`); } catch (e) { rows = []; }
+    let raw;
+    try { raw = await data(`captions/${year}.json`); } catch (e) { raw = []; }
     if (stale()) return;
+    const rows = raw.map(r => ({
+      date: r[0], event: r[1], cls: r[2], unit: r[3], total: r[TOTAL_IDX],
+      s: Object.fromEntries(CAP_COLS.map(([label, i]) => [label, r[i]])),
+    }));
+    renderBreakdown({
+      q, years, year, rows, noun: "corps", subnav: dataSubNav("breakdown"),
+      caps: CAP_COLS.map(([label, _i, group]) => ({ label, group: !!group })),
+      defaultClass: "World Class", title: "Breakdown",
+      href: o => `#/breakdown?y=${o.y}&cl=${encodeURIComponent(o.cl)}&c=${encodeURIComponent(o.c)}&v=${encodeURIComponent(o.v)}`,
+    });
+  }
 
-    const classes = [...new Set(rows.map(r => r[2]).filter(Boolean))];
-    const cls = classes.includes(q.get("cl")) ? q.get("cl") : (classes.includes("World Class") ? "World Class" : classes[0]);
-    const inClass = rows.filter(r => r[2] === cls);
-    const corpsNames = [...new Set(inClass.map(r => r[3]))].sort();
-    // default to a favorite if they have one in this class, else the leader
-    const lastTotal = n => {
-      const rs = inClass.filter(r => r[3] === n);
-      return rs.length ? rs[rs.length - 1][TOTAL_IDX] : 0;
-    };
-    const fav = FAVS.list().find(n => corpsNames.includes(n));
-    const leader = [...corpsNames].sort((a, b) => lastTotal(b) - lastTotal(a))[0];
-    const corps = corpsNames.includes(q.get("c")) ? q.get("c") : (fav || leader);
-    const rival = corpsNames.includes(q.get("v")) && q.get("v") !== corps ? q.get("v") : "";
+  function breakdownEmpty(subnav, msg) {
+    app.innerHTML = `${subnav}<h1 class="page">Breakdown</h1><div class="card"><div class="empty">${msg}</div></div>`;
+  }
 
-    const link = (o = {}) => `#/breakdown?y=${o.y ?? year}&cl=${encodeURIComponent(o.cl ?? cls)}` +
-      `&c=${encodeURIComponent(o.c ?? corps)}&v=${encodeURIComponent(o.v === undefined ? rival : o.v)}`;
-
-    const mine = inClass.filter(r => r[3] === corps);
+  function renderBreakdown(cfg) {
+    const { q, years, year, rows, noun, subnav, title } = cfg;
+    const found = [...new Set(rows.map(r => r.cls).filter(Boolean))];
+    const classes = cfg.sortClasses ? cfg.sortClasses(found) : found;
+    const cls = classes.includes(q.get("cl")) ? q.get("cl")
+      : (classes.includes(cfg.defaultClass) ? cfg.defaultClass : classes[0]);
+    const inClass = rows.filter(r => r.cls === cls).sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+    // the caption columns this class actually carries (WGI's concert and
+    // marching percussion classes don't share a sheet)
+    const caps = cfg.caps.filter(c => inClass.some(r => typeof r.s[c.label] === "number"));
+    const names = [...new Set(inClass.map(r => r.unit))].sort();
+    const lastTotal = n => { const rs = inClass.filter(r => r.unit === n); return rs.length ? rs[rs.length - 1].total : 0; };
+    const fav = FAVS.list().find(n => names.includes(n));
+    const leader = [...names].sort((a, b) => lastTotal(b) - lastTotal(a))[0];
+    const unit = names.includes(q.get("c")) ? q.get("c") : (fav || leader);
+    const rival = names.includes(q.get("v")) && q.get("v") !== unit ? q.get("v") : "";
+    const link = (o = {}) => cfg.href({ y: o.y ?? year, cl: o.cl ?? cls, c: o.c ?? unit,
+                                        v: o.v === undefined ? rival : o.v });
+    const head = `${subnav}<h1 class="page">${yearPickerHtml(year)} ${esc(title)} <span class="kicker">· ${esc(unit || "")}</span></h1>`;
+    const mine = inClass.filter(r => r.unit === unit);
     if (!mine.length) {
-      app.innerHTML = `${dataSubNav("breakdown")}<h1 class="page">${yearPickerHtml(year)} Breakdown</h1>
-        <div class="card"><div class="empty">No ${year} caption sheets for ${esc(corps)} in ${esc(cls)}.</div></div>`;
+      app.innerHTML = `${head}<div class="card"><div class="empty">No ${year} caption sheets for ${esc(unit || "anyone")} in ${esc(cls || "this class")}.</div></div>`;
       wireYearPicker(years, year, y => { location.hash = link({ y, c: "", v: "" }); });
       return;
     }
 
-    // the latest show everyone is measured at: this corps' most recent sheet
     const latest = mine[mine.length - 1];
-    const latestDate = latest[0];
-    // for ranking, use each corps' most recent sheet on or before that date
+    // rank against each rival's most recent sheet on or before that show
     const fieldAt = new Map();
     inClass.forEach(r => {
-      if (r[0] > latestDate) return;
-      const cur = fieldAt.get(r[3]);
-      if (!cur || r[0] >= cur[0]) fieldAt.set(r[3], r);
+      if ((r.date || "") > (latest.date || "")) return;
+      const cur = fieldAt.get(r.unit);
+      if (!cur || (r.date || "") >= (cur.date || "")) fieldAt.set(r.unit, r);
     });
-
     const num = v => (typeof v === "number" && isFinite(v)) ? v : null;
-    // A caption the sheet doesn't carry stays in the table as a blank rather
-    // than vanishing from it. Roughly 2-5% of rows are missing a caption —
-    // including the 2026 Finals sheet, the most-read of the year — and a
-    // diagnostic that quietly omits the line someone came to check is worse
-    // than one that admits the gap.
-    const standing = CAP_COLS.map(([label, i, group]) => {
-      const mineV = num(latest[i]);
-      const field = [...fieldAt.values()].map(r => num(r[i])).filter(v => v != null);
-      if (mineV == null || !field.length)
-        return { label, group, mine: null, missing: true };
+    // a caption the sheet doesn't carry stays as a blank rather than vanishing:
+    // a diagnostic that quietly omits the line someone came to check is worse
+    // than one that admits the gap
+    const standing = caps.map(({ label, group }) => {
+      const mv = num(latest.s[label]);
+      const field = [...fieldAt.values()].map(r => num(r.s[label])).filter(v => v != null);
+      if (mv == null || !field.length) return { label, group, missing: true };
       const sorted = [...field].sort((a, b) => b - a);
-      const rank = sorted.findIndex(v => v <= mineV) + 1;
-      return { label, group, mine: mineV, best: sorted[0], rank, of: sorted.length,
-               gap: +(mineV - sorted[0]).toFixed(3) };
+      return { label, group, mine: mv, best: sorted[0], rank: sorted.findIndex(v => v <= mv) + 1,
+               of: sorted.length, gap: +(mv - sorted[0]).toFixed(3) };
     });
     const absent = standing.filter(s => s.missing).map(s => s.label);
 
-    // movement: first sheet vs latest, per caption
+    // Strongest / weakest is judged by RANK, never by raw score: captions sit on
+    // different scales, so the biggest number is just the biggest caption.
+    // Group totals are left out — they restate their parts.
+    const ranked = standing.filter(s => !s.missing && !s.group);
+    const byRank = [...ranked].sort((a, b) => a.rank - b.rank || b.gap - a.gap);
+    const strong = byRank[0], weak = byRank[byRank.length - 1];
+    const ord = n => n + (["th", "st", "nd", "rd"][(n % 100 - 20) % 10] || ["th", "st", "nd", "rd"][n % 100] || "th");
+    const profile = !ranked.length ? ""
+      : ranked.every(s => s.rank === 1)
+        ? `<div class="evdone" style="color:var(--text-primary)"><b>Leads every caption</b> in ${esc(cls)} at this point of the season.</div>`
+      : ranked.length > 1 && strong.rank !== weak.rank
+        ? `<div class="evdone" style="color:var(--text-primary)">${(() => {
+             // name every caption that shares the best rank: picking one of three
+             // firsts and calling it "strongest" would be arbitrary
+             const tops = ranked.filter(s => s.rank === strong.rank).map(s => esc(s.label));
+             const list = tops.length > 1 ? tops.slice(0, -1).join(", ") + " and " + tops[tops.length - 1] : tops[0];
+             return strong.rank === 1 ? `<b>Leads</b> ${list}` : `<b>Strongest:</b> ${list}, ${ord(strong.rank)} of ${strong.of}`;
+           })()}
+           · <b>Weakest:</b> ${esc(weak.label)}, ${ord(weak.rank)} of ${weak.of}
+           ${weak.gap < 0 ? `(${Math.abs(weak.gap).toFixed(3)} off the lead)` : ""}</div>` : "";
+
     const first = mine[0];
-    const movement = mine.length > 1 ? CAP_COLS.map(([label, i, group]) => {
-      const a = num(first[i]), b = num(latest[i]);
-      if (a == null || b == null) return null;
-      return { label, group, from: a, to: b, delta: +(b - a).toFixed(3) };
+    const movement = mine.length > 1 ? caps.map(({ label, group }) => {
+      const a = num(first.s[label]), b = num(latest.s[label]);
+      return a == null || b == null ? null : { label, group, from: a, to: b, delta: +(b - a).toFixed(3) };
     }).filter(Boolean) : [];
 
-    // head to head at the most recent show both attended
     let h2h = null;
     if (rival) {
-      const theirs = inClass.filter(r => r[3] === rival);
-      const shared = [...mine].reverse().find(m => theirs.some(t => t[0] === m[0] && t[1] === m[1]));
+      const theirs = inClass.filter(r => r.unit === rival);
+      const shared = [...mine].reverse().find(m => theirs.some(t => t.date === m.date && t.event === m.event));
       if (shared) {
-        const t = theirs.find(x => x[0] === shared[0] && x[1] === shared[1]);
-        h2h = {
-          date: shared[0], event: shared[1],
-          total: +(shared[TOTAL_IDX] - t[TOTAL_IDX]).toFixed(3),
-          caps: CAP_COLS.map(([label, i, group]) => {
-            const a = num(shared[i]), b = num(t[i]);
-            if (a == null || b == null) return null;
-            return { label, group, mine: a, theirs: b, delta: +(a - b).toFixed(3) };
-          }).filter(Boolean),
-        };
+        const t = theirs.find(x => x.date === shared.date && x.event === shared.event);
+        h2h = { date: shared.date, event: shared.event, total: +(shared.total - t.total).toFixed(3),
+          caps: caps.map(({ label, group }) => {
+            const a = num(shared.s[label]), b = num(t.s[label]);
+            return a == null || b == null ? null : { label, group, mine: a, theirs: b, delta: +(a - b).toFixed(3) };
+          }).filter(Boolean) };
       }
     }
 
     const sgn = v => (v > 0 ? "+" : "") + v.toFixed(3);
     const cl2 = v => v > 0.001 ? "delta up" : v < -0.001 ? "delta down" : "delta flat";
-    const pick = (name, items, sel, key) => `<select class="ctrl" id="${name}">
-      ${items.map(v => `<option value="${esc(v)}"${v === sel ? " selected" : ""}>${esc(v || key)}</option>`).join("")}</select>`;
+    const pick = (id, items, sel, ph) => `<select class="ctrl" id="${id}">
+      ${items.map(v => `<option value="${esc(v)}"${v === sel ? " selected" : ""}>${esc(v || ph)}</option>`).join("")}</select>`;
+    const bold = g => g ? ' style="font-weight:700"' : "";
 
-    app.innerHTML = `${dataSubNav("breakdown")}
-      <h1 class="page">${yearPickerHtml(year)} Breakdown <span class="kicker">· ${esc(corps)}</span></h1>
+    app.innerHTML = `${head}
       <div class="filters" style="margin-bottom:10px">
-        ${pick("bdClass", classes, cls)}
-        ${pick("bdCorps", corpsNames, corps)}
-        ${pick("bdRival", ["", ...corpsNames.filter(n => n !== corps)], rival, "Compare with…")}
+        ${pick("bdClass", classes, cls)}${pick("bdCorps", names, unit)}
+        ${pick("bdRival", ["", ...names.filter(n => n !== unit)], rival, "Compare with…")}
       </div>
-
       <div class="card">
-        <h2>Where they stand <span class="sub">${esc(fmtDate(latestDate))} · ${esc(latest[1])}</span></h2>
-        <div class="evdone">Rank is against every ${esc(cls)} corps' most recent sheet on or before this show.
+        <h2>Where they stand <span class="sub">${esc(fmtDate(latest.date))} · ${esc(latest.event)}</span></h2>
+        ${profile}
+        <div class="evdone">Rank is against every ${esc(cls)} ${noun === "corps" ? "corps'" : "unit's"} most recent sheet on or before this show.
           Gap is to the best score in that caption.</div>
         <div class="tscroll"><table class="t"><thead><tr><th>Caption</th>
           <th class="num">Score</th><th class="num">Rank</th><th class="num">Gap to best</th></tr></thead>
           <tbody>${standing.map(s => s.missing
-            ? `<tr${s.group ? ' style="font-weight:700"' : ""} style="color:var(--muted)">
-                 <td class="ev-cell">${esc(s.label)}</td>
+            ? `<tr style="color:var(--muted)"><td class="ev-cell">${esc(s.label)}</td>
                  <td class="num" colspan="3"><span class="kicker">not on this sheet</span></td></tr>`
-            : `<tr${s.group ? ' style="font-weight:700"' : ""}>
-            <td class="ev-cell">${esc(s.label)}</td>
-            <td class="num score">${s.mine.toFixed(3)}</td>
-            <td class="num">${s.rank}<span class="kicker"> / ${s.of}</span></td>
-            <td class="num ${cl2(s.gap)}">${s.gap === 0 ? "—" : sgn(s.gap)}</td></tr>`).join("")}
+            : `<tr${bold(s.group)}><td class="ev-cell">${esc(s.label)}</td>
+                 <td class="num score">${s.mine.toFixed(3)}</td>
+                 <td class="num">${s.rank}<span class="kicker"> / ${s.of}</span></td>
+                 <td class="num ${cl2(s.gap)}">${s.gap === 0 ? "—" : sgn(s.gap)}</td></tr>`).join("")}
           </tbody></table></div>
         ${absent.length ? `<p class="newsnote" style="margin:8px 0 0">${esc(absent.join(", "))}
           ${absent.length === 1 ? "isn't" : "aren't"} on this recap — the published sheet didn't carry
           ${absent.length === 1 ? "it" : "them"}, so there is nothing to rank.</p>` : ""}
       </div>
-
       ${movement.length ? `<div class="card">
         <h2>What moved <span class="sub">first show to latest</span></h2>
-        <div class="evdone">${esc(fmtDate(first[0]))} → ${esc(fmtDate(latestDate))} ·
-          ${mine.length} sheets. Caption scores drift upward across a season, so read these against each other
-          rather than as absolute gains.</div>
+        <div class="evdone">${esc(fmtDate(first.date))} → ${esc(fmtDate(latest.date))} · ${mine.length} sheets.
+          Caption scores drift upward across a season, so read these against each other rather than as absolute gains.</div>
         <div class="tscroll"><table class="t"><thead><tr><th>Caption</th>
           <th class="num m-hide">First</th><th class="num m-hide">Latest</th><th class="num">Change</th></tr></thead>
-          <tbody>${[...movement].sort((a, b) => b.delta - a.delta).map(m => `<tr${m.group ? ' style="font-weight:700"' : ""}>
-            <td class="ev-cell">${esc(m.label)}</td>
-            <td class="num m-hide">${m.from.toFixed(3)}</td>
-            <td class="num m-hide">${m.to.toFixed(3)}</td>
-            <td class="num ${cl2(m.delta)}">${sgn(m.delta)}</td></tr>`).join("")}
-          </tbody></table></div>
-      </div>` : ""}
-
+          <tbody>${[...movement].sort((a, b) => b.delta - a.delta).map(m => `<tr${bold(m.group)}>
+            <td class="ev-cell">${esc(m.label)}</td><td class="num m-hide">${m.from.toFixed(3)}</td>
+            <td class="num m-hide">${m.to.toFixed(3)}</td><td class="num ${cl2(m.delta)}">${sgn(m.delta)}</td></tr>`).join("")}
+          </tbody></table></div></div>` : ""}
       ${rival ? (h2h ? `<div class="card">
         <h2>Against ${esc(rival)} <span class="sub">${esc(fmtDate(h2h.date))} · ${esc(h2h.event)}</span></h2>
         <div class="evdone">The most recent show both attended. Total margin
-          <b class="${cl2(h2h.total)}">${sgn(h2h.total)}</b> — the captions below are what makes it up,
-          widest first.</div>
+          <b class="${cl2(h2h.total)}">${sgn(h2h.total)}</b> — the captions below are what makes it up, widest first.</div>
         <div class="tscroll"><table class="t"><thead><tr><th>Caption</th>
-          <th class="num m-hide">${esc(corps)}</th><th class="num m-hide">${esc(rival)}</th>
-          <th class="num">Margin</th></tr></thead>
-          <tbody>${[...h2h.caps].sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).map(c => `<tr${c.group ? ' style="font-weight:700"' : ""}>
-            <td class="ev-cell">${esc(c.label)}</td>
-            <td class="num m-hide">${c.mine.toFixed(3)}</td>
-            <td class="num m-hide">${c.theirs.toFixed(3)}</td>
-            <td class="num ${cl2(c.delta)}">${sgn(c.delta)}</td></tr>`).join("")}
-          </tbody></table></div>
-      </div>` : `<div class="card"><div class="empty">${esc(corps)} and ${esc(rival)} have no ${year} show in common yet.</div></div>`) : ""}`;
+          <th class="num m-hide">${esc(unit)}</th><th class="num m-hide">${esc(rival)}</th><th class="num">Margin</th></tr></thead>
+          <tbody>${[...h2h.caps].sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).map(c => `<tr${bold(c.group)}>
+            <td class="ev-cell">${esc(c.label)}</td><td class="num m-hide">${c.mine.toFixed(3)}</td>
+            <td class="num m-hide">${c.theirs.toFixed(3)}</td><td class="num ${cl2(c.delta)}">${sgn(c.delta)}</td></tr>`).join("")}
+          </tbody></table></div></div>`
+        : `<div class="card"><div class="empty">${esc(unit)} and ${esc(rival)} have no ${year} show in common yet.</div></div>`) : ""}`;
 
     wireYearPicker(years, year, y => { location.hash = link({ y, c: "", v: "" }); });
     const on = (id, f) => { const el = document.getElementById(id); if (el) el.onchange = () => f(el.value); };
@@ -5026,6 +5181,9 @@
     [/^#\/wgi\/units(?:\?(.*))?$/, (m, st) => viewWgiUnits(m[1], st)],
     [/^#\/wgi\/unit\/([^?]+)(?:\?(.*))?$/, (m, st) => viewWgiUnit(decodeURIComponent(m[1]), m[2], st)],
     [/^#\/wgi\/stats(?:\?(.*))?$/, (m, st) => viewWgiStats(m[1], st)],
+    [/^#\/wgi\/captions(?:\?(.*))?$/, (m, st) => viewWgiCaptions(m[1], st)],
+    [/^#\/wgi\/breakdown(?:\?(.*))?$/, (m, st) => viewWgiBreakdown(m[1], st)],
+    [/^#\/wgi\/judges(?:\?(.*))?$/, (m, st) => viewWgiJudges(m[1], st)],
     [/^#\/compare(?:\?(.*))?$/, (m, st) => viewCorpsHub(m[1], st)],
     [/^#\/corps\?(.*)$/, m => { location.replace(`#/compare?${m[1]}`); }],
     [/^#\/corps$/, (m, st) => viewCorpsPage(null, st)],
