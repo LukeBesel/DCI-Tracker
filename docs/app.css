@@ -931,6 +931,11 @@ a.tile:hover { text-decoration: none; }
   .brandwrap[data-mode]:not([data-mode="dci"]) .brandmode { margin-left: 0; white-space: nowrap; }
   .tscroll.dense .ev-cell { overflow: hidden; text-overflow: ellipsis; max-width: calc(18vw / var(--fs, 1)); }
   .tscroll.dense .t td, .tscroll.dense .t th { padding: 6px 3px; }
+  /* fixed layout: the visible columns split the width by the shares set in
+     DB_SETS.fitWidths, and anything longer ellipsizes instead of spilling */
+  .tscroll.dense table.dbfit { table-layout: fixed; width: 100%; }
+  .tscroll.dense table.dbfit th { width: var(--w, auto); }
+  .tscroll.dense table.dbfit td, .tscroll.dense table.dbfit th { overflow: hidden; text-overflow: ellipsis; max-width: none; }
   .evwhen { font-size: 11px; }
   .evmain b { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   /* card titles stay on one line */

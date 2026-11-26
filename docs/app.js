@@ -3981,6 +3981,11 @@
       // two together don't fit, and a score with no place still answers the
       // question; the place is one tap away on the event page.
       corpsIdx: 3, clsIdx: 4, evIdx: 2, dateIdx: 1, scoreCols: [6], narrowHideIdx: [5],
+      // On a phone the visible columns get fixed shares of the width, so the
+      // table fits by construction. Sizing them to the text instead fitted
+      // with 0px to spare in one environment's fonts and overflowed by 10px in
+      // CI's — and real phones (SF Pro, Roboto) differ again.
+      fitWidths: { 1: 23, 2: 25, 3: 35, 6: 17 },
       load: loadScores,
     },
     captions: {
@@ -4121,8 +4126,8 @@
       const [ci, dir] = DB.sort;
       const more = filtered.length - shown;
       document.getElementById("dbtable").innerHTML =
-        `<div class="tscroll dense"><table class="t"><thead><tr>${cfg.cols.map((c, i) =>
-          `<th style="cursor:pointer;user-select:none" class="${i === 0 || i === cfg.clsIdx || (cfg.narrowHideIdx || []).includes(i) ? "m-hide" : ""}" data-c="${i}">${c}${i === ci ? (dir > 0 ? " ↑" : " ↓") : ""}</th>`).join("")}</tr></thead><tbody>
+        `<div class="tscroll dense"><table class="t${cfg.fitWidths ? " dbfit" : ""}"><thead><tr>${cfg.cols.map((c, i) =>
+          `<th style="cursor:pointer;user-select:none${cfg.fitWidths && cfg.fitWidths[i] ? `;--w:${cfg.fitWidths[i]}%` : ""}" class="${i === 0 || i === cfg.clsIdx || (cfg.narrowHideIdx || []).includes(i) ? "m-hide" : ""}" data-c="${i}">${c}${i === ci ? (dir > 0 ? " ↑" : " ↓") : ""}</th>`).join("")}</tr></thead><tbody>
         ${filtered.slice(0, shown).map(r =>
           `<tr>${cfg.cols.map((c, i) => cellHtml(r, i)).join("")}</tr>`).join("")}</tbody></table></div>` +
         (more > 0 ? `<div class="expandwrap"><button class="tab" id="dbMore">Show ${Math.min(100, more).toLocaleString()} more ▾ <span class="kicker">(${(shown).toLocaleString()} of ${filtered.length.toLocaleString()})</span></button></div>` : "");
