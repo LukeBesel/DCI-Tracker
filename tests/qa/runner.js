@@ -27,7 +27,7 @@ const ROUTES = ["#/", "#/?y=2019", "#/events", "#/corps", "#/corps/bluecoats", "
   "#/compare", "#/champions", "#/records", "#/database", "#/predictions", "#/settings",
   "#/suggestions", "#/about", "#/ask", "#/wgi", "#/wgi?y=2019",
   "#/wgi/events", "#/wgi/units", "#/wgi/stats", "#/judges", "#/breakdown",
-  "#/wgi/captions", "#/wgi/breakdown", "#/wgi/judges"];
+  "#/wgi/captions", "#/wgi/breakdown", "#/wgi/judges", "#/account", "#/account?mode=signup", "#/plus"];
 
 const findings = [];
 let currentSection = "";
@@ -67,6 +67,21 @@ async function ctxPage(browser, base, { viewport = PHONE, seeds = SEEDS, theme, 
 // ---------------------------------------------------------------------------
 const sections = [];
 const section = (name, fn) => sections.push([name, fn]);
+
+// Open a filter-bar button and pick from its sheet the first option whose
+// label matches `want` (a predicate over the label). Returns the label picked,
+// or null when no option qualifies (the sheet is then closed again).
+async function sheetPick(page, fid, want) {
+  await page.click(`.fbtn[data-f="${fid}"]`);
+  await page.waitForSelector(".sheet-opt", { timeout: 4000 });
+  await page.waitForTimeout(250);
+  const opts = await page.$$eval(".sheet-opt", els => els.map(e => ({
+    label: e.querySelector(".sheet-opt-l").firstChild.textContent.trim(), on: e.classList.contains("on") })));
+  const i = opts.findIndex(o => !o.on && want(o.label));
+  if (i < 0) { await page.click(".sheet-x"); await page.waitForTimeout(250); return null; }
+  await (await page.$$(".sheet-opt"))[i].click();
+  return opts[i].label;
+}
 
 section("routes render clean (phone + desktop)", async (browser, base) => {
   for (const viewport of [PHONE, DESKTOP]) {
@@ -217,18 +232,14 @@ section("season picker: browse the archive from the Scoreboard heading", async (
   const savedBefore = await page.evaluate(() => localStorage.getItem("dt-classes"));
   const titleBefore = await page.textContent("#standTitle");
   const rowsBefore = (await page.$$("#standings tbody tr")).length;
-  await page.click("#clsSel .msel-btn");
-  await page.waitForTimeout(400);
-  const clsLabels = await page.$$eval("#clsSel .msel-opt", els => els.map(e => e.textContent.replace(/\s+/g, " ").trim()));
-  const otherIdx = clsLabels.findIndex(l => !/^World Class/.test(l));
-  if (otherIdx < 0) bad(`${older}: only one class to choose from, cannot verify the filter`);
+  const pickedCls = await sheetPick(page, "cls", l => !/^World Class/.test(l));
+  if (!pickedCls) bad(`${older}: only one class to choose from, cannot verify the filter`);
   else {
-    await (await page.$$("#clsSel .msel-opt"))[otherIdx].click();
     await page.waitForTimeout(1700);
     const titleAfter = await page.textContent("#standTitle");
     const rowsAfter = (await page.$$("#standings tbody tr")).length;
     if (titleAfter === titleBefore && rowsAfter === rowsBefore)
-      bad(`${older}: picking "${clsLabels[otherIdx]}" changed nothing — the class filter is inert on archived seasons`);
+      bad(`${older}: picking "${pickedCls}" changed nothing — the class filter is inert on archived seasons`);
     if (await page.evaluate(() => localStorage.getItem("dt-classes")) !== savedBefore)
       bad("an archived season's class choice overwrote the saved current-season preference");
   }
@@ -337,15 +348,8 @@ section("shows: expansion, filters panel, event page focus", async (browser, bas
     await page.waitForTimeout(600);
     if (!await page.$(".evrow .evres, .evrow table")) bad("expanding a show revealed no results/schedule");
   }
-  const ft = await page.$("#fToggle");
-  if (!ft) bad("no Filters toggle");
-  else {
-    const panel = await page.$(".fpanel");
-    const before = panel && await panel.isVisible();
-    await ft.click(); await page.waitForTimeout(300);
-    const after = panel && await panel.isVisible();
-    if (before === after) bad("Filters toggle did not change panel visibility");
-  }
+  // filters sit in plain view, in the same filter bar every view uses
+  if (!(await page.$("#fPanel .fbtn")) || !(await page.isVisible("#fQ"))) bad("shows: the filter bar is not visible");
 
   // the year is the same picker as the Scoreboard — pick a season, the URL and
   // heading follow, and a real board for it renders
@@ -744,10 +748,7 @@ section("wgi: circuit, division and class all switch", async (browser, base) => 
   const before = await firstUnit();
 
   // switching class must change what is listed
-  const chips = await page.$$eval(".chiprow a", as => as.map(a => a.getAttribute("href")));
-  if (chips.length > 1) {
-    const other = chips.find(h => !/\bon\b/.test(h)) || chips[1];
-    await page.goHash(other.replace(/^#/, ""));
+  if (await page.$('.fbtn[data-f="cls"]') && await sheetPick(page, "cls", () => true)) {
     await page.waitForTimeout(1200);
     const after = await firstUnit().catch(() => "");
     if (after && after === before)
@@ -839,10 +840,7 @@ section("judges: sampled honestly and explained", async (browser, base) => {
     if (!body.includes(term)) bad(`the judges view never explains "${term}"`);
 
   // a caption filter narrows the table
-  const chips = await page.$$eval(".chiprow a", as => as.map(a => a.getAttribute("href")));
-  const capChip = chips.find(h => /[?&]c=[^&]+/.test(h) && !/c=&/.test(h));
-  if (capChip) {
-    await page.goHash(capChip);          // goHash wants the leading '#'
+  if (await sheetPick(page, "jcap", l => l !== "All captions")) {
     await page.waitForTimeout(1200);
     const narrowed = await page.$$eval("tbody tr", trs => trs.length);
     if (narrowed >= rows) bad(`caption filter did not narrow the table (${rows} -> ${narrowed})`);
@@ -1018,6 +1016,53 @@ section("breakdown: complete captions and an honest margin", async (browser, bas
 });
 
 // ---------------------------------------------------------------------------
+
+// Accounts and Cadence+. Never touches the network: sign-in itself is tested
+// against the live project by hand, not in CI. What must hold here: the forms
+// validate before sending anything, paid features are labelled while Plus is
+// in preview, and when enforcement is on the gate really closes.
+section("accounts and Cadence+: forms, labels, gate", async (browser, base) => {
+  const { ctx, page } = await ctxPage(browser, base, { viewport: PHONE });
+  let authCalls = 0;
+  await page.route(/supabase\.co\/auth\//, r => { authCalls++; r.abort(); });
+
+  await page.goHash("#/account?mode=signup");
+  await page.waitForSelector("#authForm");
+  await page.fill("#authEmail", "not-an-email");
+  await page.fill("#authPw", "short");
+  await page.click("#authGo");
+  const err = (await page.textContent("#authErr")) || "";
+  if (!/valid email/i.test(err)) bad(`a bad email was not caught before sending (got "${err}")`);
+  if (authCalls) bad("the form called the auth server with invalid input");
+  if (!(await page.textContent("#app")).includes("optional"))
+    bad("the account page never says signing in is optional");
+
+  // preview: paid views render, carrying the PLUS label
+  for (const h of ["#/captions", "#/judges", "#/wgi/captions"]) {
+    await page.goHash(h);
+    await page.waitForTimeout(1200);
+    if (!(await page.$("h1.page .plusmark"))) bad(`${h} is a Plus feature but isn't labelled`);
+    if (await page.$(".pluscard")) bad(`${h} is paywalled while Plus is still in preview`);
+  }
+  // free views never carry the label
+  await page.goHash("#/");
+  await page.waitForTimeout(1000);
+  if (await page.$("h1.page .plusmark")) bad("the free Scoreboard is labelled Plus");
+
+  // enforcement on, signed out: the gate closes and offers a free account first
+  await page.evaluate(() => { window.CadConfig.PLUS_ENFORCED = true; });
+  await page.goHash("#/judges");
+  await page.waitForTimeout(600);
+  if (!(await page.$(".pluscard"))) bad("with Plus enforced, a signed-out visitor still sees Judges");
+  if (await page.$("tbody tr")) bad("the paywall rendered the paid table behind it");
+  const cta = await page.$eval(".pluscard .btn-plus", a => a.getAttribute("href") || "");
+  if (!/#\/account/.test(cta)) bad("the signed-out paywall does not lead to account creation");
+  await page.goHash("#/");
+  await page.waitForTimeout(800);
+  if (await page.$(".pluscard")) bad("with Plus enforced, the free Scoreboard got paywalled");
+  await ctx.close();
+});
+
 (async () => {
   const { srv, port } = await start();
   const base = `http://127.0.0.1:${port}`;

@@ -14,12 +14,24 @@
     // Push/ask relay origin (no trailing slash). Empty string disables every
     // relay-backed feature (score alerts UI degrades with a clear message).
     RELAY_URL: "https://qwjmrdkcoaiesaweaggp.supabase.co/functions/v1/relay",
+    // Accounts + Cadence+ (Supabase project "Cadence"). The key is the public
+    // "publishable" key: safe in the browser, since row-level security limits
+    // every request to the signed-in user's own rows.
+    SUPABASE_URL: "https://qwjmrdkcoaiesaweaggp.supabase.co",
+    SUPABASE_KEY: "sb_publishable_M10oNz6DXg4oeH_Lm8uvBg_9OjytzWG",
+    // Cadence+ gating. While false, Plus features stay open to everyone and
+    // are only labelled; flip to true once Stripe checkout is live.
+    PLUS_ENFORCED: false,
+    PLUS_PRICE: "$10/year",
+    // Sign in with Google: true once the Google provider is configured in
+    // Supabase (Authentication → Providers → Google).
+    GOOGLE_SIGNIN: false,
     // The scores assistant. Mirrors the relay's own server-side gate — turning
     // this on without the relay's ASK_ENABLED + API key still yields a polite
     // "unavailable" from the server. Keep false until the owner enables both.
     ASK_ENABLED: false,
     // Release identifier shown on the About page; keep in step with the
     // service worker's cache version when shell files change.
-    RELEASE: "v56",
+    RELEASE: "v59",
   };
 })();

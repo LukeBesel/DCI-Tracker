@@ -864,18 +864,27 @@
     CAP_SUBS.some(([k]) => k === active) ? CAP_SUBS : DATA_SUBS, active);
 
   // one-choice slicer with the same look as the checkbox pickers
+  // A single choice is always the filter-bar button + picker sheet, so every
+  // dropdown in the app (season, set, type, sort…) looks and works the same.
   function singleSelect(mount, cfg) {
-    const selected = new Set(cfg.value != null ? [String(cfg.value)] : []);
-    const ms = multiSelect(mount, {
-      label: cfg.label || "", single: true, searchable: cfg.searchable, searchHint: cfg.searchHint,
-      options: cfg.options, selected,
-      onChange: v => cfg.onChange(v[0]),
-    });
+    let value = cfg.value != null ? String(cfg.value) : "";
+    let options = cfg.options || [];
+    mount.classList.add("ssel");
+    function paint() {
+      const cur = options.find(o => String(o.value) === value);
+      mount.innerHTML = filterBar([{ id: "ss", label: cfg.label || "", value: cur ? cur.label : (cfg.placeholder || "Choose") }]);
+      mount.querySelector(".fbtn").addEventListener("click", () => pickSheet({
+        title: cfg.title || cfg.label || "Choose", value, search: cfg.searchable,
+        options: options.map(o => ({ value: String(o.value), label: o.label, sub: o.hint })),
+        onPick: v => { value = v; paint(); cfg.onChange(v); },
+      }));
+    }
+    paint();
     return {
-      get: () => [...selected][0],
-      set: v => { selected.clear(); if (v != null) selected.add(String(v)); ms.refresh(); },
-      setOptions: opts => ms.setOptions(opts),
-      refresh: () => ms.refresh(),
+      get: () => value,
+      set: v => { value = v == null ? "" : String(v); paint(); },
+      setOptions: opts => { options = opts; paint(); },
+      refresh: paint,
     };
   }
 
@@ -946,7 +955,7 @@
     mount.classList.add("msel");
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "ctrl msel-btn";
+    btn.className = "ctrl msel-btn fbtn";
     btn.setAttribute("aria-haspopup", "listbox");
     btn.setAttribute("aria-expanded", "false");
     const panel = document.createElement("div");
@@ -1193,6 +1202,93 @@
       + `<div class="yearpanel" role="listbox" aria-label="Season" hidden></div>`
       + `</span>`;
   }
+  /* ===== Filter bar + picker sheet =====
+     One way to change what a view shows, used identically by DCI and WGI:
+     a row of compact buttons ("2026 ▾", "Percussion ▾", "Independent World ▾"),
+     each opening a sheet that slides up from the bottom on a phone (a
+     centered panel on desktop) with search and grouped, readable rows —
+     instead of native dropdowns that render as an endless OS list and chip
+     rows that run off the edge of the screen. */
+  const JUDGE_SORTS = [["agreement", "Agreement", "Who ordered the field like the room did"],
+    ["rel", "Runs high", "Who scores above comparable judges"],
+    ["spread", "Spread", "Who separates the field the most"], ["shows", "Shows", "Most shows judged"]];
+  function filterBar(items) {
+    // items: [{ id, label, value, hidden? }]
+    return `<div class="fbar">${items.filter(i => !i.hidden).map(i =>
+      `<button type="button" class="fbtn" data-f="${esc(i.id)}" aria-haspopup="dialog">
+         <span class="fbtn-k">${esc(i.label)}</span><span class="fbtn-v">${esc(i.value)}</span>${CHEVRON_SVG}</button>`).join("")}</div>`;
+  }
+  // handlers: { id: () => pickSheet({...}) }
+  function wireFilterBar(root, handlers) {
+    (root || document).querySelectorAll(".fbtn[data-f]").forEach(b => {
+      const fn = handlers[b.dataset.f];
+      if (fn) b.addEventListener("click", () => fn(b));
+    });
+  }
+  function pickSheet({ title, options, value, search, onPick }) {
+    // options: [{ value, label, sub?, group? }]
+    document.querySelectorAll(".sheet-scrim").forEach(n => n.remove());
+    const scrim = document.createElement("div");
+    scrim.className = "sheet-scrim";
+    const many = search != null ? search : options.length > 12;
+    scrim.innerHTML = `
+      <div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}">
+        <div class="sheet-grab" aria-hidden="true"></div>
+        <div class="sheet-head"><b>${esc(title)}</b>
+          <button type="button" class="sheet-x" aria-label="Close">✕</button></div>
+        ${many ? `<input type="search" class="ctrl sheet-q" placeholder="Search…" autocomplete="off" spellcheck="false">` : ""}
+        <div class="sheet-list" role="listbox"></div>
+      </div>`;
+    document.body.appendChild(scrim);
+    document.body.classList.add("sheet-open");
+    const list = scrim.querySelector(".sheet-list");
+    const q = scrim.querySelector(".sheet-q");
+    const prevFocus = document.activeElement;
+    function paint() {
+      const needle = (q && q.value.trim().toLowerCase()) || "";
+      let html = "", lastGroup = null, n = 0;
+      options.forEach(o => {
+        const hay = `${o.label} ${o.sub || ""} ${o.group || ""}`.toLowerCase();
+        if (needle && !hay.includes(needle)) return;
+        if (o.group != null && o.group !== lastGroup) { html += `<div class="sheet-group">${esc(o.group)}</div>`; lastGroup = o.group; }
+        const on = String(o.value) === String(value);
+        html += `<button type="button" role="option" aria-selected="${on}" class="sheet-opt${on ? " on" : ""}" data-v="${esc(String(o.value))}">
+          <span class="sheet-opt-l">${esc(o.label)}${o.sub ? `<small>${esc(o.sub)}</small>` : ""}</span>
+          ${on ? '<span class="sheet-check" aria-hidden="true">✓</span>' : ""}</button>`;
+        n++;
+      });
+      list.innerHTML = html || `<div class="sheet-empty">Nothing matches “${esc(q ? q.value : "")}”.</div>`;
+    }
+    function close() {
+      scrim.classList.add("closing");
+      document.body.classList.remove("sheet-open");
+      document.removeEventListener("keydown", onKey);
+      setTimeout(() => scrim.remove(), 160);
+      if (prevFocus && prevFocus.focus) prevFocus.focus({ preventScroll: true });
+    }
+    function onKey(e) { if (e.key === "Escape") close(); }
+    paint();
+    requestAnimationFrame(() => {
+      scrim.classList.add("in");
+      const cur = list.querySelector(".sheet-opt.on");
+      if (cur) list.scrollTop = Math.max(0, cur.offsetTop - list.clientHeight / 3);
+      (q && matchMedia("(hover: hover)").matches ? q : (cur || list.querySelector(".sheet-opt") || scrim.querySelector(".sheet-x"))).focus({ preventScroll: true });
+    });
+    if (q) q.addEventListener("input", paint);
+    scrim.addEventListener("click", e => { if (e.target === scrim) close(); });
+    scrim.querySelector(".sheet-x").addEventListener("click", close);
+    list.addEventListener("click", e => {
+      const b = e.target.closest(".sheet-opt");
+      if (!b) return;
+      close();
+      if (b.dataset.v !== String(value)) onPick(b.dataset.v);
+    });
+    document.addEventListener("keydown", onKey);
+  }
+  // shows as sheet options, newest first, grouped by month
+  const showOptions = shows => shows.map(s => ({ value: s.k, label: s.e,
+    sub: fmtDate(s.d), group: s.d ? new Date(s.d + "T12:00:00").toLocaleDateString(undefined, { month: "long", year: "numeric" }) : "" }));
+
   function yearHeaderHtml(year) {
     return `<h1 class="page">${yearPickerHtml(year)} Scoreboard</h1>`;
   }
@@ -1387,7 +1483,7 @@
     app.innerHTML = h`
       ${header}
       ${isCurrent ? '<div id="followMount"></div>' : ""}
-      <div class="filters"><div id="clsSel"></div></div>
+      <div id="clsBar"></div>
       <div class="rk-grid">
         <div class="card rk-trend">
           <h2 id="trendTitle">Season Progression <span class="sub" id="trendSub">score by date · top 12</span></h2>
@@ -1409,29 +1505,22 @@
       renderOffseasonHome(document.getElementById("offSznMount"), rk);
     }
 
-    const previousSelection = new Set(selected);
-    multiSelect(document.getElementById("clsSel"), {
-      label: "Class",
-      options: classes.map(c => ({ value: c, label: c, hint: `${rk.standings[c].rows.length} corps`,
-        exclusive: !COMBINABLE_SCORE_CLASSES.has(c) })),
-      selected: selectedSet,
-      summary: () => selectedSet.has("World Class") && selectedSet.has("Open Class")
-        ? "World + Open Class" : null,
-      onChange: values => {
-        const added = values.find(c => !previousSelection.has(c));
-        if (added && !COMBINABLE_SCORE_CLASSES.has(added)) {
-          selectedSet.clear();
-          selectedSet.add(added);
-        } else if (added) {
-          [...selectedSet].filter(c => !COMBINABLE_SCORE_CLASSES.has(c)).forEach(c => selectedSet.delete(c));
-        }
-        if (!selectedSet.size) previousSelection.forEach(c => selectedSet.add(c));
-        const picked = sortClasses([...selectedSet]);
-        if (isCurrent) localStorage.setItem("dt-classes", JSON.stringify(picked));
-        else archiveClassPick.set(year, picked);   // this visit only
-        viewRankings(qs, stale);   // re-render, staying on the season being viewed
-      },
-    });
+    // one class at a time, plus World + Open together (the combinable pair),
+    // picked from the same sheet WGI's class picker uses
+    const combo = classes.filter(c => COMBINABLE_SCORE_CLASSES.has(c));
+    const clsOptions = classes.map(c => ({ value: c, label: c, sub: `${rk.standings[c].rows.length} corps` }));
+    if (combo.length > 1) clsOptions.splice(combo.length, 0,
+      { value: combo.join("|"), label: combo.join(" + ").replace(/ Class \+ /, " + "), sub: "Ranked together" });
+    const curVal = sortClasses([...selectedSet]).join("|");
+    const curLabel = (clsOptions.find(o => o.value === curVal) || { label: curVal.replace("|", " + ") }).label;
+    const clsBar = document.getElementById("clsBar");
+    clsBar.innerHTML = filterBar([{ id: "cls", label: "Class", value: curLabel }]);
+    wireFilterBar(clsBar, { cls: () => pickSheet({ title: "Class", options: clsOptions, value: curVal, onPick: v => {
+      const picked = sortClasses(v.split("|"));
+      if (isCurrent) localStorage.setItem("dt-classes", JSON.stringify(picked));
+      else archiveClassPick.set(year, picked);   // this visit only
+      viewRankings(qs, stale);
+    } }) });
 
     selected = sortClasses([...selectedSet]);
     const block = combinedStandings(rk.standings, selected);
@@ -1637,7 +1726,7 @@
   // The footer credits whoever's scores are actually on screen — crediting
   // DCI.org under a page of WGI results would be plainly wrong.
   const CREDIT = {
-    "": `Scores from <a href="https://www.dci.org/scores" rel="noopener">DCI.org</a> · refreshed several times an hour · minute-by-minute on show nights`,
+    "": `Scores from <a href="https://www.dci.org/scores" rel="noopener">DCI.org</a> · alerts within seconds of scores posting on show days`,
     wgi: `Scores from <a href="https://www.wgi.org/scores/" rel="noopener">WGI</a> · WGI competes January–May`,
   };
 
@@ -1738,10 +1827,9 @@
     const rows = [...best.values()].sort((a, b) => b.score - a.score);
 
     body.innerHTML = `
+      ${filterBar([{ id: "cls", label: "Class", value: cls }])}
       <div class="card">
-        ${classesInDiv.length > 1 ? `<div class="chiprow" id="wgiCls">${classesInDiv.map(c =>
-          `<a class="yearopt ${c === cls ? "on" : ""}" href="${link(null, c)}">${esc(c)}</a>`).join("")}</div>`
-        : `<h2>${esc(cls)}</h2>`}
+        <h2>${esc(cls)}</h2>
         <div class="evdone">${finalsOnly
           ? `${esc(division)} · World Championship finals`
           : `${esc(division)} · each unit's best score of ${year}`}</div>
@@ -1756,8 +1844,32 @@
           </tr>`).join("")}
         </tbody></table></div>
       </div>
+      ${finalsOnly || rows.length < 2 ? "" : `<div class="card">
+        <h2>Season Progression <span class="sub">score by date · top ${Math.min(8, rows.length)}</span></h2>
+        <div class="chartwrap" id="wgiTrend"></div></div>`}
       ${wgiEventsCard(season, division, year, finalsOnly)}`;
     collapseRows(body.querySelector("tbody"), 10, "units");
+    // same chart as the DCI scoreboard: each of the top units' scores through the season
+    const trendEl = document.getElementById("wgiTrend");
+    if (trendEl) {
+      const doy = iso => { const [y, m, d] = iso.split("-").map(Number); return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(y, 0, 1)) / 864e5); };
+      const top = rows.slice(0, 8).map(r => r.corps);
+      const pts = new Map(top.map(u => [u, []]));
+      season.forEach(ev => (ev.classes || []).forEach(g => {
+        if (g.division !== division || g.class !== cls || !ev.date) return;
+        (g.results || []).forEach(r => { if (pts.has(r.corps)) pts.get(r.corps).push({ x: doy(ev.date), y: r.score }); });
+      }));
+      const series = top.map((u, i) => ({ name: u, color: CCViz.PALETTE[i % CCViz.PALETTE.length],
+        points: pts.get(u).sort((a, b) => a.x - b.x) })).filter(sr => sr.points.length);
+      const xFmt = x => { const dt = new Date(Date.UTC(2001, 0, 1 + Math.round(x))); return `${MONTHS[dt.getUTCMonth()]} ${dt.getUTCDate()}`; };
+      const squeeze = compressTrendGaps(series);
+      if (series.length) lineChart(trendEl, { linearX: true, series: squeeze ? squeeze.series : series, height: 300,
+        xFmt: squeeze ? squeeze.xFmt : xFmt, yFmt: v => v.toFixed(1) });
+      else trendEl.closest(".card").remove();
+    }
+    wireFilterBar(body, { cls: () => pickSheet({ title: `${division} class`, value: cls,
+      options: classesInDiv.map(c => ({ value: c, label: c })),
+      onPick: c => { location.hash = link(null, c); } }) });
   }
 
   function divisionLabelCount(season, division) {
@@ -1777,26 +1889,41 @@
       <h1 class="page">${yearPickerHtml(year)} WGI ${esc(division)} Shows
         <span class="kicker">· ${evs.length.toLocaleString()} ${evs.length === 1 ? "show" : "shows"}</span></h1>
       ${finalsOnly ? `<div class="evdone">${year} is the World Championship recap — WGI doesn't publish the full season this far back.</div>` : ""}
-      ${evs.length ? [...evs].reverse().map(ev => {
+      ${evs.length ? `<div id="evlist">${[...evs].reverse().map(ev => {
+        // the same show row the DCI Shows tab uses: date · show · winner, tap to open
         const groups = (ev.classes || []).filter(c => c.division === division);
         const units = groups.reduce((n, g) => n + (g.results || []).length, 0);
-        return `<div class="card">
-          <div style="display:flex;justify-content:space-between;gap:12px;align-items:baseline">
-            <h2 style="margin:0">${ev.url ? `<a href="${encodeURI(ev.url)}" target="_blank" rel="noopener">${esc(ev.name)}</a>` : esc(ev.name)}</h2>
-            <span class="kicker" style="white-space:nowrap">${esc(ev.date_display || ev.date || "")}</span>
+        const top = groups.map(g => (g.results || [])[0]).filter(Boolean).sort((x, y) => y.score - x.score)[0];
+        return `<div class="evrow card evshow">
+          <button class="evhead" aria-expanded="false">
+            <span class="evwhen">${fmtDate2(ev.date, ev.date_display)}</span>
+            <span class="evmain"><b>${esc(ev.name)}${ev.recap_url ? ' <span class="pill evpill">recap</span>' : ""}</b>
+              <span class="evloc">${groups.length} ${groups.length === 1 ? "class" : "classes"} · ${units} units</span></span>
+            <span class="evwin">${top ? `${esc(top.corps)}<b>${score3(top.score)}</b>` : ""}</span>
+            <span class="caret">▸</span>
+          </button>
+          <div class="evbody" hidden>
+            ${groups.map(g => `<div style="margin-top:8px">
+              <div class="evdone" style="font-weight:700;color:var(--text-primary)">${esc(g.class)}</div>
+              <div class="tscroll"><table class="t"><tbody>${(g.results || []).map((r, i) => `<tr>
+                <td class="rank">${r.place ?? i + 1}</td>
+                <td><a href="#/wgi/unit/${encodeURIComponent(wgiSlug(r.corps))}${wgiQS(ctx)}">${esc(r.corps)}</a></td>
+                <td class="num score">${score3(r.score)}</td></tr>`).join("")}</tbody></table></div>
+            </div>`).join("")}
+            <div class="evdone">${ev.url ? `<a href="${encodeURI(ev.url)}" target="_blank" rel="noopener">WGI scores page →</a>` : ""}${
+              ev.recap_url ? ` · <a href="${encodeURI(ev.recap_url)}" target="_blank" rel="noopener">Judge recap →</a>` : ""}</div>
           </div>
-          <div class="evdone">${groups.length} ${groups.length === 1 ? "class" : "classes"} · ${units} units${
-            ev.recap_url ? ` · <a href="${encodeURI(ev.recap_url)}" target="_blank" rel="noopener">judge recap →</a>` : ""}</div>
-          ${groups.map(g => `<div style="margin-top:8px">
-            <div class="evdone" style="font-weight:700;color:var(--text-primary)">${esc(g.class)}</div>
-            <div class="tscroll"><table class="t"><tbody>${(g.results || []).map((r, i) => `<tr>
-              <td class="rank">${r.place ?? i + 1}</td>
-              <td><a href="#/wgi/unit/${encodeURIComponent(wgiSlug(r.corps))}${wgiQS(ctx)}">${esc(r.corps)}</a></td>
-              <td class="num score">${score3(r.score)}</td></tr>`).join("")}</tbody></table></div>
-          </div>`).join("")}
         </div>`;
-      }).join("") : `<div class="card"><div class="empty">No ${esc(division)} shows listed for ${year}.</div></div>`}`;
+      }).join("")}</div>` : `<div class="card"><div class="empty">No ${esc(division)} shows listed for ${year}.</div></div>`}`;
     wireYearPicker(years, year, y => { location.hash = `#/wgi/events?y=${y}&d=${encodeURIComponent(division)}`; });
+    app.querySelectorAll(".evrow .evhead").forEach(hd => hd.addEventListener("click", () => {
+      const row = hd.closest(".evrow"), open = !row.classList.contains("open");
+      row.classList.toggle("open", open);
+      hd.setAttribute("aria-expanded", open);
+      row.querySelector(".evbody").hidden = !open;
+    }));
+    // a single show this season opens straight away
+    if (evs.length === 1) app.querySelector(".evrow .evhead")?.click();
   }
 
   // units are identified by name — WGI has no stable public id, and the name
@@ -1820,11 +1947,20 @@
       byClass.set(g.class, set);
     }));
     const total = new Set([...byClass.values()].flatMap(m => [...m.keys()])).size;
+    // same shape as the DCI corps page: Class ▾ narrows the list, Unit ▾ jumps
+    // straight to any unit's page
+    const q = new URLSearchParams(query || "");
+    const have = classesInDiv.filter(c => byClass.has(c));
+    const showCls = have.includes(q.get("c")) ? q.get("c") : "";
+    const unitsLink = c => `#/wgi/units?y=${year}&d=${encodeURIComponent(division)}${c ? `&c=${encodeURIComponent(c)}` : ""}`;
+    const unitIndex = [...new Map(have.flatMap(c => [...byClass.get(c).keys()].map(n => [n, c]))).entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]));
 
     app.innerHTML = `
       <h1 class="page">${yearPickerHtml(year)} WGI ${esc(division)} Units
         <span class="kicker">· ${total.toLocaleString()} ${total === 1 ? "unit" : "units"}</span></h1>
-      ${classesInDiv.filter(c => byClass.has(c)).map(c => {
+      ${filterBar([{ id: "cls", label: "Class", value: showCls || "All classes" }, { id: "unit", label: "Unit", value: "Find a unit" }])}
+      ${have.filter(c => !showCls || c === showCls).map(c => {
         const rows = [...byClass.get(c).entries()].sort((a, b) => b[1] - a[1]);
         return `<div class="card"><h2>${esc(c)}</h2>
           <div class="tscroll"><table class="t"><tbody>${rows.map(([name, sc], i) => `<tr>
@@ -1833,6 +1969,14 @@
             <td class="num score">${score3(sc)}</td></tr>`).join("")}</tbody></table></div></div>`;
       }).join("") || `<div class="card"><div class="empty">No ${esc(division)} units for ${year}.</div></div>`}`;
     wireYearPicker(years, year, y => { location.hash = `#/wgi/units?y=${y}&d=${encodeURIComponent(division)}`; });
+    wireFilterBar(app, {
+      cls: () => pickSheet({ title: `${division} class`, value: showCls,
+        options: [{ value: "", label: "All classes" }, ...have.map(c => ({ value: c, label: c, sub: `${byClass.get(c).size} units` }))],
+        onPick: c => { location.hash = unitsLink(c); } }),
+      unit: () => pickSheet({ title: `${year} ${division} units`, value: "", search: true,
+        options: unitIndex.map(([n, c]) => ({ value: n, label: n, sub: c })),
+        onPick: n => { location.hash = `#/wgi/unit/${encodeURIComponent(wgiSlug(n))}${wgiQS(ctx)}`; } }),
+    });
   }
 
   async function viewWgiUnit(slug, query, stale) {
@@ -1860,12 +2004,38 @@
     }
     perfs.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
     const best = perfs.reduce((m, p) => (p.score > m.score ? p : m), perfs[0]);
+    const cls = perfs[perfs.length - 1].cls;
+    // class rank by season best, the same way the scoreboard ranks the class
+    const bestIn = new Map();
+    season.forEach(ev => (ev.classes || []).forEach(g => {
+      if (g.division !== division || g.class !== cls) return;
+      (g.results || []).forEach(r => { if (!(bestIn.get(r.corps) >= r.score)) bestIn.set(r.corps, r.score); });
+    }));
+    const rank = [...bestIn.values()].filter(v => v > best.score).length + 1;
+    const gained = perfs.length > 1 ? perfs[perfs.length - 1].score - perfs[0].score : 0;
+    const ordinal = n => { const sx = ["th", "st", "nd", "rd"], v = n % 100; return n + (sx[(v - 20) % 10] || sx[v] || sx[0]); };
+    const initials = name.split(/\s+/).filter(w => /^[A-Za-z0-9]/.test(w)).slice(0, 2).map(w => w[0]).join("").toUpperCase();
+    const cell = (v, l) => `<div class="corpshero-stat"><div class="b"></div><div class="v">${v}</div><div class="l">${l}</div></div>`;
+    const favLabel = () => FAVS.has(name) ? "★ Favorited" : "☆ Favorite";
     app.innerHTML = `
       <div class="crumbs"><a href="#/wgi/units${wgiQS(ctx)}">WGI ${esc(division)} Units</a> / ${esc(name)}</div>
-      <h1 class="page">${yearPickerHtml(year)} ${esc(name)}</h1>
+      <div class="corpshero unithero">
+        <div class="corpshero-top">
+          <span class="unit-badge" aria-hidden="true">${esc(initials || "?")}</span>
+          <div class="corpshero-id">
+            <div class="corpshero-kicker">${esc(division)} · ${esc(cls)}</div>
+            <div class="corpshero-name">${esc(name)}</div>
+            <div class="corpshero-sub">${year} season · by the numbers</div>
+          </div>
+        </div>
+        <div class="corpshero-stats">${cell(score3(best.score), "Season high")}${cell(ordinal(rank), "Class rank")}${
+          cell((gained >= 0 ? "+" : "") + gained.toFixed(2), "Points gained")}${cell(perfs.length, "Shows")}</div>
+        <div class="corpshero-actions"><button id="unitFav" class="ch-btn${FAVS.has(name) ? " on" : ""}">${favLabel()}</button></div>
+      </div>
+      <h1 class="page" style="margin-top:14px">${yearPickerHtml(year)} Season</h1>
+      ${perfs.length > 1 ? `<div class="card"><h2>${year} Season Progression</h2><div class="chartwrap" id="unitTrend"></div></div>` : ""}
       <div class="card">
-        <div class="evdone">${esc(perfs[perfs.length - 1].cls)} · ${perfs.length} ${perfs.length === 1 ? "show" : "shows"} in ${year}
-          · season best <b>${score3(best.score)}</b> at ${esc(best.event)}</div>
+        <h2>Every show <span class="sub">season best ${score3(best.score)} at ${esc(best.event)}</span></h2>
         <div class="tscroll"><table class="t"><thead><tr>
           <th>Date</th><th>Show</th><th class="m-hide">Class</th><th class="num">Place</th><th class="num">Score</th>
         </tr></thead><tbody>${perfs.slice().reverse().map(p => `<tr>
@@ -1876,6 +2046,19 @@
           <td class="num score">${score3(p.score)}</td></tr>`).join("")}</tbody></table></div>
       </div>`;
     wireYearPicker(years, year, y => { location.hash = `#/wgi/unit/${encodeURIComponent(slug)}?y=${y}&d=${encodeURIComponent(division)}`; });
+    const favBtn = document.getElementById("unitFav");
+    favBtn.addEventListener("click", () => {
+      FAVS.toggle(name);
+      favBtn.classList.toggle("on", FAVS.has(name));
+      favBtn.textContent = favLabel();
+    });
+    const tr = document.getElementById("unitTrend");
+    if (tr) {
+      const doy = iso => { const [y, m, d] = iso.split("-").map(Number); return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(y, 0, 1)) / 864e5); };
+      lineChart(tr, { linearX: true, height: 260, yFmt: v => v.toFixed(1),
+        xFmt: x => { const dt = new Date(Date.UTC(2001, 0, 1 + Math.round(x))); return `${MONTHS[dt.getUTCMonth()]} ${dt.getUTCDate()}`; },
+        series: [{ name, color: "#0c8599", points: perfs.filter(p => p.date).map(p => ({ x: doy(p.date), y: p.score })) }] });
+    }
   }
 
   /* ---- WGI Stats: champions by year, and the all-time high scores ---- */
@@ -2007,11 +2190,10 @@
 
     app.innerHTML = `${nav}
       <h1 class="page">${yearPickerHtml(year)} WGI ${esc(division)} Sheets</h1>
-      <div class="filters" style="margin-bottom:10px">
-        <select class="ctrl" id="wsShow">${shows.map(s => `<option value="${esc(s.k)}"${s.k === showKey ? " selected" : ""}>${esc(fmtDate(s.d))} · ${esc(s.e)}</option>`).join("")}</select>
-      </div>
-      ${classes.length > 1 ? `<div class="chiprow">${classes.map(c =>
-        `<a class="yearopt ${c === cls ? "on" : ""}" href="${link({ c })}">${esc(c)}</a>`).join("")}</div>` : ""}
+      ${filterBar([
+        { id: "show", label: "Show", value: (shows.find(s => s.k === showKey) || {}).e || "" },
+        { id: "cls", label: "Class", value: cls, hidden: classes.length < 2 },
+      ])}
       <div class="card">
         <h2>${esc(cls)} <span class="sub">${sh.rows.length} ${sh.rows.length === 1 ? "unit" : "units"}</span></h2>
         <div class="evdone"><b>Caption wins:</b> ${winnerLine || "—"}${leaderSwept && sh.rows.length > 1 ? " — a clean sweep" : ""}.
@@ -2028,8 +2210,12 @@
             <td class="num score">${typeof r[2] === "number" ? r[2].toFixed(3) : "—"}</td></tr>`).join("")}</tbody></table></div>
       </div>`;
     wireYearPicker(years, year, y => { location.hash = `#/wgi/captions?d=${encodeURIComponent(division)}&y=${y}`; });
-    const sel = document.getElementById("wsShow");
-    if (sel) sel.onchange = () => { location.hash = link({ e: sel.value, c: "" }); };
+    wireFilterBar(app, {
+      show: () => pickSheet({ title: `${year} ${division} shows`, value: showKey, options: showOptions(shows),
+        search: true, onPick: v => { location.hash = link({ e: v, c: "" }); } }),
+      cls: () => pickSheet({ title: "Class", value: cls, options: classes.map(c => ({ value: c, label: c })),
+        onPick: c => { location.hash = link({ c }); } }),
+    });
   }
 
   async function viewWgiBreakdown(query, stale) {
@@ -2081,16 +2267,18 @@
   function wgiEventsCard(season, division, year, finalsOnly) {
     const evs = season.filter(ev => (ev.classes || []).some(c => c.division === division));
     if (!evs.length || finalsOnly) return "";
-    const list = [...evs].reverse().map(ev => {
+    // the scoreboard shows the latest few; the whole season lives on the Shows tab
+    const list = [...evs].reverse().slice(0, 6).map(ev => {
       const groups = (ev.classes || []).filter(c => c.division === division);
       const units = groups.reduce((n, g) => n + (g.results || []).length, 0);
       return `<tr><td style="color:var(--muted);white-space:nowrap">${esc(ev.date_display || ev.date || "")}</td>
         <td>${ev.url ? `<a href="${encodeURI(ev.url)}" target="_blank" rel="noopener">${esc(ev.name)}</a>` : esc(ev.name)}</td>
         <td class="num m-hide">${units}</td></tr>`;
     }).join("");
-    return `<div class="card"><h2>${year} Shows <span class="sub">${esc(division)}</span></h2>
+    return `<div class="card"><h2>Latest Shows <span class="sub">${esc(division)}</span></h2>
       <div class="tscroll"><table class="t"><thead><tr><th>Date</th><th>Show</th><th class="num m-hide">Units</th></tr></thead>
-      <tbody>${list}</tbody></table></div></div>`;
+      <tbody>${list}</tbody></table></div>
+      ${evs.length > 6 ? `<a class="cardmore" href="#/wgi/events?y=${year}&d=${encodeURIComponent(division)}">All ${evs.length} ${year} shows →</a>` : ""}</div>`;
   }
 
   /* ============ CORPS HUB (directory + compare) ============ */
@@ -2390,10 +2578,7 @@
 
     app.innerHTML = `
       <h1 class="page" id="corpsPageTitle">Corps</h1>
-      <div class="filters">
-        <div id="cpCls"></div>
-        <div id="cpCorps"></div>
-      </div>
+      <div id="cpBar"></div>
       <div id="corpsDetail"><div class="loading">Loading…</div></div>`;
 
 
@@ -2401,24 +2586,24 @@
       .filter(c => !clsFilter || corpsClass(c) === clsFilter)
       .sort((a, b) => b.last - a.last || a.name.localeCompare(b.name))
       .map(c => ({ value: c.slug, label: c.name, hint: c.first === c.last ? String(c.first) : `${c.first}–${c.last}` }));
-    const pickSet = new Set(current ? [current] : []);
-    const msPick = multiSelect(document.getElementById("cpCorps"), {
-      label: "Pick a corps…", searchable: true, single: true,
-      labelFor: v => (bySlug.get(v) || { name: v }).name,
-      options: corpsOpts(),
-      selected: pickSet,
-      onChange: v => { if (v[0] && v[0] !== current) { current = v[0]; load(); } },
-    });
-    singleSelect(document.getElementById("cpCls"), {
-      label: "Type",
-      options: [{ value: "", label: "All types" }, ...classList.map(c => ({ value: c, label: c }))],
-      value: clsFilter,
-      onChange: v => {
-        clsFilter = v || "";
-        localStorage.setItem("dt-corpsclass", clsFilter);
-        msPick.setOptions(corpsOpts());
-      },
-    });
+    // same filter bar + sheet as every other view: Type ▾  Corps ▾
+    function paintBar() {
+      const bar = document.getElementById("cpBar");
+      if (!bar) return;
+      bar.innerHTML = filterBar([
+        { id: "type", label: "Type", value: clsFilter || "All" },
+        { id: "corps", label: "Corps", value: current ? (bySlug.get(current) || { name: current }).name : "Pick one" },
+      ]);
+      wireFilterBar(bar, {
+        type: () => pickSheet({ title: "Corps type", value: clsFilter,
+          options: [{ value: "", label: "All types" }, ...classList.map(c => ({ value: c, label: c }))],
+          onPick: v => { clsFilter = v || ""; localStorage.setItem("dt-corpsclass", clsFilter); paintBar(); } }),
+        corps: () => pickSheet({ title: clsFilter ? `${clsFilter} corps` : "All corps", value: current || "", search: true,
+          options: corpsOpts().map(o => ({ value: o.value, label: o.label, sub: o.hint })),
+          onPick: v => { current = v; paintBar(); load(); } }),
+      });
+    }
+    paintBar();
 
     let detailGen = 0;
     async function load() {
@@ -2993,9 +3178,6 @@
     let year = +params.y && years.includes(+params.y) ? +params.y : years[0];
     app.innerHTML = `
       <h1 class="page">${yearPickerHtml(year)} Shows <span class="kicker" id="evCount"></span></h1>
-      <div class="filters" style="justify-content:flex-end">
-        <button class="tab" id="fToggle" aria-expanded="false">Filters ▾</button>
-      </div>
       <div id="seasonMount"><div class="loading">Loading…</div></div>`;
     let gen = 0;
     async function load() {
@@ -3191,11 +3373,11 @@
     const cnt = document.getElementById("evCount");
     if (cnt) cnt.textContent = `· ${events.filter(e => !e.future).length} events${events.some(e => e.future) ? `, ${events.filter(e => e.future).length} upcoming` : ""}`;
     mount().innerHTML = h`
-      <div class="filters fpanel" id="fPanel" hidden>
+      <div class="fbar evfbar" id="fPanel">
         <div id="fCls"></div>
         <div id="fCorps"></div>
-        <input class="ctrl" id="fQ" placeholder="Search event or city…">
-        <button class="tab" id="toggleAll">Expand all ▾</button>
+        <input class="ctrl fsearch" id="fQ" type="search" placeholder="Search shows or cities…" aria-label="Search shows">
+        <button class="fbtn" id="toggleAll" type="button">Expand all</button>
       </div>
       <div id="evcount" class="kicker" style="margin:0 0 10px"></div>
       ${recordStrip}
@@ -3331,7 +3513,7 @@
       } catch (e) {}
     };
     singleSelect(document.getElementById("fCls"), {
-      label: "All classes",
+      label: "Class", title: "Class",
       options: [{ value: "", label: "All classes" }, ...clsList.map(c => ({ value: c, label: c }))],
       value: fClsVal,
       onChange: v => { fClsVal = v || ""; persistF(); allOpen = false; syncToggle(); render(); },
@@ -3351,7 +3533,7 @@
       onChange: () => { persistF(); allOpen = false; syncToggle(); render(); },
     });
     const toggleBtn = document.getElementById("toggleAll");
-    function syncToggle() { toggleBtn.textContent = allOpen ? "Collapse all ▴" : "Expand all ▾"; }
+    function syncToggle() { toggleBtn.textContent = allOpen ? "Collapse all" : "Expand all"; }
     toggleBtn.onclick = () => {
       allOpen = !allOpen;
       upOpen = pastOpen = allOpen; // reveal (or hide) every section too
@@ -3359,17 +3541,6 @@
       if (!allOpen) list.querySelectorAll(".evrow").forEach(r => toggle(r, false));
       syncToggle();
     };
-    // filters collapse behind a toggle — default is just the show list
-    const fPanel = document.getElementById("fPanel");
-    const fToggleBtn = document.getElementById("fToggle");
-    const anyFilter = () => !!(fClsVal || corpsPick.size || (fQEl.value || "").trim());
-    function syncFilterBtn() {
-      fToggleBtn.setAttribute("aria-expanded", String(!fPanel.hidden));
-      fToggleBtn.textContent = (anyFilter() ? "Filters ● " : "Filters ") + (fPanel.hidden ? "▾" : "▴");
-    }
-    fToggleBtn.onclick = () => { fPanel.hidden = !fPanel.hidden; syncFilterBtn(); };
-    if (anyFilter()) fPanel.hidden = false; // reveal it so an active filter isn't a mystery
-    syncFilterBtn();
     render();
 
     // Live running-order tracker: while a show runs today, keep the LIVE pills
@@ -4236,12 +4407,10 @@
       <div class="card">
         <div class="evdone">Built from ${(cfg.rooms ? cfg.rooms(doc) : doc.rooms).toLocaleString()} judged rooms in ${year}. A seat appears once it has
           judged ${doc.floors.shows}+ shows and ${doc.floors.scores}+ ${cfg.noun === "corps" ? "corps" : "units"}.</div>
-        ${captions.length ? `<div class="chiprow">
-          <a class="yearopt ${cap ? "" : "on"}" href="${link("", null)}">All captions</a>
-          ${captions.map(c => `<a class="yearopt ${c === cap ? "on" : ""}" href="${link(c, null)}">${esc(cfg.capLabel(c))}</a>`).join("")}
-        </div>` : ""}
-        <div class="chiprow">${[["agreement", "Agreement"], ["rel", "Runs high"], ["spread", "Spread"], ["shows", "Shows"]]
-          .map(([k, l]) => `<a class="yearopt ${k === sort ? "on" : ""}" href="${link(null, k)}">${l}</a>`).join("")}</div>
+        ${filterBar([
+          { id: "jcap", label: "Caption", value: cap ? cfg.capLabel(cap) : "All captions", hidden: !captions.length },
+          { id: "jsort", label: "Sort", value: JUDGE_SORTS.find(([k]) => k === sort)[1] },
+        ])}
         ${rows.length ? `<div class="tscroll"><table class="t"><thead><tr>
           <th>Judge</th><th class="m-hide">Caption</th>
           <th class="num" title="Shows judged">Shows</th>
@@ -4276,6 +4445,12 @@
           come from ${esc(String(cfg.rooms ? cfg.rooms(doc) : doc.rooms))} rooms of published recaps and nothing else.</p>
       </div>`;
     wireYearPicker(years, year, y => { location.hash = link(null, null, y); });
+    wireFilterBar(app, {
+      jcap: () => pickSheet({ title: "Caption", value: cap, onPick: c => { location.hash = link(c, null); },
+        options: [{ value: "", label: "All captions" }, ...captions.map(c => ({ value: c, label: cfg.capLabel(c) }))] }),
+      jsort: () => pickSheet({ title: "Sort judges by", value: sort, onPick: v => { location.hash = link(null, v); },
+        options: JUDGE_SORTS.map(([value, label, sub]) => ({ value, label, sub })) }),
+    });
   }
 
   /* ============ BREAKDOWN ============
@@ -4704,13 +4879,18 @@
 
   /* ============ SUGGESTIONS ============ */
   const SUGGEST_REPO = "LukeBesel/DCI-Tracker";
+  // What score alerts can be about: DCI's classes and WGI's three divisions.
+  // Values go to the relay as-is ("wgi:Percussion" matches every Percussion class).
+  const ALERT_TYPES = [
+    { group: "Drum corps · DCI", items: [["World Class", "World Class"], ["Open Class", "Open Class"], ["All-Age", "All-Age"]] },
+    { group: "Indoor · WGI", items: [["wgi:Percussion", "Percussion", "Drumlines"], ["wgi:Color Guard", "Color Guard"], ["wgi:Winds", "Winds"]] },
+  ];
+  const ALL_ALERT_VALUES = ALERT_TYPES.flatMap(g => g.items.map(i => i[0]));
+
   async function viewSettings(_m, stale) {
     setNav("");
     const themeMode = (window.CadTheme && window.CadTheme.mode()) || (localStorage.getItem("cad-theme") || "auto");
     const curCorps = currentCorpsTheme();
-
-    // corps to offer: everyone in the current season, every curated theme, and
-    // whatever's currently applied — a relevant, searchable pool
     let all = [];
     try {
       const rk = await data("rankings.json");
@@ -4721,254 +4901,170 @@
     Object.keys(CORPS_THEME).forEach(n => all.push(n));
     if (curCorps) all.push(curCorps);
     all = [...new Set(all)].sort((a, b) => a.localeCompare(b));
-    await ensureLogos(); // so the picker can show each corps' real logo
+    await ensureLogos();
     if (stale()) return;
-    const featured = THEME_FEATURED.filter(n => all.includes(n) || CORPS_THEME[n]);
+    const featured = THEME_FEATURED.filter(n => all.includes(n) || CORPS_THEME[n]).slice(0, 8);
     const fontSize = (() => { try { return localStorage.getItem("cad-fontsize") || "1"; } catch (e) { return "1"; } })();
-    const custInit = currentCustom() || ["#0a3f6b", "#f0b429"]; // Cadence navy + gold to start
-
-    const segBtn = (val, label) => `<button class="segbtn${themeMode === val ? " on" : ""}" data-theme-set="${val}">${label}</button>`;
-    const fsBtn = (val, label) => `<button class="segbtn${fontSize === val ? " on" : ""}" data-fs-set="${val}">${label}</button>`;
-    const twoTone = n => { const v = corpsThemeVars(n); return `--c1:${v.bar};--c2:${v.accent}`; };
-    const chip = n => `<button class="corpschip${curCorps === n ? " on" : ""}" data-corps-set="${esc(n)}">${corpsLogo(n, 18)}${esc(n)}</button>`;
-    // logo (or color-swatch fallback) on the left; when a real logo shows, the
-    // color swatch still appears on the right as the theme preview
-    const corpsRow = n => `<button class="corpsrow${curCorps === n ? " on" : ""}" data-corps-set="${esc(n)}" data-name="${esc(n.toLowerCase())}">`
-      + corpsLogo(n, 24) + `<span class="corpsrow-name">${esc(n)}</span>`
-      + (corpsHasLogo(n) ? `<span class="corpsrow-sw" style="${twoTone(n)}"></span>` : "") + `</button>`;
+    const custInit = currentCustom() || ["#0a3f6b", "#f0b429"];
+    const acct = window.CadAccount && CadAccount.enabled() ? CadAccount : null;
+    const me = acct && acct.user();
+    const plusOn = !!(acct && acct.plus());
+    const colorsLocked = plusEnforced() && !plusOn;
     const scope = (window.CadPush && CadPush.scope()) || "all";
-    const predsOn = (() => { try { return (localStorage.getItem("cad-notify-preds") || "on") === "on"; } catch (e) { return true; } })();
-    const selClasses = (window.CadPush && CadPush.classes) ? CadPush.classes() : null; // null = all
-    const CLASS_OPTS = ["World Class", "Open Class", "All-Age"];
-    const clsOn = c => !selClasses || selClasses.includes(c);
+    const picked = (window.CadPush && CadPush.classes) ? CadPush.classes() : null;   // null = everything
+    const alertOn = v => !picked || picked.includes(v);
+    const seg = (attr, cur, opts) => `<div class="seg">${opts.map(([v, l]) =>
+      `<button class="segbtn${cur === v ? " on" : ""}" ${attr}="${v}">${l}</button>`).join("")}</div>`;
+    const row = (title, sub, control) => `<div class="setrow"><div><b>${title}</b>${sub ? `<div class="setsub">${sub}</div>` : ""}</div>${control}</div>`;
+    const favs = FAVS.list();
 
     app.innerHTML = h`
       <h1 class="page">Settings</h1>
 
-      ${(window.CadInstall && !window.CadInstall.standalone()) ? `
-      <div class="card setcard" id="installCard">
-        <h2>${icoSvg(ICO_PHONE, 16)} Add to Home Screen</h2>
-        <p class="setnote">Install Cadence like a real app — full screen, works offline, and it's how you get score alerts on iPhone.</p>
-        <button class="tab" id="installOpen" type="button" style="font-weight:800;padding:11px 20px;font-size:14.5px">Show me how →</button>
-      </div>` : ""}
+      ${acct ? `
+      <a class="card setacct" href="#/account">
+        <span class="acct-av ${me && me.avatar ? "" : "acct-av--txt"}">${me && me.avatar ? `<img src="${esc(me.avatar)}" alt="" referrerpolicy="no-referrer">` : (me ? esc((me.name || me.email || "?").slice(0, 1).toUpperCase()) : "👤")}</span>
+        <span class="setacct-txt"><b>${me ? esc(me.name || me.email) : "Sign in or create an account"}</b>
+          <span class="setsub">${me ? "Synced across your devices" : "Free · keeps your corps, colors and alerts in sync"}</span></span>
+        ${plusOn ? PLUS_MARK : ""}<span class="setacct-go" aria-hidden="true">›</span>
+      </a>
+      ${plusOn ? "" : `<a class="card setplus" href="#/plus"><span class="pluscard-logo">Cadence<span>+</span></span>
+        <span class="setsub">Every caption, every judge, head-to-head and projections · ${esc((window.CadConfig || {}).PLUS_PRICE || "$10/year")}</span>
+        <span class="setacct-go" aria-hidden="true">›</span></a>`}` : ""}
 
-      <div class="card setcard">
-        <h2>Favorites</h2>
-        <p class="setnote" id="favSummary">${FAVS.list().length
-          ? `Following ${FAVS.list().map(n => `<b>${esc(n)}</b>`).join(", ")} — starred everywhere, first in score alerts.`
-          : "Star corps to pin them on the Scoreboard and lead your score alerts."}</p>
-        <button class="tab" id="favPick" type="button">Choose favorites</button>
-      </div>
-
-      <div class="dsk2">
+      <section class="setsec">
+        <h2 class="setsec-h">Score alerts</h2>
         <div class="card setcard">
-          <h2>Appearance</h2>
-          <p class="setnote">Pick a light or dark look — or follow your device.</p>
-          <div class="seg" id="themeSeg">${segBtn("auto", "Auto")}${segBtn("light", "Light")}${segBtn("dark", "Dark")}</div>
+          ${row("Score alerts", `<span id="pushStatus">Checking…</span>`, `<button class="toggle" id="pushToggle" aria-pressed="false" aria-label="Score alerts"></button>`)}
+          <div class="alertgrid" id="alertTypes">
+            ${ALERT_TYPES.map(g => `<div class="alertgrp"><div class="alertgrp-h">${esc(g.group)}</div>
+              ${g.items.map(([v, l, sub]) => `<button type="button" class="alertchip${alertOn(v) ? " on" : ""}" data-alert="${esc(v)}" aria-pressed="${alertOn(v)}">
+                <span>${esc(l)}${sub ? `<small>${esc(sub)}</small>` : ""}</span><span class="alertchip-ck" aria-hidden="true"></span></button>`).join("")}</div>`).join("")}
+          </div>
+          ${row("Only my corps & units", favs.length ? `Alerts only when ${esc(favs.slice(0, 2).join(", "))}${favs.length > 2 ? ` +${favs.length - 2}` : ""} compete` : "Star some first under My corps",
+            `<button class="toggle${scope === "favs" ? " on" : ""}" id="scopeToggle" aria-pressed="${scope === "favs"}" aria-label="Only my corps and units"></button>`)}
         </div>
-        <div class="card setcard">
-          <h2>Text Size</h2>
-          <p class="setnote">Make everything a little easier to read.</p>
-          <div class="seg" id="fsSeg">${fsBtn("1", "Default")}${fsBtn("1.1", "Large")}${fsBtn("1.2", "Larger")}</div>
-        </div>
-      </div>
+      </section>
 
-      <div class="card setcard">
-        <h2>Team Colors</h2>
-        <p class="setnote">Paint Cadence in your corps' colors — or keep the classic Cadence look.</p>
-        <button class="setreset${curCorps ? " armed" : " on"}" data-corps-set="">
-          <span class="corpschip-sw" style="background:#f0b429"></span>
-          <span class="setreset-label">Cadence</span>
-          <span class="setreset-hint">${curCorps ? "Reset to default" : "Default look"}</span>
-          <svg class="setreset-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><path d="M3 3v5h5"/></svg>
-        </button>
-        <div class="chipwrap">
-          ${featured.map(chip).join("")}
+      <section class="setsec">
+        <h2 class="setsec-h">My corps &amp; units</h2>
+        <div class="card setcard">
+          <p class="setnote" id="favSummary">${favs.length
+            ? `Following ${favs.map(n => `<b>${esc(n)}</b>`).join(", ")}: pinned on the Scoreboard and first in your alerts.`
+            : "Star the corps and units you follow to pin them on the Scoreboard and lead your alerts."}</p>
+          <button class="tab" id="favPick" type="button">${favs.length ? "Edit" : "Choose"} favorites</button>
         </div>
-        <div class="corpsearch">
-          <input type="search" id="corpsSearch" class="ctrl" placeholder="Search all corps…" autocomplete="off" autocapitalize="off" spellcheck="false">
-          <div class="corpslist" id="corpsList">${all.map(corpsRow).join("")}</div>
-          <div class="corpslist-empty" id="corpsEmpty" hidden>No corps match “<span id="corpsEmptyQ"></span>”.</div>
-        </div>
-        <div class="custombuild">
-          <div class="custombuild-h">Or build your own <span class="kicker">just for fun</span></div>
-          <div class="customrow">
-            <label class="custompick"><input type="color" id="custBar" value="${custInit[0]}"><span>Primary</span></label>
-            <label class="custompick"><input type="color" id="custAcc" value="${custInit[1]}"><span>Accent</span></label>
-            <span class="corpsrow-sw custpreview" id="custPreview" style="--c1:${custInit[0]};--c2:${custInit[1]}"></span>
-            <button class="tab pr-lock" id="custApply" type="button">Use these</button>
+      </section>
+
+      <section class="setsec">
+        <h2 class="setsec-h">Look</h2>
+        <div class="card setcard">
+          ${row("Theme", "", seg("data-theme-set", themeMode, [["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]]))}
+          ${row("Text size", "", seg("data-fs-set", fontSize, [["1", "A"], ["1.1", "A+"], ["1.2", "A++"]]))}
+          <div class="setrow setrow-col"><div><b>Team colors</b><div class="setsub">Paint Cadence in your corps' colors</div></div>
+            <div class="chipwrap">
+              <button class="corpschip${curCorps ? "" : " on"}" data-corps-set=""><span class="corpschip-sw" style="background:#f0b429"></span>Cadence</button>
+              ${featured.map(n => `<button class="corpschip${curCorps === n ? " on" : ""}" data-corps-set="${esc(n)}">${corpsLogo(n, 18)}${esc(n)}</button>`).join("")}
+              <button class="corpschip corpschip-more" id="corpsMore" type="button">More corps…</button>
+            </div>
+            <details class="custombuild${colorsLocked ? " locked" : ""}"><summary>Build your own ${PLUS_MARK}</summary>
+              ${colorsLocked ? `<p class="setnote"><a href="#/plus">Cadence+</a> unlocks custom colors.</p>` : ""}
+              <div class="customrow">
+                <label class="custompick"><input type="color" id="custBar" value="${custInit[0]}"><span>Primary</span></label>
+                <label class="custompick"><input type="color" id="custAcc" value="${custInit[1]}"><span>Accent</span></label>
+                <span class="corpsrow-sw custpreview" id="custPreview" style="--c1:${custInit[0]};--c2:${custInit[1]}"></span>
+                <button class="tab" id="custApply" type="button">Use these</button>
+              </div></details>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div class="card setcard">
-        <h2>Notifications</h2>
-        <p class="setnote">Get a ping the moment new scores drop.</p>
-        <div class="setrow">
-          <div><b>Score alerts</b><div class="setsub" id="pushStatus">Checking…</div></div>
-          <button class="toggle" id="pushToggle" aria-pressed="false" aria-label="Score alerts"></button>
+      ${(window.CadInstall && !window.CadInstall.standalone()) ? `
+      <section class="setsec">
+        <h2 class="setsec-h">App</h2>
+        <div class="card setcard">
+          ${row("Add to Home Screen", "Full screen, works offline, and needed for alerts on iPhone", `<button class="tab" id="installOpen" type="button">How</button>`)}
         </div>
-        <div class="setrow">
-          <div><b>Only my favorites</b><div class="setsub">Alert just for your ★ corps</div></div>
-          <button class="toggle${scope === "favs" ? " on" : ""}" id="scopeToggle" aria-pressed="${scope === "favs"}" aria-label="Favorites only"></button>
-        </div>
-        <div class="setrow setrow-classes">
-          <div><b>Which classes</b><div class="setsub">Only alert me for the classes I follow</div></div>
-        </div>
-        <div class="classchips" id="classChips">
-          ${CLASS_OPTS.map(c => `<button class="classchip${clsOn(c) ? " on" : ""}" data-cls="${esc(c)}" aria-pressed="${clsOn(c)}">${esc(c)}</button>`).join("")}
-        </div>
-        <div class="setrow">
-          <div><b>Prediction results</b><div class="setsub">Nudge me to check my Call the Finish score after a show posts</div></div>
-          <button class="toggle${predsOn ? " on" : ""}" id="predsToggle" aria-pressed="${predsOn}" aria-label="Prediction reminders"></button>
-        </div>
-      </div>
+      </section>` : ""}
 
-      <p class="setfoot">Preferences are saved on this device. Created by Lucas Besel.</p>`;
+      <p class="setfoot">${me ? "Settings sync to your account." : "Settings are saved on this device. Sign in to sync them."}
+        <a href="#/about">About &amp; privacy</a></p>`;
     if (stale()) return;
 
-    // appearance
     app.querySelectorAll("[data-theme-set]").forEach(b => b.addEventListener("click", () => {
       if (window.CadTheme) window.CadTheme.set(b.dataset.themeSet);
       app.querySelectorAll("[data-theme-set]").forEach(x => x.classList.toggle("on", x === b));
     }));
-
-    // text size — scale the whole app (like browser zoom, layout-safe)
     app.querySelectorAll("[data-fs-set]").forEach(b => b.addEventListener("click", () => {
       applyFontSize(b.dataset.fsSet);
       app.querySelectorAll("[data-fs-set]").forEach(x => x.classList.toggle("on", x === b));
     }));
-
-    // team colors — live preview, no full re-render (keeps scroll position)
-    function pickCorps(name) {
-      applyCorpsTheme(name);
-      app.querySelectorAll("[data-corps-set]").forEach(x => x.classList.toggle("on", (x.dataset.corpsSet || "") === (name || "")));
-      const reset = app.querySelector(".setreset");
-      if (reset) {
-        reset.classList.toggle("armed", !!name);
-        const hint = reset.querySelector(".setreset-hint");
-        if (hint) hint.textContent = name ? "Reset to default" : "Default look";
-      }
-    }
-    // attach to each control (all live in this render's fresh innerHTML, so
-    // they're replaced — not leaked — on the next visit)
-    app.querySelectorAll("[data-corps-set]").forEach(btn =>
-      btn.addEventListener("click", () => pickCorps(btn.dataset.corpsSet || "")));
-    // search the corps list
-    const search = document.getElementById("corpsSearch");
-    const list = document.getElementById("corpsList");
-    const empty = document.getElementById("corpsEmpty");
-    if (search && list) search.addEventListener("input", () => {
-      const q = search.value.trim().toLowerCase();
-      let shown = 0;
-      list.querySelectorAll(".corpsrow").forEach(row => {
-        const hit = !q || (row.dataset.name || "").includes(q);
-        row.hidden = !hit;
-        if (hit) shown++;
-      });
-      if (empty) {
-        empty.hidden = shown > 0;
-        const qs = document.getElementById("corpsEmptyQ");
-        if (qs) qs.textContent = search.value.trim();
-      }
-    });
-    // custom primary + accent — just for fun
-    const custBar = document.getElementById("custBar");
-    const custAcc = document.getElementById("custAcc");
+    const markCorps = name => app.querySelectorAll("[data-corps-set]").forEach(x =>
+      x.classList.toggle("on", (x.dataset.corpsSet || "") === (name || "")));
+    app.querySelectorAll("[data-corps-set]").forEach(btn => btn.addEventListener("click", () => {
+      applyCorpsTheme(btn.dataset.corpsSet || ""); markCorps(btn.dataset.corpsSet || "");
+    }));
+    document.getElementById("corpsMore").addEventListener("click", () => pickSheet({
+      title: "Team colors", value: curCorps || "", search: true,
+      options: [{ value: "", label: "Cadence", sub: "The default look" }, ...all.map(n => ({ value: n, label: n }))],
+      onPick: n => { applyCorpsTheme(n); markCorps(n); route(); },
+    }));
+    const custBar = document.getElementById("custBar"), custAcc = document.getElementById("custAcc");
     const custPrev = document.getElementById("custPreview");
-    const custApply = document.getElementById("custApply");
-    const paintCustPreview = () => {
-      if (custPrev && custBar && custAcc) { custPrev.style.setProperty("--c1", custBar.value); custPrev.style.setProperty("--c2", custAcc.value); }
-    };
-    if (custBar) custBar.addEventListener("input", paintCustPreview);
-    if (custAcc) custAcc.addEventListener("input", paintCustPreview);
-    if (custApply) custApply.addEventListener("click", () => {
-      applyCustomTheme(custBar.value, custAcc.value);
-      app.querySelectorAll("[data-corps-set]").forEach(x => x.classList.remove("on"));
-      const reset = app.querySelector(".setreset");
-      if (reset) {
-        reset.classList.add("armed"); reset.classList.remove("on");
-        const hint = reset.querySelector(".setreset-hint");
-        if (hint) hint.textContent = "Reset to default";
-      }
+    const paint = () => { custPrev.style.setProperty("--c1", custBar.value); custPrev.style.setProperty("--c2", custAcc.value); };
+    custBar.addEventListener("input", paint); custAcc.addEventListener("input", paint);
+    document.getElementById("custApply").addEventListener("click", () => {
+      if (colorsLocked) { location.hash = "#/plus"; return; }
+      applyCustomTheme(custBar.value, custAcc.value); markCorps("__custom");
     });
-
-    // add to home screen
     const installOpen = document.getElementById("installOpen");
     if (installOpen) installOpen.addEventListener("click", () => { if (window.CadInstall) window.CadInstall.open(); });
-
-    // favorites picker — same sheet as first-run onboarding; re-render the
-    // page on close so the summary (and alert personalization notes) refresh
-    const favPick = document.getElementById("favPick");
-    if (favPick) favPick.addEventListener("click", () => CadOnboard.open(true, () => {
+    document.getElementById("favPick").addEventListener("click", () => CadOnboard.open(true, () => {
       if ((location.hash || "") === "#/settings") route();
     }));
 
-    // notifications
+    // alerts
     const pushToggle = document.getElementById("pushToggle");
     const pushStatus = document.getElementById("pushStatus");
-    // is the alert relay answering? Any HTTP response (even 404 from an older
-    // build without /healthz) proves the server is up — only a network-level
-    // failure counts as down. Never blocks the page; 2.5 s cap.
-    async function relayUp() {
-      const base = (window.CadConfig || {}).RELAY_URL;
-      if (!base) return false;
-      try {
-        const ctl = new AbortController();
-        const t = setTimeout(() => ctl.abort(), 2500);
-        const r = await fetch(base + "/healthz", { signal: ctl.signal });
-        clearTimeout(t);
-        return r.status > 0;
-      } catch (e) { return false; }
-    }
     async function paintPush() {
       if (!window.CadPush) { pushStatus.textContent = "Not available"; pushToggle.disabled = true; return; }
       const s = await CadPush.status();
+      if (!pushToggle.isConnected) return;     // left Settings while the check ran
       if (s === "unsupported") { pushStatus.textContent = "Not supported in this browser"; pushToggle.disabled = true; pushToggle.classList.remove("on"); return; }
-      if (s === "ios-install") { pushStatus.textContent = "On iPhone, install the app first (Share → Add to Home Screen), then reopen Cadence"; pushToggle.disabled = true; pushToggle.classList.remove("on"); return; }
+      if (s === "ios-install") { pushStatus.textContent = "On iPhone, add Cadence to your Home Screen first, then reopen it"; pushToggle.disabled = true; pushToggle.classList.remove("on"); return; }
       if (s !== "on" && "Notification" in window && Notification.permission === "denied") {
-        pushStatus.textContent = "Blocked — allow notifications for this site in your browser settings, then reopen Cadence";
-        pushToggle.disabled = true; pushToggle.classList.remove("on");
-        return;
+        pushStatus.textContent = "Blocked: allow notifications for this site in your browser settings";
+        pushToggle.disabled = true; pushToggle.classList.remove("on"); return;
       }
       pushToggle.disabled = false;
       pushToggle.classList.toggle("on", s === "on");
       pushToggle.setAttribute("aria-pressed", s === "on");
-      pushStatus.textContent = s === "on" ? "On — you'll get a ping when scores drop" : "Off";
-      // relay trouble is worth a heads-up only when alerts are meant to be on
-      if (s === "on") relayUp().then(up => {
-        if (!up && pushStatus.isConnected && pushToggle.classList.contains("on"))
-          pushStatus.textContent = "On — but the alert server isn't responding right now, so alerts may be delayed";
-      });
+      pushStatus.textContent = s === "on" ? "On · you'll hear the moment scores post" : "Off";
+      const grid = app.querySelector(".alertgrid");
+      if (grid) grid.classList.toggle("dim", s !== "on");
     }
-    if (pushToggle) pushToggle.addEventListener("click", async () => {
+    pushToggle.addEventListener("click", async () => {
       if (!window.CadPush || pushToggle.disabled) return;
       const s = await CadPush.status();
-      pushToggle.disabled = true;
-      pushStatus.textContent = "…";
+      pushToggle.disabled = true; pushStatus.textContent = "…";
       if (s === "on") await CadPush.disable();
       else { const r = await CadPush.enable(); if (r && !r.ok && r.reason) alert(r.reason); }
       await paintPush();
     });
+    const chips = [...app.querySelectorAll("[data-alert]")];
+    chips.forEach(ch => ch.addEventListener("click", () => {
+      ch.classList.toggle("on");
+      ch.setAttribute("aria-pressed", ch.classList.contains("on"));
+      const on = chips.filter(c => c.classList.contains("on")).map(c => c.dataset.alert);
+      if (!on.length) { ch.classList.add("on"); ch.setAttribute("aria-pressed", "true"); return; }  // at least one
+      if (window.CadPush && CadPush.setClasses) CadPush.setClasses(on.length === ALL_ALERT_VALUES.length ? null : on);
+    }));
     const scopeToggle = document.getElementById("scopeToggle");
-    if (scopeToggle) scopeToggle.addEventListener("click", () => {
+    scopeToggle.addEventListener("click", () => {
       const next = scopeToggle.classList.toggle("on") ? "favs" : "all";
       scopeToggle.setAttribute("aria-pressed", next === "favs");
       if (window.CadPush) CadPush.setScope(next);
     });
-    const predsToggle = document.getElementById("predsToggle");
-    if (predsToggle) predsToggle.addEventListener("click", () => {
-      const on = predsToggle.classList.toggle("on");
-      predsToggle.setAttribute("aria-pressed", on);
-      try { localStorage.setItem("cad-notify-preds", on ? "on" : "off"); } catch (e) {}
-    });
-    const clsChips = [...app.querySelectorAll("#classChips .classchip")];
-    clsChips.forEach(ch => ch.addEventListener("click", () => {
-      ch.classList.toggle("on");
-      ch.setAttribute("aria-pressed", ch.classList.contains("on"));
-      const picked = clsChips.filter(c => c.classList.contains("on")).map(c => c.dataset.cls);
-      if (window.CadPush && CadPush.setClasses) CadPush.setClasses(picked);
-    }));
     paintPush();
   }
 
@@ -5082,7 +5178,7 @@
 
   // About, data sources, non-affiliation, and privacy — the app's honest
   // self-description. Everything stated here must stay true to the actual
-  // implementation (no accounts, no trackers, relay stores only what /subscribe
+  // implementation (optional accounts, no trackers, relay stores only what /subscribe
   // is sent). Update this page whenever that reality changes.
   function viewAbout() {
     setNav("");
@@ -5092,12 +5188,14 @@
       <h1 class="page">About Cadence</h1>
       <div class="card cardgap">
         <h2>What This Is</h2>
-        <p class="abouttxt">Cadence is a free scores dashboard for Drum Corps International (DCI)
-          competition: live season standings, judge-level caption recaps, corps histories, and
-          complete published results back to 1972. It covers DCI's World Class, Open Class, and
-          All-Age divisions. It does not currently cover other circuits.</p>
-        <p class="abouttxt"><b>Cadence is an independent fan project.</b> It is not affiliated with,
-          sponsored by, or endorsed by Drum Corps International, CompetitionSuite, or any corps.
+        <p class="abouttxt">Cadence is a scores app for Drum Corps International (DCI) and WGI Sport
+          of the Arts: live standings, instant score alerts, show results, and corps and unit
+          histories, free. DCI covers World Class, Open Class and All-Age with published results
+          back to 1972; WGI covers Color Guard, Percussion and Winds, with every show since 2024
+          and World Championship finals back to 1980. Cadence+ adds judge-level caption sheets,
+          caption breakdowns, judge analytics, head-to-head and projections.</p>
+        <p class="abouttxt"><b>Cadence is an independent project.</b> It is not affiliated with,
+          sponsored by, or endorsed by Drum Corps International, WGI, CompetitionSuite, or any corps or unit.
           All corps names and event names belong to their respective organizations.</p>
       </div>
       <div class="card cardgap">
@@ -5114,16 +5212,21 @@
       </div>
       <div class="card cardgap">
         <h2>Privacy</h2>
-        <p class="abouttxt">Cadence has no accounts and no sign-in. Your favorites, theme, team
-          colors, text size, predictions, and seen-item markers are stored only in this browser
-          — they never leave your device.</p>
+        <p class="abouttxt"><b>Accounts are optional.</b> Without one, your favorites, theme, team
+          colors, text size, predictions, and seen-item markers are stored only in this browser.
+          If you create an account, Cadence stores your email, your favorites, and your display
+          settings (theme, colors, text size, alert choices) so they follow you across devices —
+          and nothing else. Your predictions and seen-item markers stay on the device. You can
+          delete your account and everything synced to it at any time from the Account page.</p>
+        <p class="abouttxt"><b>Cadence+</b> is paid through Stripe, which handles your card;
+          Cadence never sees card numbers and stores only your subscription status and renewal date.</p>
         <p class="abouttxt">There is no advertising and no behavioral analytics. The app makes no
           requests to tracking services.</p>
         <p class="abouttxt"><b>Score alerts</b> are the one optional feature that stores anything
           off-device: turning them on registers an anonymous browser push endpoint${relayHost ? ` with the
           alert relay (<span class="mono">${esc(relayHost)}</span>)` : ""} along with your starred corps and
-          class preferences, so notifications can be personalized. No name, email, or identifier
-          is attached. Turning alerts off asks the relay to delete that registration, and you can
+          class preferences, so notifications can be personalized. If you're signed in, the
+          registration is linked to your account; otherwise no name, email, or identifier is attached. Turning alerts off asks the relay to delete that registration, and you can
           also revoke notification permission in your browser or device settings at any time. The
           relay keeps only aggregate counters and recent error messages for troubleshooting; its
           hosting provider may keep standard server request logs.</p>
@@ -5178,6 +5281,193 @@
   }
 
   /* ============ router ============ */
+  /* ===== Cadence+ and accounts =====
+     Free: live scores, standings, show results, corps pages, alerts for
+     every show. Cadence+ ($10/yr): the analysis staff and members use, plus
+     personal touches. The gate is one table (PLUS_ROUTES) so what's paid is
+     always visible in one place. While CadConfig.PLUS_ENFORCED is false the
+     features stay open and are only labelled. */
+  const PLUS_ROUTES = [
+    [/^#\/captions/, "Caption sheets"], [/^#\/breakdown/, "Caption breakdown"], [/^#\/judges/, "Judges"],
+    [/^#\/wgi\/captions/, "Caption sheets"], [/^#\/wgi\/breakdown/, "Caption breakdown"], [/^#\/wgi\/judges/, "Judges"],
+    [/^#\/compare/, "Head-to-head"], [/^#\/predictions/, "Projections"],
+  ];
+  const PLUS_PERKS = [
+    ["Every caption, every judge", "Full judge-by-judge recaps for DCI and WGI, caption leaders, and how each judge scores."],
+    ["Caption breakdown", "Where every point is won and lost, show by show, with the margin to the leader."],
+    ["Head-to-head & projections", "Compare any corps or unit, track gaps over the season, and see where Finals is heading."],
+    ["Alerts that lead with you", "Your corps first in every alert, with placement, the moment scores post."],
+    ["Your colors", "Paint Cadence in any corps' colors or build your own."],
+  ];
+  const plusEnforced = () => !!(window.CadConfig || {}).PLUS_ENFORCED;
+  const hasPlus = () => !plusEnforced() || !!(window.CadAccount && CadAccount.plus());
+  const plusFeature = hash => { const hit = PLUS_ROUTES.find(([re]) => re.test(hash)); return hit ? hit[1] : null; };
+  const PLUS_MARK = `<span class="plusmark" title="Cadence+">PLUS</span>`;
+
+  function plusCard(feature) {
+    const cfg = window.CadConfig || {};
+    const signed = !!(window.CadAccount && CadAccount.signedIn());
+    return `
+      <div class="pluscard">
+        <div class="pluscard-top">
+          <div class="pluscard-logo">Cadence<span>+</span></div>
+          <div class="pluscard-price">${esc(cfg.PLUS_PRICE || "$10/year")}<small>less than a program</small></div>
+        </div>
+        ${feature ? `<p class="pluscard-lead"><b>${esc(feature)}</b> is part of Cadence+.</p>` : `<p class="pluscard-lead">The full picture, for fans, members and staff.</p>`}
+        <ul class="pluscard-perks">${PLUS_PERKS.map(([t, d]) => `<li><b>${esc(t)}</b><span>${esc(d)}</span></li>`).join("")}</ul>
+        <div class="pluscard-cta">
+          ${signed
+            ? `<button class="btn-plus" id="plusBuy" type="button">Get Cadence+ · ${esc(cfg.PLUS_PRICE || "$10/year")}</button>`
+            : `<a class="btn-plus" href="#/account?next=plus">Create a free account to start</a>`}
+          <p class="pluscard-fine">Billed yearly through Stripe. Cancel anytime from Settings — you keep Plus until the year ends.</p>
+          <p class="pluscard-err" id="plusErr" hidden></p>
+        </div>
+      </div>`;
+  }
+  function wirePlusCard() {
+    const b = document.getElementById("plusBuy");
+    if (b) b.addEventListener("click", async () => {
+      b.disabled = true; b.textContent = "Opening checkout…";
+      try { await CadAccount.checkout(); }
+      catch (e) {
+        const err = document.getElementById("plusErr");
+        if (err) { err.hidden = false; err.textContent = e.message; }
+        b.disabled = false; b.textContent = "Try again";
+      }
+    });
+  }
+
+  function viewPaywall(feature) {
+    setNav(sectionOf(location.hash) || "");
+    app.innerHTML = `<h1 class="page">${esc(feature)} ${PLUS_MARK}</h1>${plusCard(feature)}`;
+    wirePlusCard();
+  }
+
+  function viewPlus() {
+    setNav("");
+    const on = window.CadAccount && CadAccount.plus();
+    const info = window.CadAccount && CadAccount.plusInfo();
+    app.innerHTML = on ? `
+      <h1 class="page">Cadence+ ${PLUS_MARK}</h1>
+      <div class="card setcard">
+        <h2>You're a Cadence+ member</h2>
+        <p class="setnote">${info && info.until ? `${info.cancel ? "Ends" : "Renews"} ${new Date(info.until).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}.` : ""}
+          Thank you — Cadence+ keeps the lights on and the alerts fast.</p>
+        <button class="tab" id="plusManage" type="button">Manage billing</button>
+      </div>
+      <ul class="pluscard-perks pluscard-perks--on">${PLUS_PERKS.map(([t, d]) => `<li><b>${esc(t)}</b><span>${esc(d)}</span></li>`).join("")}</ul>`
+      : `<h1 class="page">Cadence+</h1>${plusCard(null)}`;
+    wirePlusCard();
+    const m = document.getElementById("plusManage");
+    if (m) m.addEventListener("click", () => CadAccount.portal().catch(e => alert(e.message)));
+  }
+
+  // sign in / create account / account details
+  function viewAccount(qs) {
+    setNav("");
+    const A = window.CadAccount;
+    const p = new URLSearchParams(qs || "");
+    const cfg = window.CadConfig || {};
+    if (!A || !A.enabled()) {
+      app.innerHTML = `<h1 class="page">Account</h1><div class="card"><div class="empty">Accounts aren't available in this build.</div></div>`;
+      return;
+    }
+    if (A.recovering()) {
+      app.innerHTML = `<h1 class="page">Set a new password</h1>
+        <form class="card authcard" id="pwForm">
+          <label class="authfield"><span>New password</span><input class="ctrl" type="password" id="pwNew" minlength="8" autocomplete="new-password" required></label>
+          <button class="btn-plus" type="submit">Save password</button>
+          <p class="autherr" id="pwErr" hidden></p>
+        </form>`;
+      document.getElementById("pwForm").addEventListener("submit", async ev => {
+        ev.preventDefault();
+        try { await A.setPassword(document.getElementById("pwNew").value); location.hash = "#/account"; route(); }
+        catch (e) { const er = document.getElementById("pwErr"); er.hidden = false; er.textContent = e.message; }
+      });
+      return;
+    }
+    const u = A.user();
+    if (A.signedIn()) {
+      const plus = A.plus();
+      app.innerHTML = `
+        <h1 class="page">Account</h1>
+        <div class="card acctcard">
+          <div class="acct-id">
+            ${u && u.avatar ? `<img class="acct-av" src="${esc(u.avatar)}" alt="" referrerpolicy="no-referrer">` : `<span class="acct-av acct-av--txt">${esc(((u && (u.name || u.email)) || "?").slice(0, 1).toUpperCase())}</span>`}
+            <div><b>${esc((u && u.name) || (u && u.email) || "Signed in")}</b>
+              <div class="setsub">${esc((u && u.email) || "")}${u && u.provider === "google" ? " · Google" : ""}</div></div>
+            ${plus ? PLUS_MARK : ""}
+          </div>
+          <p class="setnote">Your favorites, colors, text size and alert settings follow you to every device you sign in on.</p>
+          <div class="acct-actions">
+            <a class="tab" href="#/plus">${plus ? "Cadence+ membership" : "Get Cadence+"}</a>
+            <a class="tab" href="#/settings">Settings</a>
+            <button class="tab" id="signOut" type="button">Sign out</button>
+          </div>
+        </div>
+        <details class="card acctdanger"><summary>Delete account</summary>
+          <p class="setnote">Deletes your account and everything synced to it. Cancel Cadence+ first from Manage billing. This can't be undone.</p>
+          <button class="tab tab-danger" id="delAcct" type="button">Delete my account</button></details>`;
+      document.getElementById("signOut").addEventListener("click", async () => { await A.signOut(); location.hash = "#/"; });
+      document.getElementById("delAcct").addEventListener("click", async () => {
+        if (!confirm("Delete your Cadence account and all synced data?")) return;
+        try { await A.deleteAccount(); location.hash = "#/"; } catch (e) { alert(e.message); }
+      });
+      return;
+    }
+    const mode = p.get("mode") === "signup" || p.get("next") === "plus" ? "signup" : "signin";
+    const err = p.get("err");
+    app.innerHTML = `
+      <h1 class="page">${mode === "signup" ? "Create your account" : "Sign in"}</h1>
+      <div class="card authcard">
+        <p class="setnote">${mode === "signup"
+          ? "Free. Keeps your favorites, colors and alerts in sync across your phone and computer — and it's how you get Cadence+."
+          : "Welcome back. Your favorites and settings sync as soon as you're in."}</p>
+        ${cfg.GOOGLE_SIGNIN ? `<button class="btn-google" id="gBtn" type="button"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="#4285F4" d="M22.5 12.3c0-.8-.1-1.5-.2-2.3H12v4.3h5.9a5 5 0 0 1-2.2 3.3v2.7h3.6c2-1.9 3.2-4.7 3.2-8z"/><path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.7l-3.6-2.7c-1 .7-2.2 1-3.7 1-2.9 0-5.3-1.9-6.2-4.5H2.1v2.8A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.8 14.1a6.6 6.6 0 0 1 0-4.2V7.1H2.1a11 11 0 0 0 0 9.8z"/><path fill="#EA4335" d="M12 5.4c1.6 0 3 .6 4.2 1.6l3.1-3.1A11 11 0 0 0 2.1 7.1l3.7 2.8C6.7 7.3 9.1 5.4 12 5.4z"/></svg>Continue with Google</button>
+        <div class="author"><span>or</span></div>` : ""}
+        <form id="authForm" novalidate>
+          <label class="authfield"><span>Email</span><input class="ctrl" type="email" id="authEmail" autocomplete="email" required></label>
+          <label class="authfield"><span>Password</span><input class="ctrl" type="password" id="authPw" minlength="8" autocomplete="${mode === "signup" ? "new-password" : "current-password"}" required></label>
+          <button class="btn-plus" type="submit" id="authGo">${mode === "signup" ? "Create account" : "Sign in"}</button>
+        </form>
+        <p class="autherr" id="authErr"${err ? "" : " hidden"}>${esc(err || "")}</p>
+        <p class="authok" id="authOk" hidden></p>
+        <div class="authalt">
+          ${mode === "signup" ? `Have an account? <a href="#/account">Sign in</a>` : `New here? <a href="#/account?mode=signup">Create a free account</a> · <a href="#" id="forgot">Forgot password?</a>`}
+        </div>
+      </div>
+      <p class="setfoot">Signing in is optional. Everything free in Cadence works without an account.</p>`;
+    const g = document.getElementById("gBtn");
+    if (g) g.addEventListener("click", () => A.google());
+    const showErr = m => { const e = document.getElementById("authErr"); e.hidden = !m; e.textContent = m || ""; };
+    const showOk = m => { const e = document.getElementById("authOk"); e.hidden = !m; e.textContent = m || ""; };
+    document.getElementById("authForm").addEventListener("submit", async ev => {
+      ev.preventDefault();
+      const email = document.getElementById("authEmail").value.trim();
+      const pw = document.getElementById("authPw").value;
+      if (!/^\S+@\S+\.\S+$/.test(email)) return showErr("Enter a valid email address.");
+      if (pw.length < 8) return showErr("Use a password of at least 8 characters.");
+      const go = document.getElementById("authGo");
+      go.disabled = true; showErr("");
+      try {
+        if (mode === "signup") {
+          const r = await A.signUp(email, pw);
+          if (r.confirm) { showOk("Check your email to confirm your account, then sign in."); go.disabled = false; return; }
+        } else await A.signIn(email, pw);
+        location.replace(p.get("next") === "plus" ? "#/plus" : "#/account");
+        location.reload();     // re-apply synced theme, colors and favorites everywhere
+      } catch (e) { showErr(e.message); go.disabled = false; }
+    });
+    const f = document.getElementById("forgot");
+    if (f) f.addEventListener("click", async ev => {
+      ev.preventDefault();
+      const email = document.getElementById("authEmail").value.trim();
+      if (!/^\S+@\S+\.\S+$/.test(email)) return showErr("Type your email above first.");
+      try { await A.resetPassword(email); showOk("If that email has an account, a reset link is on its way."); showErr(""); }
+      catch (e) { showErr(e.message); }
+    });
+  }
+
   const routes = [
     // "#/" is the current season; "#/?y=1994" is that season's board
     [/^#?\/?(?:\?(.*))?$/, (m, st) => viewRankings(m[1], st)],
@@ -5211,6 +5501,8 @@
     [/^#\/breakdown(?:\?(.*))?$/, (m, st) => viewBreakdown(m[1], st)],
     [/^#\/records$/, viewRecords],
     [/^#\/settings$/, viewSettings],
+    [/^#\/account(?:\?(.*))?$/, m => viewAccount(m[1])],
+    [/^#\/plus$/, viewPlus],
     [/^#\/go(?:\?(.*))?$/, m => viewGo(m[1])],
     [/^#\/ask$/, viewAsk],
     [/^#\/about$/, viewAbout],
@@ -5261,7 +5553,14 @@
     for (const [re, fn] of routes) {
       const m = hashv.match(re);
       if (m) {
-        try { await fn(m, stale); } catch (e) {
+        const feature = plusFeature(hashv);
+        if (feature && !hasPlus()) { viewPaywall(feature); return; }
+        try {
+          await fn(m, stale);
+          // label paid features (while Plus is in preview, they stay open)
+          const h1 = !stale() && feature && app.querySelector("h1.page");
+          if (h1 && !h1.querySelector(".plusmark")) h1.insertAdjacentHTML("beforeend", " " + PLUS_MARK);
+        } catch (e) {
           if (stale()) return; // a view we already left failed — ignore
           console.error(e);
           app.innerHTML = firstBuildPending

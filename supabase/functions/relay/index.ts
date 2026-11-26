@@ -99,7 +99,9 @@ async function snapshot(): Promise<Map<string, Row>> {
   return out;
 }
 const sig = (r: Row) => `${r.date}|${r.event}|${r.score}`;
-const showKey = (r: Row) => `${r.circuit}|${r.event}|${r.date}`;
+// one ledger entry per class result at a show (the fast path is per class
+// too), so one class being announced never silences another class later
+const showKey = (r: Row) => `${r.circuit}|${r.event}|${r.date}|${r.cls}`;
 
 // ------------------------------------------------------------ fast path
 // The site path above waits for scrape -> build -> GitHub Pages deploy,
@@ -226,19 +228,36 @@ async function liveShowsToday(): Promise<boolean> {
   return false;
 }
 
+// What has already been announced, by EITHER path: circuit + date + the
+// corps in it. Both paths consult it before sending and add to it after, so
+// a result goes out once whichever path sees it first.
+async function recentAlerts(): Promise<any[]> {
+  return ((await kvGet<any[]>("fast_recent")) ?? []).filter((f) => f.date >= ymd(Date.now() - 3 * 864e5));
+}
+async function rememberAlerts(groups: Iterable<Row[]>) {
+  const recent = await recentAlerts();
+  for (const rows of groups)
+    recent.push({ circuit: rows[0].circuit, date: rows[0].date, corps: rows.map((r) => norm(r.corps)) });
+  await kvSet("fast_recent", recent.slice(-200));
+}
+
 async function fastCheck(status: any): Promise<{ shows: number; sent: number }> {
   const live = [...await dciLive(), ...await wgiLive()];
+  // First fast run ever (fresh deploy or restored state): whatever the
+  // sources already show is baseline, claimed silently, never a burst of
+  // alerts for results that posted before the relay was watching.
+  const seeding = !(await kvGet<boolean>("fast_seeded"));
+  const already = await recentAlerts();
   const claimed = new Map<string, Row[]>();
   for (const l of live) {
     const { error } = await db.from("relay_notified").insert({ key: l.key });
-    if (!error) claimed.set(l.key, l.rows);
+    if (error) continue;                                   // claimed before
+    if (seeding || l.rows.some((r) => announced(already, r))) continue;   // baseline / site path sent it
+    claimed.set(l.key, l.rows);
   }
+  if (seeding) await kvSet("fast_seeded", true);
   if (!claimed.size) return { shows: 0, sent: 0 };
-  // remember what went out so the site path stays quiet when it catches up
-  const recent = ((await kvGet<any[]>("fast_recent")) ?? []).filter((f) => f.date >= ymd(Date.now() - 3 * 864e5));
-  for (const rows of claimed.values())
-    recent.push({ circuit: rows[0].circuit, date: rows[0].date, corps: rows.map((r) => norm(r.corps)) });
-  await kvSet("fast_recent", recent.slice(-200));
+  await rememberAlerts(claimed.values());
   status.lastFast = new Date().toISOString();
   return { shows: claimed.size, sent: await broadcast(claimed, status) };
 }
@@ -306,16 +325,20 @@ async function check(force = false) {
     const seen = new Set(Object.keys(last).map((k) => k.split("|")[0]));
     const recent = new Date(now - 2 * 864e5).toISOString().slice(0, 10);
     const baseline = new Set<string>();
-    const fastRecent = (await kvGet<any[]>("fast_recent")) ?? [];
+    const fastRecent = await recentAlerts();
     const byShow = new Map<string, Row[]>();
+    const covered = new Set<string>();      // class results the fast path already sent
     for (const [k, r] of state) {
       if (last[k] === fresh[k]) continue;
       if (!seen.has(r.circuit) || !(r.date >= recent)) { baseline.add(showKey(r)); continue; }
-      if (announced(fastRecent, r)) { baseline.add(showKey(r)); continue; }
       const sk = showKey(r);
+      // drop only the rows already announced; the rest of the class still goes out
+      if (announced(fastRecent, r)) { covered.add(sk); continue; }
       if (!byShow.has(sk)) byShow.set(sk, []);
       byShow.get(sk)!.push(r);
     }
+    // a class whose every changed row was already announced is done
+    for (const sk of covered) if (!byShow.has(sk)) baseline.add(sk);
     const base = [...baseline].map((key) => ({ key }));
     for (let i = 0; i < base.length; i += 500)
       await db.from("relay_notified").upsert(base.slice(i, i + 500), { ignoreDuplicates: true });
@@ -330,6 +353,7 @@ async function check(force = false) {
       if (claimed.size) {
         status.lastChange = new Date().toISOString();
         shows = claimed.size;
+        await rememberAlerts(claimed.values());          // so the fast path won't repeat these
         sentTo = await broadcast(claimed, status);
       }
     }
@@ -340,8 +364,8 @@ async function check(force = false) {
   return { checked: true, hot, fastShows: fast.shows, newShows: shows, sent: sentTo + fast.sent };
 }
 
-// did the fast path already push this show? same circuit, same date, and
-// this corps was in what it sent
+// was this result already announced (by either path)? same circuit, same
+// date, and this corps was in what went out
 function announced(recent: any[], r: Row) {
   const me = norm(r.corps);
   return recent.some((f) => f.circuit === r.circuit && f.date === r.date && f.corps.includes(me));
@@ -372,7 +396,10 @@ async function broadcast(shows: Map<string, Row[]>, status: any): Promise<number
     for (const [, rows] of shows) {
       const r0 = rows[0];
       if (!circuits.has(r0.circuit)) continue;
-      const fr = cls ? rows.filter((r) => cls.has(r.cls)) : rows;
+      // a pick is a DCI class ("World Class") or a whole WGI division
+      // ("wgi:Percussion" = every Percussion class)
+      const fr = cls ? rows.filter((r) => cls.has(r.cls) ||
+        (r.circuit === "wgi" && cls.has("wgi:" + r.cls.split(" · ")[0]))) : rows;
       if (!fr.length) continue;
       const mine = favs.map((f) => fr.find((r) => norm(r.corps) === norm(f))).filter(Boolean) as Row[];
       if (s.favs_only && !mine.length) continue;
@@ -385,8 +412,10 @@ async function broadcast(shows: Map<string, Row[]>, status: any): Promise<number
       }).join(" · ");
       const icon = r0.circuit === "wgi" ? "🎺" : "🥁";
       const payload = JSON.stringify({
-        title: `${icon} Scores in: ${r0.event}`, body,
-        url: deepLink(r0, mine[0]?.corps), tag: `cadence-scores:${r0.circuit}:${r0.event}`,
+        // per class: the tag keeps each class its own notification instead of
+        // one class's alert silently replacing another's
+        title: `${icon} ${r0.cls} scores in: ${r0.event}`, body,
+        url: deepLink(r0, mine[0]?.corps), tag: `cadence-scores:${r0.circuit}:${r0.event}:${r0.cls}`,
       });
       jobs.push(webpush.sendNotification(s.sub, payload, { TTL: 3600, urgency: "high" }).then(
         () => { sent++; },

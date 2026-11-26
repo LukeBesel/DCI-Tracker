@@ -34,6 +34,7 @@ r.setAttribute("data-corps",name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replac
 var m=document.querySelector('meta[name="theme-color"]'),bar=localStorage.getItem("cad-corps-bar");if(m&&bar)m.content=bar;}})();</script>
 <link rel="stylesheet" href="app.css">
 <script src="lib/config.js"></script>
+<script src="lib/account.js"></script>
 </head>
 <body>
 <header class="topbar">
@@ -77,7 +78,7 @@ var m=document.querySelector('meta[name="theme-color"]'),bar=localStorage.getIte
 <footer class="foot">
   <div><a href="#" id="installBtn" hidden><b><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18.5h2"/></svg> Get the App</b> — install on this device (iPhone needs this for score alerts)</a></div>
   <div><a href="#" id="pushBtn"><b><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Score alerts</b> — get a ping when scores drop</a></div>
-  <div id="srcCredit">Scores from <a href="https://www.dci.org/scores" rel="noopener">DCI.org</a> · refreshed several times an hour · minute-by-minute on show nights</div>
+  <div id="srcCredit">Scores from <a href="https://www.dci.org/scores" rel="noopener">DCI.org</a> · alerts within seconds of scores posting on show days</div>
   <div><a href="#/suggestions"><b>Suggestions</b> — tell us what to build next →</a></div>
   <div class="credit">Created by Lucas Besel · an independent fan project, not affiliated with Drum Corps International or WGI · <a href="#/about">About &amp; privacy</a></div>
 </footer>
@@ -168,7 +169,8 @@ window.CadPush = (function () {
   function standalone() { return matchMedia("(display-mode: standalone)").matches || navigator.standalone; }
   function scope() { try { return localStorage.getItem("cad-notify-scope") || "all"; } catch (e) { return "all"; } }
   function classes() { try { var v = JSON.parse(localStorage.getItem("cad-notify-classes") || "null"); return Array.isArray(v) ? v : null; } catch (e) { return null; } }
-  function setClasses(arr) { try { localStorage.setItem("cad-notify-classes", JSON.stringify(arr || [])); } catch (e) {} syncSub(); emit(); }
+  // null = every class and division (the key is removed, so new ones are included too)
+  function setClasses(arr) { try { arr ? localStorage.setItem("cad-notify-classes", JSON.stringify(arr)) : localStorage.removeItem("cad-notify-classes"); } catch (e) {} syncSub(); emit(); }
   function emit() { listeners.forEach(function (cb) { try { cb(); } catch (e) {} }); }
   function b64(s) {
     var pad = "=".repeat((4 - s.length % 4) % 4);
@@ -189,8 +191,12 @@ window.CadPush = (function () {
     catch (e) { return null; }
   }
   function favList() { try { return JSON.parse(localStorage.getItem("cad-favs") || "[]"); } catch (e) { return []; } }
-  function post(path, body) {
-    return fetch(SERVER + path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  // signed in: send the account token so the relay links this device's
+  // alerts to the account (Plus alerts lead with your corps' placement)
+  async function post(path, body) {
+    var headers = { "content-type": "application/json" };
+    try { var t = window.CadAccount && await CadAccount.token(); if (t) headers.authorization = "Bearer " + t; } catch (e) {}
+    return fetch(SERVER + path, { method: "POST", headers: headers, body: JSON.stringify(body) });
   }
   async function status() {
     if (!canPush) return isIOS && !standalone() ? "ios-install" : "unsupported";
@@ -253,7 +259,7 @@ window.CadPush = (function () {
   return {
     supported: function () { return canPush; }, isIOS: function () { return isIOS; }, standalone: standalone,
     status: status, enable: enable, disable: disable, scope: scope, setScope: setScope,
-    classes: classes, setClasses: setClasses,
+    classes: classes, setClasses: setClasses, resync: syncSub,
     onChange: function (cb) { listeners.push(cb); },
   };
 })();
