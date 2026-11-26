@@ -226,19 +226,36 @@ async function liveShowsToday(): Promise<boolean> {
   return false;
 }
 
+// What has already been announced, by EITHER path: circuit + date + the
+// corps in it. Both paths consult it before sending and add to it after, so
+// a result goes out once whichever path sees it first.
+async function recentAlerts(): Promise<any[]> {
+  return ((await kvGet<any[]>("fast_recent")) ?? []).filter((f) => f.date >= ymd(Date.now() - 3 * 864e5));
+}
+async function rememberAlerts(groups: Iterable<Row[]>) {
+  const recent = await recentAlerts();
+  for (const rows of groups)
+    recent.push({ circuit: rows[0].circuit, date: rows[0].date, corps: rows.map((r) => norm(r.corps)) });
+  await kvSet("fast_recent", recent.slice(-200));
+}
+
 async function fastCheck(status: any): Promise<{ shows: number; sent: number }> {
   const live = [...await dciLive(), ...await wgiLive()];
+  // First fast run ever (fresh deploy or restored state): whatever the
+  // sources already show is baseline, claimed silently, never a burst of
+  // alerts for results that posted before the relay was watching.
+  const seeding = !(await kvGet<boolean>("fast_seeded"));
+  const already = await recentAlerts();
   const claimed = new Map<string, Row[]>();
   for (const l of live) {
     const { error } = await db.from("relay_notified").insert({ key: l.key });
-    if (!error) claimed.set(l.key, l.rows);
+    if (error) continue;                                   // claimed before
+    if (seeding || l.rows.some((r) => announced(already, r))) continue;   // baseline / site path sent it
+    claimed.set(l.key, l.rows);
   }
+  if (seeding) await kvSet("fast_seeded", true);
   if (!claimed.size) return { shows: 0, sent: 0 };
-  // remember what went out so the site path stays quiet when it catches up
-  const recent = ((await kvGet<any[]>("fast_recent")) ?? []).filter((f) => f.date >= ymd(Date.now() - 3 * 864e5));
-  for (const rows of claimed.values())
-    recent.push({ circuit: rows[0].circuit, date: rows[0].date, corps: rows.map((r) => norm(r.corps)) });
-  await kvSet("fast_recent", recent.slice(-200));
+  await rememberAlerts(claimed.values());
   status.lastFast = new Date().toISOString();
   return { shows: claimed.size, sent: await broadcast(claimed, status) };
 }
@@ -306,7 +323,7 @@ async function check(force = false) {
     const seen = new Set(Object.keys(last).map((k) => k.split("|")[0]));
     const recent = new Date(now - 2 * 864e5).toISOString().slice(0, 10);
     const baseline = new Set<string>();
-    const fastRecent = (await kvGet<any[]>("fast_recent")) ?? [];
+    const fastRecent = await recentAlerts();
     const byShow = new Map<string, Row[]>();
     for (const [k, r] of state) {
       if (last[k] === fresh[k]) continue;
@@ -330,6 +347,7 @@ async function check(force = false) {
       if (claimed.size) {
         status.lastChange = new Date().toISOString();
         shows = claimed.size;
+        await rememberAlerts(claimed.values());          // so the fast path won't repeat these
         sentTo = await broadcast(claimed, status);
       }
     }
@@ -340,8 +358,8 @@ async function check(force = false) {
   return { checked: true, hot, fastShows: fast.shows, newShows: shows, sent: sentTo + fast.sent };
 }
 
-// did the fast path already push this show? same circuit, same date, and
-// this corps was in what it sent
+// was this result already announced (by either path)? same circuit, same
+// date, and this corps was in what went out
 function announced(recent: any[], r: Row) {
   const me = norm(r.corps);
   return recent.some((f) => f.circuit === r.circuit && f.date === r.date && f.corps.includes(me));
