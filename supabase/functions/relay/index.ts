@@ -99,7 +99,9 @@ async function snapshot(): Promise<Map<string, Row>> {
   return out;
 }
 const sig = (r: Row) => `${r.date}|${r.event}|${r.score}`;
-const showKey = (r: Row) => `${r.circuit}|${r.event}|${r.date}`;
+// one ledger entry per class result at a show (the fast path is per class
+// too), so one class being announced never silences another class later
+const showKey = (r: Row) => `${r.circuit}|${r.event}|${r.date}|${r.cls}`;
 
 // ------------------------------------------------------------ fast path
 // The site path above waits for scrape -> build -> GitHub Pages deploy,
@@ -325,14 +327,18 @@ async function check(force = false) {
     const baseline = new Set<string>();
     const fastRecent = await recentAlerts();
     const byShow = new Map<string, Row[]>();
+    const covered = new Set<string>();      // class results the fast path already sent
     for (const [k, r] of state) {
       if (last[k] === fresh[k]) continue;
       if (!seen.has(r.circuit) || !(r.date >= recent)) { baseline.add(showKey(r)); continue; }
-      if (announced(fastRecent, r)) { baseline.add(showKey(r)); continue; }
       const sk = showKey(r);
+      // drop only the rows already announced; the rest of the class still goes out
+      if (announced(fastRecent, r)) { covered.add(sk); continue; }
       if (!byShow.has(sk)) byShow.set(sk, []);
       byShow.get(sk)!.push(r);
     }
+    // a class whose every changed row was already announced is done
+    for (const sk of covered) if (!byShow.has(sk)) baseline.add(sk);
     const base = [...baseline].map((key) => ({ key }));
     for (let i = 0; i < base.length; i += 500)
       await db.from("relay_notified").upsert(base.slice(i, i + 500), { ignoreDuplicates: true });
@@ -403,8 +409,10 @@ async function broadcast(shows: Map<string, Row[]>, status: any): Promise<number
       }).join(" · ");
       const icon = r0.circuit === "wgi" ? "🎺" : "🥁";
       const payload = JSON.stringify({
-        title: `${icon} Scores in: ${r0.event}`, body,
-        url: deepLink(r0, mine[0]?.corps), tag: `cadence-scores:${r0.circuit}:${r0.event}`,
+        // per class: the tag keeps each class its own notification instead of
+        // one class's alert silently replacing another's
+        title: `${icon} ${r0.cls} scores in: ${r0.event}`, body,
+        url: deepLink(r0, mine[0]?.corps), tag: `cadence-scores:${r0.circuit}:${r0.event}:${r0.cls}`,
       });
       jobs.push(webpush.sendNotification(s.sub, payload, { TTL: 3600, urgency: "high" }).then(
         () => { sent++; },
