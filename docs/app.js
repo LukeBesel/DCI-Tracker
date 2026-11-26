@@ -665,7 +665,21 @@
     app.innerHTML = h`<div class="crumbs"><a href="#/events">Shows</a> / My Calls</div>
       <h1 class="page">My Calls</h1>`;
     if (!keys.length) {
-      app.innerHTML += `<div class="card"><div class="empty">You haven't called a show yet — open an upcoming show in <a href="#/events">Shows</a> and tap “Call the finish.”</div></div>`;
+      // Off-season this used to read "open an upcoming show and tap Call the
+      // finish" — an instruction nobody can follow for the ~8 months when
+      // upcoming.json is empty. Check first, and when there's nothing to call,
+      // say so and point at something that actually exists.
+      let hasUpcoming = false;
+      try {
+        const up = await data("upcoming.json");
+        if (stale()) return;
+        hasUpcoming = Array.isArray(up) ? up.length > 0 : !!(up && (up.events || []).length);
+      } catch (e) { /* treat an unreachable list as "nothing to call" */ }
+      app.innerHTML += hasUpcoming
+        ? `<div class="card"><div class="empty">You haven't called a show yet — open an upcoming show in <a href="#/events">Shows</a> and tap “Call the finish.”</div></div>`
+        : `<div class="card"><div class="empty">No shows to call right now — the season's a wrap.<br>
+             When the next one starts, open a show in <a href="#/events">Shows</a> and tap “Call the finish” to predict the order.<br>
+             <span class="kicker">In the meantime: <a href="#/">this season's final standings</a> · <a href="#/records">the all-time book</a></span></div></div>`;
       return;
     }
     // pull the seasons we need to grade against, plus upcoming for pending shows
@@ -747,7 +761,52 @@
   function setNav(route) {
     document.querySelectorAll("#nav a").forEach(a =>
       a.classList.toggle("active", a.dataset.route === route));
+    // Every view routes through here, so this is the one place that can keep
+    // the footer's source credit honest: WGI pages credit WGI, everything
+    // else credits DCI. Leaving a WGI credit up on the Stats page would
+    // misattribute DCI's own data.
+    const credit = document.getElementById("srcCredit");
+    if (credit) {
+      const key = /^#\/wgi\b/.test(location.hash) ? "wgi" : "";
+      if (credit.dataset.circuit !== key) {
+        credit.dataset.circuit = key;
+        credit.innerHTML = CREDIT[key];
+      }
+    }
+    paintBrandMode();
+    applyNavMode();
   }
+
+  /* A mode you can leave by tapping the next tab isn't a mode. While a WGI
+     circuit is selected the four nav tabs stay inside it; on DCI they point
+     back at the DCI views. The hrefs are rewritten rather than duplicated so
+     every deep link keeps working. */
+  const NAV_MODE = {
+    dci: { rankings: "#/", events: "#/events", corps: ["#/corps", "Corps"],
+           captions: "#/captions", data: "#/stats" },
+    // WGI's Captions tab is served by the verified recaps (scrape_wgi_recaps)
+    wgi: { rankings: "#/wgi", events: "#/wgi/events", corps: ["#/wgi/units", "Units"],
+           captions: "#/wgi/captions", data: "#/wgi/stats" },
+  };
+  function applyNavMode() {
+    const m = currentMode();
+    const wgi = m.id !== "dci";
+    const d = wgi && m.id.startsWith("wgi:") ? m.id.slice(4) : null;
+    const qs = d ? `?d=${encodeURIComponent(d)}` : "";
+    const map = NAV_MODE[wgi ? "wgi" : "dci"];
+    document.querySelectorAll("#nav a").forEach(a => {
+      const spec = map[a.dataset.route];
+      if (spec === undefined) return;
+      if (spec === null) { a.hidden = true; return; }
+      a.hidden = false;
+      const [href, label] = Array.isArray(spec) ? spec : [spec, null];
+      a.setAttribute("href", href + (href.startsWith("#/wgi") ? qs : ""));
+      const span = a.querySelector("span");
+      if (span) span.textContent = label || DEFAULT_NAV_LABEL[a.dataset.route] || span.textContent;
+    });
+  }
+  const DEFAULT_NAV_LABEL = { rankings: "Scoreboard", events: "Shows", corps: "Corps",
+                              captions: "Captions", data: "Stats" };
   // Collapse long tables to the first `n` rows with a Show-all toggle.
   // Safe to call again after a re-render (replaces its own button).
   function collapseRows(tbody, n, noun) {
@@ -780,7 +839,12 @@
   const CAP_KEY_NOTE = "<p class='capkey'>GE General Effect · VP Visual Proficiency · VA Visual Analysis · CG Color Guard · BR Brass · MA Music Analysis · PC Percussion</p>";
 
   // underline sub-tabs inside the Data tab (Stats)
-  const DATA_SUBS = [["captions", "Captions"], ["compare", "Compare"], ["champions", "Champions"], ["records", "Records"], ["database", "Database"]];
+  /* Captions is what most people come for, and it used to sit one level down
+     inside a Stats tab that had grown to seven sub-tabs. It is now a tab of
+     its own holding the three caption-derived views, and Stats keeps the
+     general reference tools. Two shallow groups beat one deep pile. */
+  const CAP_SUBS = [["captions", "Sheets"], ["breakdown", "Breakdown"], ["judges", "Judges"]];
+  const DATA_SUBS = [["compare", "Compare"], ["champions", "Champions"], ["records", "Records"], ["database", "Database"]];
   // the strip scrolls horizontally on a narrow screen; once the view's
   // innerHTML lands, nudge the active view into view so landing on "Database"
   // (the rightmost tab) never leaves it clipped off the right edge
@@ -791,11 +855,13 @@
     const sr = strip.getBoundingClientRect(), ar = on.getBoundingClientRect();
     strip.scrollLeft += (ar.left - sr.left) - (sr.width - ar.width) / 2;
   }
-  const dataSubNav = active => {
+  const subNav = (subs, active) => {
     requestAnimationFrame(centerSubtab);
-    return `<div class="subtabs">${DATA_SUBS.map(([k, l]) =>
+    return `<div class="subtabs">${subs.map(([k, l]) =>
       `<a href="#/${k}" class="${k === active ? "on" : ""}">${l}</a>`).join("")}</div>`;
   };
+  const dataSubNav = active => subNav(
+    CAP_SUBS.some(([k]) => k === active) ? CAP_SUBS : DATA_SUBS, active);
 
   // one-choice slicer with the same look as the checkbox pickers
   function singleSelect(mount, cfg) {
@@ -1460,7 +1526,7 @@
 
     const jump = block.movers && block.movers[0];
     document.getElementById("moveCard").innerHTML = jump ? h`
-      <h2>Biggest Move <span class="sub">${seasonOver ? "last show vs previous" : "latest show vs previous"}</span></h2>
+      <h2>Biggest Move <span class="sub">${seasonOver ? `final two shows of ${rk.season}` : "latest show vs previous"}</span></h2>
       <div style="font-size:20px;font-weight:650">${corpsLink(jump.corps)}</div>
       <div style="color:var(--text-secondary)">${score3(jump.prev_score)} → <b>${score3(jump.score)}</b> ${deltaHtml(jump.delta)}</div>
       ${block.movers.slice(1).map(m => `<div style="font-size:13px;margin-top:6px">${corpsLink(m.corps)} ${deltaHtml(m.delta)}</div>`).join("")}
@@ -1469,7 +1535,7 @@
 
     const b = block.battles && block.battles[0];
     document.getElementById("battleCard").innerHTML = b ? h`
-      <h2>Closest Battle <span class="sub">smallest gap in standings</span></h2>
+      <h2>Closest Battle <span class="sub">${seasonOver ? `closest finish of ${rk.season}` : "smallest gap in standings"}</span></h2>
       <table class="t">
         <tr><td class="rank">${b.ra}</td><td>${corpsLink(b.a)}</td><td class="num score">${score3(b.sa)}</td></tr>
         <tr><td class="rank">${b.rb}</td><td>${corpsLink(b.b)}</td><td class="num score">${score3(b.sb)}</td></tr>
@@ -1477,6 +1543,554 @@
       <div style="margin-top:8px;font-size:13px;color:var(--text-secondary)">Gap: <b style="color:var(--bad)">${b.gap.toFixed(3)}</b></div>
       <div style="margin-top:8px;font-size:13px"><a href="#/compare?c=${slugOf(b.a)},${slugOf(b.b)}&y=${rk.season}">Compare head-to-head →</a></div>`
       : "<h2>Closest Battle</h2><div class='empty'>Needs two corps within striking distance.</div>";
+  }
+
+  /* ============ WGI ============
+     WGI is a second circuit, not a second class: it runs Jan-May (DCI runs
+     Jun-Aug), splits into three divisions — Color Guard, Percussion, Winds —
+     and each division has its own classes. Its data lives under data/wgi/,
+     built separately so DCI's own output is untouched.
+
+     Coverage is honest about itself: 2024+ comes from WGI's API and carries
+     every show; 1980-2023 comes from their historical pages and is the World
+     Championship finals only, which the year is labelled with. */
+  /* The wordmark is the circuit picker. It reads as what you're looking at —
+     "Cadence", "Cadence WGI", "Cadence WGI Percussion" — and opens a menu of
+     every mode. WGI itself is selectable (all three activities together), as
+     well as each activity on its own. */
+  const WGI_DIVS = ["Color Guard", "Percussion", "Winds"];
+  const MODES = [
+    { group: "Drum Corps", items: [
+      { id: "dci", label: "DCI", desc: "Live scores & history back to 1972",
+        hash: "#/", mark: "DCI", suffix: "" },
+    ] },
+    { group: "WGI · Sport of the Arts", items: [
+      { id: "wgi", label: "WGI", desc: "All three activities", hash: "#/wgi",
+        mark: "WGI", wgi: true, suffix: " WGI" },
+      ...WGI_DIVS.map(d => ({
+        id: "wgi:" + d, label: d, hash: `#/wgi?d=${encodeURIComponent(d)}`,
+        mark: d.split(" ").map(w => w[0]).join(""), sub: true, suffix: " WGI " + d,
+      })),
+    ] },
+  ];
+  const ALL_MODES = MODES.flatMap(g => g.items);
+
+  // which mode the current URL is in
+  function currentMode() {
+    if (!/^#\/wgi\b/.test(location.hash)) return ALL_MODES[0];
+    const d = new URLSearchParams((location.hash.split("?")[1] || "")).get("d");
+    return ALL_MODES.find(m => m.id === "wgi:" + d) || ALL_MODES.find(m => m.id === "wgi");
+  }
+
+  function paintBrandMode() {
+    const m = currentMode();
+    const el = document.getElementById("brandMode");
+    if (el) el.textContent = m.suffix;
+    // phones drop the word "Cadence" while a circuit is named — otherwise
+    // "Cadence WGI Percussion" wraps the header onto two lines. The mark
+    // still says whose app this is.
+    const wrap = document.getElementById("brandWrap");
+    if (wrap) wrap.dataset.mode = m.id;
+  }
+
+  function buildModeMenu() {
+    const here = currentMode().id;
+    return MODES.map(g => `<div class="modegroup">${esc(g.group)}</div>` +
+      (g.items.some(i => i.sub)
+        ? g.items.filter(i => !i.sub).map(i => modeItemHtml(i, here)).join("") +
+          `<div class="modesub">${g.items.filter(i => i.sub).map(i => modeItemHtml(i, here)).join("")}</div>`
+        : g.items.map(i => modeItemHtml(i, here)).join(""))).join("");
+  }
+  function modeItemHtml(m, here) {
+    return `<a class="modeitem ${m.id === here ? "on" : ""}" href="${m.hash}" role="menuitem" data-mode="${esc(m.id)}">
+      <span class="mi-mark ${m.wgi ? "wgi" : ""}">${esc(m.mark)}</span>
+      <span class="mi-txt">${esc(m.label)}${m.desc ? `<small>${esc(m.desc)}</small>` : ""}</span>
+      ${m.id === here ? `<span class="mi-tick" aria-hidden="true">✓</span>` : ""}
+    </a>`;
+  }
+
+  function wireModeMenu() {
+    const wrap = document.getElementById("brandWrap");
+    const btn = document.getElementById("brandBtn");
+    const menu = document.getElementById("modeMenu");
+    if (!wrap || !btn || !menu) return;
+    const close = () => {
+      wrap.classList.remove("open"); menu.hidden = true;
+      btn.setAttribute("aria-expanded", "false");
+    };
+    btn.addEventListener("click", e => {
+      e.preventDefault();
+      if (!menu.hidden) return close();
+      menu.innerHTML = buildModeMenu();
+      menu.hidden = false; wrap.classList.add("open");
+      btn.setAttribute("aria-expanded", "true");
+    });
+    menu.addEventListener("click", e => { if (e.target.closest(".modeitem")) close(); });
+    document.addEventListener("click", e => {
+      if (!menu.hidden && !wrap.contains(e.target)) close();
+    });
+    document.addEventListener("keydown", e => {
+      if (e.key === "Escape" && !menu.hidden) { close(); btn.focus(); }
+    });
+  }
+
+  // The footer credits whoever's scores are actually on screen — crediting
+  // DCI.org under a page of WGI results would be plainly wrong.
+  const CREDIT = {
+    "": `Scores from <a href="https://www.dci.org/scores" rel="noopener">DCI.org</a> · refreshed several times an hour · minute-by-minute on show nights`,
+    wgi: `Scores from <a href="https://www.wgi.org/scores/" rel="noopener">WGI</a> · WGI competes January–May`,
+  };
+
+  function wgiClassSort(names) {
+    const TIER = ["World", "Open", "A"];
+    const key = n => [
+      TIER.findIndex(t => new RegExp(`\\b${t}\\b`).test(n)) + 1 || 99,
+      n.startsWith("Independent") ? 0 : 1, n];
+    return [...names].sort((a, b) => {
+      const ka = key(a), kb = key(b);
+      return ka[0] - kb[0] || ka[1] - kb[1] || ka[2].localeCompare(kb[2]);
+    });
+  }
+
+  /* Shared setup for every WGI view: resolve the season, the division and the
+     class from the URL, with the data loaded once. Returns null when it has
+     already painted a failure state, so callers just bail. */
+  async function wgiContext(query, stale) {
+    const q = new URLSearchParams(query || "");
+    let meta;
+    try {
+      meta = await data("wgi/meta.json");
+    } catch (e) {
+      app.innerHTML = `<h1 class="page">WGI</h1>
+        <div class="card"><div class="empty">WGI scores aren't available right now.
+        <br><span class="kicker">Scores come from <a href="https://www.wgi.org/scores/" target="_blank" rel="noopener">WGI</a> — if this persists the feed may be down.</span></div></div>`;
+      return null;
+    }
+    if (stale()) return null;
+    const seasons = (meta.seasons || []);
+    if (!seasons.length) {
+      app.innerHTML = `<h1 class="page">WGI</h1>
+        <div class="card"><div class="empty">No WGI seasons have been published yet.</div></div>`;
+      return null;
+    }
+    const years = seasons.map(s => s.year);
+    const year = years.includes(+q.get("y")) ? +q.get("y") : years[0];
+    const srec = seasons.find(s => s.year === year) || {};
+
+    let season = [];
+    try { season = await data(`wgi/seasons/${year}.json`); } catch (e) { season = []; }
+    if (stale()) return null;
+
+    // divisions actually present in THIS season (Winds only exists from 2015,
+    // and the pre-2024 archive is Color Guard alone)
+    const divisions = srec.divisions && srec.divisions.length
+      ? srec.divisions
+      : [...new Set(season.flatMap(ev => (ev.classes || []).map(c => c.division)))].filter(Boolean);
+    const division = divisions.includes(q.get("d")) ? q.get("d") : divisions[0];
+
+    const classesInDiv = wgiClassSort([...new Set(season.flatMap(ev =>
+      (ev.classes || []).filter(c => c.division === division).map(c => c.class)))].filter(Boolean));
+    const cls = classesInDiv.includes(q.get("c")) ? q.get("c") : classesInDiv[0];
+    return { q, meta, seasons, years, year, srec, season, divisions, division,
+             classesInDiv, cls, finalsOnly: !!srec.finals_only };
+  }
+
+  // every WGI route carries the active division (and year) so the mode
+  // survives a tab tap and a shared link lands where the sender was
+  const wgiQS = (c, extra) => `?y=${c.year}&d=${encodeURIComponent(c.division)}${extra || ""}`;
+
+  async function viewWgi(query, stale) {
+    setNav("rankings");
+    const ctx = await wgiContext(query, stale);
+    if (!ctx) return;
+    const { years, year, season, divisions, division, classesInDiv, cls, finalsOnly } = ctx;
+
+    const link = (d, c, y) => `#/wgi?y=${y ?? year}` +
+      `&d=${encodeURIComponent(d ?? division)}` + (c === null ? "" : `&c=${encodeURIComponent(c ?? cls)}`);
+
+    // the division is chosen from the wordmark menu, so the heading names it
+    // rather than repeating a strip of tabs under it
+    app.innerHTML = `
+      <h1 class="page">${yearPickerHtml(year)} WGI ${esc(division)} <span class="kicker" id="wgiCount"></span></h1>
+      ${finalsOnly ? `<div class="evdone">${year} is the World Championship recap — WGI doesn't publish the full season this far back.</div>` : ""}
+      <div id="wgiBody"></div>`;
+
+    document.getElementById("wgiCount").textContent =
+      `· ${divisionLabelCount(season, division)}`;
+    wireYearPicker(years, year, y => { location.hash = link(null, null, y); });
+
+    const body = document.getElementById("wgiBody");
+    if (!classesInDiv.length) {
+      body.innerHTML = `<div class="card"><div class="empty">No ${esc(division)} results for ${year}.</div></div>`;
+      return;
+    }
+
+    // standings for the chosen class: each unit's best score of the season
+    const best = new Map();
+    season.forEach(ev => (ev.classes || []).forEach(g => {
+      if (g.division !== division || g.class !== cls) return;
+      (g.results || []).forEach(r => {
+        const cur = best.get(r.corps);
+        if (!cur || r.score > cur.score)
+          best.set(r.corps, { corps: r.corps, score: r.score, event: ev.name, date: ev.date });
+      });
+    }));
+    const rows = [...best.values()].sort((a, b) => b.score - a.score);
+
+    body.innerHTML = `
+      <div class="card">
+        ${classesInDiv.length > 1 ? `<div class="chiprow" id="wgiCls">${classesInDiv.map(c =>
+          `<a class="yearopt ${c === cls ? "on" : ""}" href="${link(null, c)}">${esc(c)}</a>`).join("")}</div>`
+        : `<h2>${esc(cls)}</h2>`}
+        <div class="evdone">${finalsOnly
+          ? `${esc(division)} · World Championship finals`
+          : `${esc(division)} · each unit's best score of ${year}`}</div>
+        <div class="tscroll"><table class="t"><thead><tr>
+          <th class="rank">#</th><th>Unit</th><th class="num">Score</th>${finalsOnly ? "" : "<th class=\"m-hide\">Best at</th>"}
+        </tr></thead><tbody>
+          ${rows.map((r, i) => `<tr>
+            <td class="rank">${i + 1}</td>
+            <td>${esc(r.corps)}</td>
+            <td class="num score">${score3(r.score)}</td>
+            ${finalsOnly ? "" : `<td class="m-hide" style="color:var(--text-secondary);font-size:12.5px">${esc(r.event || "")}</td>`}
+          </tr>`).join("")}
+        </tbody></table></div>
+      </div>
+      ${wgiEventsCard(season, division, year, finalsOnly)}`;
+    collapseRows(body.querySelector("tbody"), 10, "units");
+  }
+
+  function divisionLabelCount(season, division) {
+    const n = season.filter(ev => (ev.classes || []).some(c => c.division === division)).length;
+    return `${n.toLocaleString()} ${n === 1 ? "show" : "shows"}`;
+  }
+
+  /* ---- WGI Shows: every show in the season for the active division ---- */
+  async function viewWgiEvents(query, stale) {
+    setNav("events");
+    const ctx = await wgiContext(query, stale);
+    if (!ctx) return;
+    const { years, year, season, division, finalsOnly } = ctx;
+    const evs = season.filter(ev => (ev.classes || []).some(c => c.division === division));
+
+    app.innerHTML = `
+      <h1 class="page">${yearPickerHtml(year)} WGI ${esc(division)} Shows
+        <span class="kicker">· ${evs.length.toLocaleString()} ${evs.length === 1 ? "show" : "shows"}</span></h1>
+      ${finalsOnly ? `<div class="evdone">${year} is the World Championship recap — WGI doesn't publish the full season this far back.</div>` : ""}
+      ${evs.length ? [...evs].reverse().map(ev => {
+        const groups = (ev.classes || []).filter(c => c.division === division);
+        const units = groups.reduce((n, g) => n + (g.results || []).length, 0);
+        return `<div class="card">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:baseline">
+            <h2 style="margin:0">${ev.url ? `<a href="${encodeURI(ev.url)}" target="_blank" rel="noopener">${esc(ev.name)}</a>` : esc(ev.name)}</h2>
+            <span class="kicker" style="white-space:nowrap">${esc(ev.date_display || ev.date || "")}</span>
+          </div>
+          <div class="evdone">${groups.length} ${groups.length === 1 ? "class" : "classes"} · ${units} units${
+            ev.recap_url ? ` · <a href="${encodeURI(ev.recap_url)}" target="_blank" rel="noopener">judge recap →</a>` : ""}</div>
+          ${groups.map(g => `<div style="margin-top:8px">
+            <div class="evdone" style="font-weight:700;color:var(--text-primary)">${esc(g.class)}</div>
+            <div class="tscroll"><table class="t"><tbody>${(g.results || []).map((r, i) => `<tr>
+              <td class="rank">${r.place ?? i + 1}</td>
+              <td><a href="#/wgi/unit/${encodeURIComponent(wgiSlug(r.corps))}${wgiQS(ctx)}">${esc(r.corps)}</a></td>
+              <td class="num score">${score3(r.score)}</td></tr>`).join("")}</tbody></table></div>
+          </div>`).join("")}
+        </div>`;
+      }).join("") : `<div class="card"><div class="empty">No ${esc(division)} shows listed for ${year}.</div></div>`}`;
+    wireYearPicker(years, year, y => { location.hash = `#/wgi/events?y=${y}&d=${encodeURIComponent(division)}`; });
+  }
+
+  // units are identified by name — WGI has no stable public id, and the name
+  // is what every one of their own pages keys on
+  const wgiSlug = name => slugOf(name);
+
+  /* ---- WGI Units: the directory, and one unit's season ---- */
+  async function viewWgiUnits(query, stale) {
+    setNav("corps");
+    const ctx = await wgiContext(query, stale);
+    if (!ctx) return;
+    const { years, year, season, division, classesInDiv } = ctx;
+    const byClass = new Map();
+    season.forEach(ev => (ev.classes || []).forEach(g => {
+      if (g.division !== division) return;
+      const set = byClass.get(g.class) || new Map();
+      (g.results || []).forEach(r => {
+        const cur = set.get(r.corps);
+        if (!cur || r.score > cur) set.set(r.corps, r.score);
+      });
+      byClass.set(g.class, set);
+    }));
+    const total = new Set([...byClass.values()].flatMap(m => [...m.keys()])).size;
+
+    app.innerHTML = `
+      <h1 class="page">${yearPickerHtml(year)} WGI ${esc(division)} Units
+        <span class="kicker">· ${total.toLocaleString()} ${total === 1 ? "unit" : "units"}</span></h1>
+      ${classesInDiv.filter(c => byClass.has(c)).map(c => {
+        const rows = [...byClass.get(c).entries()].sort((a, b) => b[1] - a[1]);
+        return `<div class="card"><h2>${esc(c)}</h2>
+          <div class="tscroll"><table class="t"><tbody>${rows.map(([name, sc], i) => `<tr>
+            <td class="rank">${i + 1}</td>
+            <td><a href="#/wgi/unit/${encodeURIComponent(wgiSlug(name))}${wgiQS(ctx)}">${esc(name)}</a></td>
+            <td class="num score">${score3(sc)}</td></tr>`).join("")}</tbody></table></div></div>`;
+      }).join("") || `<div class="card"><div class="empty">No ${esc(division)} units for ${year}.</div></div>`}`;
+    wireYearPicker(years, year, y => { location.hash = `#/wgi/units?y=${y}&d=${encodeURIComponent(division)}`; });
+  }
+
+  async function viewWgiUnit(slug, query, stale) {
+    setNav("corps");
+    const ctx = await wgiContext(query, stale);
+    if (!ctx) return;
+    const { years, year, season, division } = ctx;
+    const perfs = [];
+    let name = null;
+    season.forEach(ev => (ev.classes || []).forEach(g => {
+      if (g.division !== division) return;
+      (g.results || []).forEach(r => {
+        if (wgiSlug(r.corps) !== slug) return;
+        name = name || r.corps;
+        perfs.push({ event: ev.name, date: ev.date, date_display: ev.date_display,
+                     url: ev.url, recap: ev.recap_url, cls: g.class,
+                     place: r.place, score: r.score });
+      });
+    }));
+    if (!name) {
+      app.innerHTML = `<h1 class="page">WGI ${esc(division)}</h1>
+        <div class="card"><div class="empty">No ${year} results for that unit in ${esc(division)}.
+        <br><a href="#/wgi/units${wgiQS(ctx)}">Back to units →</a></div></div>`;
+      return;
+    }
+    perfs.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+    const best = perfs.reduce((m, p) => (p.score > m.score ? p : m), perfs[0]);
+    app.innerHTML = `
+      <div class="crumbs"><a href="#/wgi/units${wgiQS(ctx)}">WGI ${esc(division)} Units</a> / ${esc(name)}</div>
+      <h1 class="page">${yearPickerHtml(year)} ${esc(name)}</h1>
+      <div class="card">
+        <div class="evdone">${esc(perfs[perfs.length - 1].cls)} · ${perfs.length} ${perfs.length === 1 ? "show" : "shows"} in ${year}
+          · season best <b>${score3(best.score)}</b> at ${esc(best.event)}</div>
+        <div class="tscroll"><table class="t"><thead><tr>
+          <th>Date</th><th>Show</th><th class="m-hide">Class</th><th class="num">Place</th><th class="num">Score</th>
+        </tr></thead><tbody>${perfs.slice().reverse().map(p => `<tr>
+          <td style="color:var(--muted);white-space:nowrap">${esc(p.date_display || p.date || "")}</td>
+          <td class="ev-cell">${p.url ? `<a href="${encodeURI(p.url)}" target="_blank" rel="noopener">${esc(p.event)}</a>` : esc(p.event)}</td>
+          <td class="m-hide">${esc(p.cls)}</td>
+          <td class="num">${p.place ?? "—"}</td>
+          <td class="num score">${score3(p.score)}</td></tr>`).join("")}</tbody></table></div>
+      </div>`;
+    wireYearPicker(years, year, y => { location.hash = `#/wgi/unit/${encodeURIComponent(slug)}?y=${y}&d=${encodeURIComponent(division)}`; });
+  }
+
+  /* ---- WGI Stats: champions by year, and the all-time high scores ---- */
+  async function viewWgiStats(query, stale) {
+    setNav("data");
+    const ctx = await wgiContext(query, stale);
+    if (!ctx) return;
+    const { meta, division } = ctx;
+    const relevant = (meta.seasons || []).filter(s => (s.divisions || []).includes(division));
+    app.innerHTML = `<h1 class="page">WGI ${esc(division)} Stats</h1>
+      <div class="card"><div class="empty">Loading ${relevant.length} seasons…</div></div>`;
+
+    // every season this division appears in, so champions and records are
+    // drawn from the whole archive rather than the season in the URL
+    const loaded = await Promise.all(relevant.map(s =>
+      data(`wgi/seasons/${s.year}.json`).then(ev => [s.year, ev]).catch(() => [s.year, []])));
+    if (stale()) return;
+
+    const champs = [];
+    const all = [];
+    loaded.forEach(([yr, evs]) => {
+      const byClass = new Map();
+      evs.forEach(ev => (ev.classes || []).forEach(g => {
+        if (g.division !== division) return;
+        (g.results || []).forEach(r => {
+          all.push({ year: yr, corps: r.corps, score: r.score, cls: g.class, event: ev.name });
+          const cur = byClass.get(g.class);
+          if (!cur || r.score > cur.score)
+            byClass.set(g.class, { corps: r.corps, score: r.score, event: ev.name });
+        });
+      }));
+      wgiClassSort([...byClass.keys()]).forEach(c =>
+        champs.push({ year: yr, cls: c, ...byClass.get(c) }));
+    });
+    champs.sort((a, b) => (b.year - a.year) || (a.cls === b.cls ? 0 : wgiClassSort([a.cls, b.cls])[0] === a.cls ? -1 : 1));
+    all.sort((a, b) => b.score - a.score);
+
+    const titles = new Map();
+    champs.forEach(c => titles.set(c.corps, (titles.get(c.corps) || 0) + 1));
+    const mostTitles = [...titles.entries()].sort((a, b) => b[1] - a[1]).slice(0, 25);
+
+    app.innerHTML = `<h1 class="page">WGI ${esc(division)} Stats
+        <span class="kicker">· ${relevant.length} seasons</span></h1>
+      <div class="card"><h2>Highest Scores</h2>
+        <div class="evdone">${esc(division)} · every season on record</div>
+        <div class="tscroll"><table class="t"><thead><tr><th class="rank">#</th><th>Unit</th>
+          <th class="m-hide">Class</th><th class="num">Year</th><th class="num">Score</th></tr></thead>
+          <tbody>${all.slice(0, 100).map((r, i) => `<tr><td class="rank">${i + 1}</td>
+            <td><a href="#/wgi/unit/${encodeURIComponent(wgiSlug(r.corps))}?y=${r.year}&d=${encodeURIComponent(division)}">${esc(r.corps)}</a></td>
+            <td class="m-hide">${esc(r.cls)}</td><td class="num">${r.year}</td>
+            <td class="num score">${score3(r.score)}</td></tr>`).join("")}</tbody></table></div></div>
+      <div class="card"><h2>Most Class Wins</h2>
+        <div class="tscroll"><table class="t"><tbody>${mostTitles.map(([n, c], i) => `<tr>
+          <td class="rank">${i + 1}</td>
+          <td><a href="#/wgi/units${wgiQS(ctx)}">${esc(n)}</a></td>
+          <td class="num score">${c}</td></tr>`).join("")}</tbody></table></div></div>
+      <div class="card"><h2>Class Winners by Year</h2>
+        <div class="tscroll"><table class="t"><thead><tr><th class="num">Year</th><th>Class</th>
+          <th>Winner</th><th class="num">Score</th></tr></thead>
+          <tbody>${champs.map(c => `<tr><td class="num">${c.year}</td><td class="ev-cell">${esc(c.cls)}</td>
+            <td><a href="#/wgi/unit/${encodeURIComponent(wgiSlug(c.corps))}?y=${c.year}&d=${encodeURIComponent(division)}">${esc(c.corps)}</a></td>
+            <td class="num score">${score3(c.score)}</td></tr>`).join("")}</tbody></table></div></div>`;
+    app.querySelectorAll("tbody").forEach(tb => { if (tb.rows.length > 14) collapseRows(tb, 12, "rows"); });
+  }
+
+  /* ---- WGI Captions: Sheets, Breakdown, Judges ----
+     Built on the verified recaps (every row's captions sum to its sub-total,
+     sub-total less penalty is its total, and that total is the score WGI
+     published). The sub-tabs carry the division so the mode never drops. */
+  const WGI_CAP_SUBS = [["wgi/captions", "Sheets"], ["wgi/breakdown", "Breakdown"], ["wgi/judges", "Judges"]];
+  function wgiCapNav(active, division) {
+    requestAnimationFrame(centerSubtab);
+    const qs = `?d=${encodeURIComponent(division)}`;
+    return `<div class="subtabs">${WGI_CAP_SUBS.map(([k, l]) =>
+      `<a href="#/${k}${qs}" class="${k === active ? "on" : ""}">${l}</a>`).join("")}</div>`;
+  }
+
+  async function wgiCaptionData(q, stale) {
+    let idx;
+    try { idx = await data("wgi/captions/index.json"); } catch (e) { idx = null; }
+    if (stale()) return null;
+    const seasons = ((idx && idx.seasons) || []).filter(s => s.rows > 0);
+    const allDivs = [...new Set(seasons.flatMap(s => s.divisions || []))];
+    const division = allDivs.includes(q.get("d")) ? q.get("d") : (allDivs[0] || "Color Guard");
+    const years = seasons.filter(s => (s.divisions || []).includes(division)).map(s => s.year).sort((a, b) => b - a);
+    if (!years.length) return { division, years: [], sheets: [] };
+    const year = years.includes(+q.get("y")) ? +q.get("y") : years[0];
+    let doc;
+    try { doc = await data(`wgi/captions/${year}.json`); } catch (e) { doc = null; }
+    if (stale()) return null;
+    const sheets = ((doc && doc.sheets) || []).filter(s => s.v === division);
+    return { division, years, year, sheets };
+  }
+
+  async function viewWgiCaptions(query, stale) {
+    setNav("captions");
+    const q = new URLSearchParams(query || "");
+    const ctx = await wgiCaptionData(q, stale);
+    if (!ctx) return;
+    const { division, years, year, sheets } = ctx;
+    const nav = wgiCapNav("wgi/captions", division);
+    if (!sheets.length) {
+      app.innerHTML = `${nav}<h1 class="page">WGI ${esc(division)} Sheets</h1>
+        <div class="card"><div class="empty">No verified ${esc(division)} caption sheets yet.</div></div>`;
+      return;
+    }
+    // one entry per show, newest first
+    const shows = [];
+    sheets.forEach(s => { const k = `${s.d}|${s.e}`; if (!shows.some(x => x.k === k)) shows.push({ k, d: s.d, e: s.e }); });
+    shows.sort((a, b) => (b.d || "").localeCompare(a.d || ""));
+    const showKey = shows.some(s => s.k === q.get("e")) ? q.get("e") : shows[0].k;
+    const atShow = sheets.filter(s => `${s.d}|${s.e}` === showKey);
+    const classes = wgiClassSort(atShow.map(s => s.c));
+    const cls = classes.includes(q.get("c")) ? q.get("c") : classes[0];
+    const sh = atShow.find(s => s.c === cls);
+    const link = o => `#/wgi/captions?d=${encodeURIComponent(division)}&y=${o.y ?? year}` +
+      `&e=${encodeURIComponent(o.e ?? showKey)}&c=${encodeURIComponent(o.c ?? cls)}`;
+
+    // caption winners at this show: who topped each column. A unit can win the
+    // night and still lose captions, which is exactly what a sheet should show.
+    const best = sh.caps.map((_c, i) => Math.max(...sh.rows.map(r => (typeof r[1][i] === "number" ? r[1][i] : -1))));
+    const wins = new Map();
+    sh.caps.forEach((_c, i) => sh.rows.forEach(r => {
+      if (r[1][i] === best[i] && best[i] >= 0) wins.set(r[0], (wins.get(r[0]) || 0) + 1);
+    }));
+    const winnerLine = [...wins.entries()].sort((a, b) => b[1] - a[1])
+      .map(([u, n]) => `${esc(u)} ${n}`).join(" · ");
+    const leaderSwept = sh.rows.length && wins.get(sh.rows[0][0]) === sh.caps.length;
+
+    app.innerHTML = `${nav}
+      <h1 class="page">${yearPickerHtml(year)} WGI ${esc(division)} Sheets</h1>
+      <div class="filters" style="margin-bottom:10px">
+        <select class="ctrl" id="wsShow">${shows.map(s => `<option value="${esc(s.k)}"${s.k === showKey ? " selected" : ""}>${esc(fmtDate(s.d))} · ${esc(s.e)}</option>`).join("")}</select>
+      </div>
+      ${classes.length > 1 ? `<div class="chiprow">${classes.map(c =>
+        `<a class="yearopt ${c === cls ? "on" : ""}" href="${link({ c })}">${esc(c)}</a>`).join("")}</div>` : ""}
+      <div class="card">
+        <h2>${esc(cls)} <span class="sub">${sh.rows.length} ${sh.rows.length === 1 ? "unit" : "units"}</span></h2>
+        <div class="evdone"><b>Caption wins:</b> ${winnerLine || "—"}${leaderSwept && sh.rows.length > 1 ? " — a clean sweep" : ""}.
+          Every row here reconciles: its captions add to the sub-total, the penalty explains the total, and the total is
+          the score WGI published.${sh.r ? ` <a href="${encodeURI(sh.r)}" target="_blank" rel="noopener">Original recap →</a>` : ""}</div>
+        <div class="tscroll dense"><table class="t"><thead><tr><th class="rank">#</th><th>Unit</th>
+          ${sh.caps.map(c => `<th class="num" title="${esc((sh.panel[c] || []).join(", "))}">${esc(c)}
+            <div class="kicker" style="font-weight:500;text-transform:none;letter-spacing:0">${esc((sh.panel[c] || []).join(" · "))}</div></th>`).join("")}
+          <th class="num m-hide">Pen</th><th class="num">Total</th></tr></thead>
+          <tbody>${sh.rows.map((r, i) => `<tr><td class="rank">${i + 1}</td>
+            <td><a href="#/wgi/unit/${encodeURIComponent(wgiSlug(r[0]))}?y=${year}&d=${encodeURIComponent(division)}">${esc(r[0])}</a></td>
+            ${r[1].map((v, k) => `<td class="num${v === best[k] ? " score" : ""}"${v === best[k] ? ' style="color:var(--accent-ink,var(--link))"' : ""}>${typeof v === "number" ? v.toFixed(3) : "—"}</td>`).join("")}
+            <td class="num m-hide">${r[3] ? "−" + r[3].toFixed(1) : ""}</td>
+            <td class="num score">${typeof r[2] === "number" ? r[2].toFixed(3) : "—"}</td></tr>`).join("")}</tbody></table></div>
+      </div>`;
+    wireYearPicker(years, year, y => { location.hash = `#/wgi/captions?d=${encodeURIComponent(division)}&y=${y}`; });
+    const sel = document.getElementById("wsShow");
+    if (sel) sel.onchange = () => { location.hash = link({ e: sel.value, c: "" }); };
+  }
+
+  async function viewWgiBreakdown(query, stale) {
+    setNav("captions");
+    const q = new URLSearchParams(query || "");
+    const ctx = await wgiCaptionData(q, stale);
+    if (!ctx) return;
+    const { division, years, year, sheets } = ctx;
+    const nav = wgiCapNav("wgi/breakdown", division);
+    if (!sheets.length) return breakdownEmpty(nav, `No verified ${esc(division)} caption sheets yet.`);
+    const capOrder = [];
+    sheets.forEach(s => s.caps.forEach(c => { if (!capOrder.includes(c)) capOrder.push(c); }));
+    const rows = sheets.flatMap(s => s.rows.map(r => ({
+      date: s.d, event: s.e, cls: s.c, unit: r[0], total: r[2],
+      s: Object.fromEntries(s.caps.map((c, i) => [c, r[1][i]])),
+    })));
+    renderBreakdown({
+      q, years, year, rows, noun: "unit", subnav: nav,
+      caps: capOrder.map(label => ({ label, group: false })),
+      defaultClass: null, sortClasses: wgiClassSort, title: `WGI ${division} Breakdown`,
+      href: o => `#/wgi/breakdown?d=${encodeURIComponent(division)}&y=${o.y}&cl=${encodeURIComponent(o.cl)}` +
+        `&c=${encodeURIComponent(o.c)}&v=${encodeURIComponent(o.v)}`,
+    });
+  }
+
+  async function viewWgiJudges(query, stale) {
+    setNav("captions");
+    const q = new URLSearchParams(query || "");
+    let division = q.get("d");
+    if (!WGI_DIVS.includes(division)) division = "Color Guard";
+    const pre = `${division} · `;
+    return renderJudges(query, stale, {
+      prefix: "wgi/", noun: "unit", subnav: wgiCapNav("wgi/judges", division),
+      title: `WGI ${division} Judges`,
+      yearOk: y => (y.divisions || []).includes(division),
+      href: o => `#/wgi/judges?d=${encodeURIComponent(division)}&y=${o.y}&c=${encodeURIComponent(o.c)}&s=${o.s}`,
+      capFilter: c => c.startsWith(pre), capLabel: c => c.slice(pre.length),
+      rooms: doc => (doc.rooms_by && doc.rooms_by[division]) || 0,
+      vsText: `whether this seat scored above or below the OTHER judge on the same caption, for the same unit,
+        at the same show. WGI's captions are scored on different scales, so comparing a judge with the rest of the
+        panel would measure the scale rather than the judge; the only fair comparison is a second judge doing the
+        same job. That exists wherever WGI doubles a panel — usually finals and larger classes — so seats that
+        always judged alone show no figure here rather than an invented one. One consequence worth knowing: two
+        judges who usually sit together will show near mirror-image figures. That tells you they see the caption
+        differently — it cannot tell you which of them is right.`,
+    });
+  }
+
+  function wgiEventsCard(season, division, year, finalsOnly) {
+    const evs = season.filter(ev => (ev.classes || []).some(c => c.division === division));
+    if (!evs.length || finalsOnly) return "";
+    const list = [...evs].reverse().map(ev => {
+      const groups = (ev.classes || []).filter(c => c.division === division);
+      const units = groups.reduce((n, g) => n + (g.results || []).length, 0);
+      return `<tr><td style="color:var(--muted);white-space:nowrap">${esc(ev.date_display || ev.date || "")}</td>
+        <td>${ev.url ? `<a href="${encodeURI(ev.url)}" target="_blank" rel="noopener">${esc(ev.name)}</a>` : esc(ev.name)}</td>
+        <td class="num m-hide">${units}</td></tr>`;
+    }).join("");
+    return `<div class="card"><h2>${year} Shows <span class="sub">${esc(division)}</span></h2>
+      <div class="tscroll"><table class="t"><thead><tr><th>Date</th><th>Show</th><th class="num m-hide">Units</th></tr></thead>
+      <tbody>${list}</tbody></table></div></div>`;
   }
 
   /* ============ CORPS HUB (directory + compare) ============ */
@@ -2398,6 +3012,24 @@
     await load();
   }
 
+  /* An auditions row used to render "<b>Corps</b> — blurb", but every blurb
+     already opens with the corps name ("The Academy’s 2027 interest form…"),
+     so a phone showed the name twice and truncated everything that mattered:
+     "The Academy — The Acade…". When the blurb already names the corps, let it
+     speak for itself; only prefix the name when the blurb doesn't carry it. */
+  function campLabel(n) {
+    const sq = s => String(s || "").replace(/[‘’]/g, "'").replace(/\s+/g, " ").trim();
+    const corps = sq(n.corps), blurb = sq(n.blurb);
+    if (!blurb) return `<b>${esc(n.corps || "")}</b>`;
+    if (!corps) return esc(n.blurb);
+    const lead = blurb.slice(0, corps.length + 24).toLowerCase();
+    const tail = corps.toLowerCase().split(" ").filter(w => w.length > 3).pop() || corps.toLowerCase();
+    // blurb opens with the corps (in full, or by its distinctive last word)
+    if (lead.startsWith(corps.toLowerCase()) || lead.split(/\s+/).slice(0, 3).join(" ").includes(tail))
+      return esc(n.blurb);
+    return `<b>${esc(n.corps)}</b> — ${esc(n.blurb)}`;
+  }
+
   /* News & Announcements: DCI.org headlines + the weekly per-corps roundup
      (auditions, camps, next-season reveals), scraped into news.json. Items
      newer than the last visit get a NEW pill — the in-app "notification". */
@@ -2437,7 +3069,7 @@
         <div class="newscamps">
           <h3>Auditions &amp; camps</h3>
           ${camps.map(n => h`<a href="${encodeURI(n.link || allNews)}" target="_blank" rel="noopener">
-            <span class="newstag">Auditions</span><span><b>${esc(n.corps)}</b> — ${esc(n.blurb)}</span>
+            <span class="newstag">Auditions</span><span>${campLabel(n)}</span>
             <time>${esc(fmtDate(n.date))}</time></a>`).join("")}
           <p class="newsnote">Announcements straight from DCI and the corps — dates and details live in each article.</p>
         </div>` : ""}
@@ -3033,7 +3665,7 @@
 
   /* ============ CAPTIONS ============ */
   async function viewCaptions(qs, stale) {
-    setNav("data");
+    setNav("captions");
     let cindex;
     try { cindex = await data("captions/index.json"); }
     catch (e) {
@@ -3345,7 +3977,15 @@
     scores: {
       label: "Scores",
       cols: ["Year", "Date", "Event", "Corps", "Class", "Place", "Score"],
-      corpsIdx: 3, clsIdx: 4, evIdx: 2, dateIdx: 1, scoreCols: [6],
+      // Place yields the phone's last ~50px to Score: on a 390px screen the
+      // two together don't fit, and a score with no place still answers the
+      // question; the place is one tap away on the event page.
+      corpsIdx: 3, clsIdx: 4, evIdx: 2, dateIdx: 1, scoreCols: [6], narrowHideIdx: [5],
+      // On a phone the visible columns get fixed shares of the width, so the
+      // table fits by construction. Sizing them to the text instead fitted
+      // with 0px to spare in one environment's fonts and overflowed by 10px in
+      // CI's — and real phones (SF Pro, Roboto) differ again.
+      fitWidths: { 1: 23, 2: 25, 3: 35, 6: 17 },
       load: loadScores,
     },
     captions: {
@@ -3470,13 +4110,14 @@
       if (i === cfg.dateIdx) return `<td style="color:var(--muted);white-space:nowrap">${fmtDate2(r[i])}</td>`;
       if (i === cfg.corpsIdx) return `<td>${corpsLink(r[i])}</td>`;
       if (i === cfg.clsIdx) return `<td class="m-hide"><span class="pill">${esc(r[i] || "")}</span></td>`;
-      if (i === cfg.evIdx) return `<td>${esc(r[i] || "")}</td>`;
+      if (i === cfg.evIdx) return `<td class="ev-cell">${esc(r[i] || "")}</td>`;
+      const hide = (cfg.narrowHideIdx || []).includes(i) ? " m-hide" : "";
       const v = r[i];
       if (typeof v === "number") {
         const strong = cfg.scoreCols.includes(i) ? " score" : "";
-        return `<td class="num${strong}">${cfg.scoreCols.includes(i) ? score3(v) : v.toFixed(v % 1 ? 2 : 0)}</td>`;
+        return `<td class="num${strong}${hide}">${cfg.scoreCols.includes(i) ? score3(v) : v.toFixed(v % 1 ? 2 : 0)}</td>`;
       }
-      return `<td class="num">${v ?? "—"}</td>`;
+      return `<td class="num${hide}">${v ?? "—"}</td>`;
     }
 
     function render() {
@@ -3485,8 +4126,8 @@
       const [ci, dir] = DB.sort;
       const more = filtered.length - shown;
       document.getElementById("dbtable").innerHTML =
-        `<div class="tscroll dense"><table class="t"><thead><tr>${cfg.cols.map((c, i) =>
-          `<th style="cursor:pointer;user-select:none" class="${i === 0 || i === cfg.clsIdx ? "m-hide" : ""}" data-c="${i}">${c}${i === ci ? (dir > 0 ? " ↑" : " ↓") : ""}</th>`).join("")}</tr></thead><tbody>
+        `<div class="tscroll dense"><table class="t${cfg.fitWidths ? " dbfit" : ""}"><thead><tr>${cfg.cols.map((c, i) =>
+          `<th style="cursor:pointer;user-select:none${cfg.fitWidths && cfg.fitWidths[i] ? `;--w:${cfg.fitWidths[i]}%` : ""}" class="${i === 0 || i === cfg.clsIdx || (cfg.narrowHideIdx || []).includes(i) ? "m-hide" : ""}" data-c="${i}">${c}${i === ci ? (dir > 0 ? " ↑" : " ↓") : ""}</th>`).join("")}</tr></thead><tbody>
         ${filtered.slice(0, shown).map(r =>
           `<tr>${cfg.cols.map((c, i) => cellHtml(r, i)).join("")}</tr>`).join("")}</tbody></table></div>` +
         (more > 0 ? `<div class="expandwrap"><button class="tab" id="dbMore">Show ${Math.min(100, more).toLocaleString()} more ▾ <span class="kicker">(${(shown).toLocaleString()} of ${filtered.length.toLocaleString()})</span></button></div>` : "");
@@ -3527,6 +4168,315 @@
   }
 
   /* ============ RECORDS ============ */
+  /* ============ JUDGES ============
+     Every recap names the judge behind each sub-caption and carries their
+     score for every corps in the room, which is enough to say three things a
+     scoreboard never shows: whether a judge scores above or below the rest of
+     the panel on the same corps (tendency), whether they ORDER the field the
+     way the panel does (agreement), and how far they spread it.
+
+     These numbers are easy to misread, so the view says what they mean and
+     refuses the comparison that would be meaningless: captions carry their own
+     offsets (General Effect sits above Color Guard on most sheets), so judges
+     are only ever ranked against others of the SAME caption. */
+  async function viewJudges(query, stale) {
+    setNav("captions");
+    return renderJudges(query, stale, {
+      prefix: "", noun: "corps", subnav: dataSubNav("judges"),
+      href: (o) => `#/judges?y=${o.y}&c=${encodeURIComponent(o.c)}&s=${o.s}`,
+      capFilter: () => true, capLabel: c => c,
+      vsText: `whether this seat scored above or below the rest of the panel on the same corps at the
+        same show, measured against what that caption normally runs. Captions carry their own offsets,
+        so judges are only compared with others doing the same job.`,
+    });
+  }
+
+  /* One Judges view for both circuits; cfg supplies the data prefix, the
+     division filter and — because the two circuits are measured differently —
+     the plain-language explanation of what "vs caption" means. */
+  async function renderJudges(query, stale, cfg) {
+    const q = new URLSearchParams(query || "");
+    let idx;
+    try { idx = await data(`${cfg.prefix}judges/index.json`); } catch (e) { idx = null; }
+    if (stale()) return;
+    const yearsAll = ((idx && idx.years) || []).filter(y => y.judges > 0 && (!cfg.yearOk || cfg.yearOk(y)));
+    if (!yearsAll.length) {
+      app.innerHTML = `${cfg.subnav}<h1 class="page">Judges</h1>
+        <div class="card"><div class="empty">Judge analysis needs the official recaps, which aren't available yet.</div></div>`;
+      return;
+    }
+    const years = yearsAll.map(y => y.year);
+    const year = years.includes(+q.get("y")) ? +q.get("y") : years[0];
+    let doc;
+    try { doc = await data(`${cfg.prefix}judges/${year}.json`); } catch (e) { doc = null; }
+    if (stale()) return;
+    if (!doc) {
+      app.innerHTML = `${cfg.subnav}<h1 class="page">Judges</h1>
+        <div class="card"><div class="empty">No judge data for ${year}.</div></div>`;
+      return;
+    }
+    const all = (doc.judges || []).filter(j => cfg.capFilter(j.caption));
+    const captions = Object.keys(doc.captions || {}).filter(cfg.capFilter).sort();
+    const cap = captions.includes(q.get("c")) ? q.get("c") : "";
+    const sort = ["agreement", "rel", "shows", "spread"].includes(q.get("s")) ? q.get("s") : "agreement";
+    const rows = all.filter(j => !cap || j.caption === cap);
+    rows.sort((a, b) => {
+      const av = a[sort], bv = b[sort];
+      if (av == null && bv == null) return b.shows - a.shows || a.judge.localeCompare(b.judge);
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      return bv - av || b.shows - a.shows || a.judge.localeCompare(b.judge);
+    });
+    const link = (c, s, y) => cfg.href({ y: y ?? year, c: c === null ? cap : c, s: s ?? sort });
+    const num = (v, plus) => v == null ? "—" : (plus && v > 0 ? "+" : "") + v.toFixed(plus ? 3 : 2);
+    const noVs = all.length && all.every(j => j.rel == null);
+
+    app.innerHTML = `${cfg.subnav}
+      <h1 class="page">${yearPickerHtml(year)} ${cfg.title || "Judges"} <span class="kicker">· ${rows.length} of ${all.length} panel seats</span></h1>
+      <div class="card">
+        <div class="evdone">Built from ${(cfg.rooms ? cfg.rooms(doc) : doc.rooms).toLocaleString()} judged rooms in ${year}. A seat appears once it has
+          judged ${doc.floors.shows}+ shows and ${doc.floors.scores}+ ${cfg.noun === "corps" ? "corps" : "units"}.</div>
+        ${captions.length ? `<div class="chiprow">
+          <a class="yearopt ${cap ? "" : "on"}" href="${link("", null)}">All captions</a>
+          ${captions.map(c => `<a class="yearopt ${c === cap ? "on" : ""}" href="${link(c, null)}">${esc(cfg.capLabel(c))}</a>`).join("")}
+        </div>` : ""}
+        <div class="chiprow">${[["agreement", "Agreement"], ["rel", "Runs high"], ["spread", "Spread"], ["shows", "Shows"]]
+          .map(([k, l]) => `<a class="yearopt ${k === sort ? "on" : ""}" href="${link(null, k)}">${l}</a>`).join("")}</div>
+        ${rows.length ? `<div class="tscroll"><table class="t"><thead><tr>
+          <th>Judge</th><th class="m-hide">Caption</th>
+          <th class="num" title="Shows judged">Shows</th>
+          <th class="num" title="Score relative to comparable judges — see How to read this">vs caption</th>
+          <th class="num" title="How closely this judge's ordering of the field matches the room's">Agreement</th>
+          <th class="num m-hide" title="How widely they spread the field">Spread</th>
+        </tr></thead><tbody>${rows.map(j => `<tr>
+          <td><b>${esc(j.judge)}</b>${cap ? "" : `<div class="evdone" style="padding:0">${esc(cfg.capLabel(j.caption))}</div>`}</td>
+          <td class="m-hide">${esc(cfg.capLabel(j.caption))}</td>
+          <td class="num">${j.shows}</td>
+          <td class="num ${j.rel > 0.05 ? "delta up" : j.rel < -0.05 ? "delta down" : ""}">${j.rel == null
+            ? `<span class="kicker" title="No comparable judge sat beside this seat">—</span>` : num(j.rel, true)}</td>
+          <td class="num score">${j.agreement == null
+            ? `<span class="kicker" title="Needs ${doc.floors.agreement_rooms}+ full rooms; this seat has ${j.agreement_rooms}">—</span>`
+            : j.agreement.toFixed(3)}</td>
+          <td class="num m-hide">${num(j.spread)}</td>
+        </tr>`).join("")}</tbody></table></div>`
+        : `<div class="empty">No seats meet the sample floor for ${esc(cfg.title || "this view")} in ${year}.</div>`}
+      </div>
+      <div class="card">
+        <h2>How to read this</h2>
+        <p style="margin:0 0 8px"><b>vs caption</b> — ${cfg.vsText}${noVs ? ` <b>No seat this season sat on a
+          doubled panel often enough to measure, so this column is empty rather than guessed.</b>` : ""}</p>
+        <p style="margin:0 0 8px"><b>Agreement</b> — how closely their ordering of the field matched the room's.
+          1.000 means they placed the ${cfg.noun === "corps" ? "corps" : "units"} exactly as the room's final totals did.
+          A lower number isn't a mistake: a specialist caption legitimately sees a different show. It is only shown once a
+          seat has ${doc.floors.agreement_rooms}+ full rooms behind it — over one or two rooms a perfect score is easy to
+          hit by chance and would top this table while meaning nothing.</p>
+        <p style="margin:0 0 8px"><b>Spread</b> — how far apart they placed the field. A narrow spread
+          compresses the gaps; a wide one separates them.</p>
+        <p class="newsnote" style="margin:0">These are descriptive, not a verdict on anyone's judging. They
+          come from ${esc(String(cfg.rooms ? cfg.rooms(doc) : doc.rooms))} rooms of published recaps and nothing else.</p>
+      </div>`;
+    wireYearPicker(years, year, y => { location.hash = link(null, null, y); });
+  }
+
+  /* ============ BREAKDOWN ============
+     The question a staff member actually asks: where are we losing points,
+     to whom, and is it getting better or worse? Everything here comes from
+     captions/<year>.json, which already carries each corps' caption line for
+     every show, so this is analysis rather than another build step.
+
+     Three answers, in the order they get asked:
+       1. Where do we stand, caption by caption, against the class?
+       2. Which captions are moving, and which way, across the season?
+       3. Against one rival, which captions decide the gap? */
+  const CAP_COLS = [
+    // [label, row index, is a group total]
+    ["GE 1", 4], ["GE 2", 5], ["General Effect", 6, true],
+    ["Visual Prof.", 7], ["Visual Analysis", 8], ["Color Guard", 9], ["Visual", 10, true],
+    ["Brass", 11], ["Music Analysis", 12], ["Percussion", 13], ["Music", 14, true],
+  ];
+  const TOTAL_IDX = 16;
+
+  /* One Breakdown for both circuits. Each adapter turns its own caption
+     data into rows of {date, event, cls, unit, s: {caption: score}, total} and
+     a caption list; everything below that is shared, so a fix to how a rank
+     or a margin is computed lands on DCI and WGI at once. */
+  async function viewBreakdown(query, stale) {
+    setNav("captions");
+    const q = new URLSearchParams(query || "");
+    let idx;
+    try { idx = await data("captions/index.json"); } catch (e) { idx = null; }
+    if (stale()) return;
+    const seasons = ((idx && idx.seasons) || []).filter(s => s.rows > 0);
+    const years = seasons.map(s => s.year).sort((a, b) => b - a);
+    if (!years.length) return breakdownEmpty(dataSubNav("breakdown"), "Caption sheets aren't available yet.");
+    const year = years.includes(+q.get("y")) ? +q.get("y") : years[0];
+    let raw;
+    try { raw = await data(`captions/${year}.json`); } catch (e) { raw = []; }
+    if (stale()) return;
+    const rows = raw.map(r => ({
+      date: r[0], event: r[1], cls: r[2], unit: r[3], total: r[TOTAL_IDX],
+      s: Object.fromEntries(CAP_COLS.map(([label, i]) => [label, r[i]])),
+    }));
+    renderBreakdown({
+      q, years, year, rows, noun: "corps", subnav: dataSubNav("breakdown"),
+      caps: CAP_COLS.map(([label, _i, group]) => ({ label, group: !!group })),
+      defaultClass: "World Class", title: "Breakdown",
+      href: o => `#/breakdown?y=${o.y}&cl=${encodeURIComponent(o.cl)}&c=${encodeURIComponent(o.c)}&v=${encodeURIComponent(o.v)}`,
+    });
+  }
+
+  function breakdownEmpty(subnav, msg) {
+    app.innerHTML = `${subnav}<h1 class="page">Breakdown</h1><div class="card"><div class="empty">${msg}</div></div>`;
+  }
+
+  function renderBreakdown(cfg) {
+    const { q, years, year, rows, noun, subnav, title } = cfg;
+    const found = [...new Set(rows.map(r => r.cls).filter(Boolean))];
+    const classes = cfg.sortClasses ? cfg.sortClasses(found) : found;
+    const cls = classes.includes(q.get("cl")) ? q.get("cl")
+      : (classes.includes(cfg.defaultClass) ? cfg.defaultClass : classes[0]);
+    const inClass = rows.filter(r => r.cls === cls).sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+    // the caption columns this class actually carries (WGI's concert and
+    // marching percussion classes don't share a sheet)
+    const caps = cfg.caps.filter(c => inClass.some(r => typeof r.s[c.label] === "number"));
+    const names = [...new Set(inClass.map(r => r.unit))].sort();
+    const lastTotal = n => { const rs = inClass.filter(r => r.unit === n); return rs.length ? rs[rs.length - 1].total : 0; };
+    const fav = FAVS.list().find(n => names.includes(n));
+    const leader = [...names].sort((a, b) => lastTotal(b) - lastTotal(a))[0];
+    const unit = names.includes(q.get("c")) ? q.get("c") : (fav || leader);
+    const rival = names.includes(q.get("v")) && q.get("v") !== unit ? q.get("v") : "";
+    const link = (o = {}) => cfg.href({ y: o.y ?? year, cl: o.cl ?? cls, c: o.c ?? unit,
+                                        v: o.v === undefined ? rival : o.v });
+    const head = `${subnav}<h1 class="page">${yearPickerHtml(year)} ${esc(title)} <span class="kicker">· ${esc(unit || "")}</span></h1>`;
+    const mine = inClass.filter(r => r.unit === unit);
+    if (!mine.length) {
+      app.innerHTML = `${head}<div class="card"><div class="empty">No ${year} caption sheets for ${esc(unit || "anyone")} in ${esc(cls || "this class")}.</div></div>`;
+      wireYearPicker(years, year, y => { location.hash = link({ y, c: "", v: "" }); });
+      return;
+    }
+
+    const latest = mine[mine.length - 1];
+    // rank against each rival's most recent sheet on or before that show
+    const fieldAt = new Map();
+    inClass.forEach(r => {
+      if ((r.date || "") > (latest.date || "")) return;
+      const cur = fieldAt.get(r.unit);
+      if (!cur || (r.date || "") >= (cur.date || "")) fieldAt.set(r.unit, r);
+    });
+    const num = v => (typeof v === "number" && isFinite(v)) ? v : null;
+    // a caption the sheet doesn't carry stays as a blank rather than vanishing:
+    // a diagnostic that quietly omits the line someone came to check is worse
+    // than one that admits the gap
+    const standing = caps.map(({ label, group }) => {
+      const mv = num(latest.s[label]);
+      const field = [...fieldAt.values()].map(r => num(r.s[label])).filter(v => v != null);
+      if (mv == null || !field.length) return { label, group, missing: true };
+      const sorted = [...field].sort((a, b) => b - a);
+      return { label, group, mine: mv, best: sorted[0], rank: sorted.findIndex(v => v <= mv) + 1,
+               of: sorted.length, gap: +(mv - sorted[0]).toFixed(3) };
+    });
+    const absent = standing.filter(s => s.missing).map(s => s.label);
+
+    // Strongest / weakest is judged by RANK, never by raw score: captions sit on
+    // different scales, so the biggest number is just the biggest caption.
+    // Group totals are left out — they restate their parts.
+    const ranked = standing.filter(s => !s.missing && !s.group);
+    const byRank = [...ranked].sort((a, b) => a.rank - b.rank || b.gap - a.gap);
+    const strong = byRank[0], weak = byRank[byRank.length - 1];
+    const ord = n => n + (["th", "st", "nd", "rd"][(n % 100 - 20) % 10] || ["th", "st", "nd", "rd"][n % 100] || "th");
+    const profile = !ranked.length ? ""
+      : ranked.every(s => s.rank === 1)
+        ? `<div class="evdone" style="color:var(--text-primary)"><b>Leads every caption</b> in ${esc(cls)} at this point of the season.</div>`
+      : ranked.length > 1 && strong.rank !== weak.rank
+        ? `<div class="evdone" style="color:var(--text-primary)">${(() => {
+             // name every caption that shares the best rank: picking one of three
+             // firsts and calling it "strongest" would be arbitrary
+             const tops = ranked.filter(s => s.rank === strong.rank).map(s => esc(s.label));
+             const list = tops.length > 1 ? tops.slice(0, -1).join(", ") + " and " + tops[tops.length - 1] : tops[0];
+             return strong.rank === 1 ? `<b>Leads</b> ${list}` : `<b>Strongest:</b> ${list}, ${ord(strong.rank)} of ${strong.of}`;
+           })()}
+           · <b>Weakest:</b> ${esc(weak.label)}, ${ord(weak.rank)} of ${weak.of}
+           ${weak.gap < 0 ? `(${Math.abs(weak.gap).toFixed(3)} off the lead)` : ""}</div>` : "";
+
+    const first = mine[0];
+    const movement = mine.length > 1 ? caps.map(({ label, group }) => {
+      const a = num(first.s[label]), b = num(latest.s[label]);
+      return a == null || b == null ? null : { label, group, from: a, to: b, delta: +(b - a).toFixed(3) };
+    }).filter(Boolean) : [];
+
+    let h2h = null;
+    if (rival) {
+      const theirs = inClass.filter(r => r.unit === rival);
+      const shared = [...mine].reverse().find(m => theirs.some(t => t.date === m.date && t.event === m.event));
+      if (shared) {
+        const t = theirs.find(x => x.date === shared.date && x.event === shared.event);
+        h2h = { date: shared.date, event: shared.event, total: +(shared.total - t.total).toFixed(3),
+          caps: caps.map(({ label, group }) => {
+            const a = num(shared.s[label]), b = num(t.s[label]);
+            return a == null || b == null ? null : { label, group, mine: a, theirs: b, delta: +(a - b).toFixed(3) };
+          }).filter(Boolean) };
+      }
+    }
+
+    const sgn = v => (v > 0 ? "+" : "") + v.toFixed(3);
+    const cl2 = v => v > 0.001 ? "delta up" : v < -0.001 ? "delta down" : "delta flat";
+    const pick = (id, items, sel, ph) => `<select class="ctrl" id="${id}">
+      ${items.map(v => `<option value="${esc(v)}"${v === sel ? " selected" : ""}>${esc(v || ph)}</option>`).join("")}</select>`;
+    const bold = g => g ? ' style="font-weight:700"' : "";
+
+    app.innerHTML = `${head}
+      <div class="filters" style="margin-bottom:10px">
+        ${pick("bdClass", classes, cls)}${pick("bdCorps", names, unit)}
+        ${pick("bdRival", ["", ...names.filter(n => n !== unit)], rival, "Compare with…")}
+      </div>
+      <div class="card">
+        <h2>Where they stand <span class="sub">${esc(fmtDate(latest.date))} · ${esc(latest.event)}</span></h2>
+        ${profile}
+        <div class="evdone">Rank is against every ${esc(cls)} ${noun === "corps" ? "corps'" : "unit's"} most recent sheet on or before this show.
+          Gap is to the best score in that caption.</div>
+        <div class="tscroll"><table class="t"><thead><tr><th>Caption</th>
+          <th class="num">Score</th><th class="num">Rank</th><th class="num">Gap to best</th></tr></thead>
+          <tbody>${standing.map(s => s.missing
+            ? `<tr style="color:var(--muted)"><td class="ev-cell">${esc(s.label)}</td>
+                 <td class="num" colspan="3"><span class="kicker">not on this sheet</span></td></tr>`
+            : `<tr${bold(s.group)}><td class="ev-cell">${esc(s.label)}</td>
+                 <td class="num score">${s.mine.toFixed(3)}</td>
+                 <td class="num">${s.rank}<span class="kicker"> / ${s.of}</span></td>
+                 <td class="num ${cl2(s.gap)}">${s.gap === 0 ? "—" : sgn(s.gap)}</td></tr>`).join("")}
+          </tbody></table></div>
+        ${absent.length ? `<p class="newsnote" style="margin:8px 0 0">${esc(absent.join(", "))}
+          ${absent.length === 1 ? "isn't" : "aren't"} on this recap — the published sheet didn't carry
+          ${absent.length === 1 ? "it" : "them"}, so there is nothing to rank.</p>` : ""}
+      </div>
+      ${movement.length ? `<div class="card">
+        <h2>What moved <span class="sub">first show to latest</span></h2>
+        <div class="evdone">${esc(fmtDate(first.date))} → ${esc(fmtDate(latest.date))} · ${mine.length} sheets.
+          Caption scores drift upward across a season, so read these against each other rather than as absolute gains.</div>
+        <div class="tscroll"><table class="t"><thead><tr><th>Caption</th>
+          <th class="num m-hide">First</th><th class="num m-hide">Latest</th><th class="num">Change</th></tr></thead>
+          <tbody>${[...movement].sort((a, b) => b.delta - a.delta).map(m => `<tr${bold(m.group)}>
+            <td class="ev-cell">${esc(m.label)}</td><td class="num m-hide">${m.from.toFixed(3)}</td>
+            <td class="num m-hide">${m.to.toFixed(3)}</td><td class="num ${cl2(m.delta)}">${sgn(m.delta)}</td></tr>`).join("")}
+          </tbody></table></div></div>` : ""}
+      ${rival ? (h2h ? `<div class="card">
+        <h2>Against ${esc(rival)} <span class="sub">${esc(fmtDate(h2h.date))} · ${esc(h2h.event)}</span></h2>
+        <div class="evdone">The most recent show both attended. Total margin
+          <b class="${cl2(h2h.total)}">${sgn(h2h.total)}</b> — the captions below are what makes it up, widest first.</div>
+        <div class="tscroll"><table class="t"><thead><tr><th>Caption</th>
+          <th class="num m-hide">${esc(unit)}</th><th class="num m-hide">${esc(rival)}</th><th class="num">Margin</th></tr></thead>
+          <tbody>${[...h2h.caps].sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).map(c => `<tr${bold(c.group)}>
+            <td class="ev-cell">${esc(c.label)}</td><td class="num m-hide">${c.mine.toFixed(3)}</td>
+            <td class="num m-hide">${c.theirs.toFixed(3)}</td><td class="num ${cl2(c.delta)}">${sgn(c.delta)}</td></tr>`).join("")}
+          </tbody></table></div></div>`
+        : `<div class="card"><div class="empty">${esc(unit)} and ${esc(rival)} have no ${year} show in common yet.</div></div>`) : ""}`;
+
+    wireYearPicker(years, year, y => { location.hash = link({ y, c: "", v: "" }); });
+    const on = (id, f) => { const el = document.getElementById(id); if (el) el.onchange = () => f(el.value); };
+    on("bdClass", v => { location.hash = link({ cl: v, c: "", v: "" }); });
+    on("bdCorps", v => { location.hash = link({ c: v, v: v === rival ? "" : rival }); });
+    on("bdRival", v => { location.hash = link({ v }); });
+  }
+
   async function viewRecords(_m, stale) {
     setNav("data");
     const [rec, idx] = await Promise.all([data("records.json"), data("corps_index.json")]);
@@ -4231,6 +5181,14 @@
   const routes = [
     // "#/" is the current season; "#/?y=1994" is that season's board
     [/^#?\/?(?:\?(.*))?$/, (m, st) => viewRankings(m[1], st)],
+    [/^#\/wgi(?:\?(.*))?$/, (m, st) => viewWgi(m[1], st)],
+    [/^#\/wgi\/events(?:\?(.*))?$/, (m, st) => viewWgiEvents(m[1], st)],
+    [/^#\/wgi\/units(?:\?(.*))?$/, (m, st) => viewWgiUnits(m[1], st)],
+    [/^#\/wgi\/unit\/([^?]+)(?:\?(.*))?$/, (m, st) => viewWgiUnit(decodeURIComponent(m[1]), m[2], st)],
+    [/^#\/wgi\/stats(?:\?(.*))?$/, (m, st) => viewWgiStats(m[1], st)],
+    [/^#\/wgi\/captions(?:\?(.*))?$/, (m, st) => viewWgiCaptions(m[1], st)],
+    [/^#\/wgi\/breakdown(?:\?(.*))?$/, (m, st) => viewWgiBreakdown(m[1], st)],
+    [/^#\/wgi\/judges(?:\?(.*))?$/, (m, st) => viewWgiJudges(m[1], st)],
     [/^#\/compare(?:\?(.*))?$/, (m, st) => viewCorpsHub(m[1], st)],
     [/^#\/corps\?(.*)$/, m => { location.replace(`#/compare?${m[1]}`); }],
     [/^#\/corps$/, (m, st) => viewCorpsPage(null, st)],
@@ -4242,10 +5200,15 @@
     // Stats hub entry — lands on the captions front page. "#/data" is the
     // legacy name for the same hub; keep both redirecting forever so old
     // shared links never break.
-    [/^#\/(?:stats|data)$/, () => { location.replace("#/captions"); }],
+    // Stats no longer owns the caption views, so it lands on its own first
+    // tab. #/captions is a top-level route now and keeps working untouched.
+    [/^#\/(?:stats|data)$/, () => { location.replace("#/compare"); }],
     [/^#\/season\/(\d{4})$/, m => { location.replace(`#/events?y=${m[1]}`); }],
     [/^#\/event\/(\d{4})\/(\d+)(?:\?(.*))?$/, (m, st) => viewEvent(m[1], m[2], st, m[3])],
     [/^#\/captions(?:\?(.*))?$/, (m, st) => viewCaptions(m[1], st)],
+    [/^#\/judges(?:\?(.*))?$/, (m, st) => viewJudges(m[1], st)],
+    [/^#\/breakdown(?:\?(.*))?$/, (m, st) => viewBreakdown(m[1], st)],
+    [/^#\/breakdown(?:\?(.*))?$/, (m, st) => viewBreakdown(m[1], st)],
     [/^#\/records$/, viewRecords],
     [/^#\/settings$/, viewSettings],
     [/^#\/go(?:\?(.*))?$/, m => viewGo(m[1])],
@@ -4521,10 +5484,14 @@
 
   window.CadRedraw = route; // theme toggle re-renders the current view
   addEventListener("hashchange", route);
-  // logo tap: home with a clean slate — filters reset, preferences (theme,
-  // favorites) kept
-  const brandEl = document.querySelector(".brand");
-  if (brandEl) brandEl.addEventListener("click", () => {
+  // The wordmark now opens the circuit menu rather than going home, so the
+  // old "logo tap = clean slate" reset moves onto the DCI item — which is
+  // what going home means now. Preferences (theme, favorites) are kept.
+  wireModeMenu();
+  const modeMenuEl = document.getElementById("modeMenu");
+  if (modeMenuEl) modeMenuEl.addEventListener("click", e => {
+    const item = e.target.closest(".modeitem");
+    if (!item || item.dataset.mode !== "dci") return;
     ["dt-class", "dt-corpsclass"].forEach(k => localStorage.removeItem(k));
     ["cmp-corps", "cmp-years", "cad-shows-f",
       "cad-last-rankings", "cad-last-events", "cad-last-corps", "cad-last-data"]

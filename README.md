@@ -20,10 +20,27 @@ Scores originate from publicly published, credited sources (see below).
 - Show schedules with timezone conversion, predictions ("Call the finish"),
   DCI news, and a curated off-season camps/auditions calendar
 
-**Not currently covered:** other circuits (DCA as a separate circuit, BOA,
-WGI). Possible future directions live in
-[Suggestions](https://lukebesel.github.io/DCI-Tracker/#/suggestions) — nothing
-outside DCI is committed.
+### WGI
+
+A second circuit, at [#/wgi](https://lukebesel.github.io/DCI-Tracker/#/wgi).
+WGI competes January–May, so it fills the half of the year DCI doesn't.
+
+- **2024 onward** — every show, all three divisions (Color Guard, Percussion,
+  Winds) and their classes, from WGI's own public API
+- **1980–2019** — World Championship finals, Color Guard only, from WGI's
+  historical pages. Years this far back are labelled as championship recaps
+  in the app rather than passed off as full seasons.
+- **Gaps, which are WGI's rather than ours:** 2014 is not online; 2020 was
+  cancelled and 2021 ran virtually; 2022–2023 are published in a format that
+  exposes no score tables. Percussion and Winds have no pre-2024 archive, and
+  Winds did not exist before 2015.
+
+WGI data is built into its own `docs/data/wgi/` namespace by a separate
+builder, so it cannot disturb the DCI build.
+
+**Not currently covered:** DCA as a separate circuit, BOA. Possible future
+directions live in
+[Suggestions](https://lukebesel.github.io/DCI-Tracker/#/suggestions).
 
 ## Architecture
 

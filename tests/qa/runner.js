@@ -25,7 +25,9 @@ const PHONE = { width: 390, height: 844 };
 const DESKTOP = { width: 1280, height: 900 };
 const ROUTES = ["#/", "#/?y=2019", "#/events", "#/corps", "#/corps/bluecoats", "#/stats", "#/captions",
   "#/compare", "#/champions", "#/records", "#/database", "#/predictions", "#/settings",
-  "#/suggestions", "#/about", "#/ask"];
+  "#/suggestions", "#/about", "#/ask", "#/wgi", "#/wgi?y=2019",
+  "#/wgi/events", "#/wgi/units", "#/wgi/stats", "#/judges", "#/breakdown",
+  "#/wgi/captions", "#/wgi/breakdown", "#/wgi/judges"];
 
 const findings = [];
 let currentSection = "";
@@ -91,7 +93,10 @@ section("routes render clean (phone + desktop)", async (browser, base) => {
 section("legacy routes keep redirecting", async (browser, base) => {
   const { ctx, page } = await ctxPage(browser, base);
   const cases = [
-    ["#/data", /#\/captions/], ["#/stats", /#\/captions/],
+    // Captions moved out of the Stats hub to a tab of its own, so the hub now
+    // lands on its own first view. #/captions remains a working top-level URL.
+    ["#/data", /#\/compare/], ["#/stats", /#\/compare/],
+    ["#/captions", /#\/captions/],
     ["#/seasons", /#\/(seasons|champions)/], ["#/today", /#\/(today|$)/],
     ["#/season/2025", /#\/events\?y=2025/], ["#/season/dci/2019", /#\/events\?y=2019/],
   ];
@@ -641,6 +646,373 @@ section("2027 rollover: a new season appears with zero code changes", async (bro
   await page.goHash("#/events");
   await page.waitForTimeout(600);
   if (!/First Show 2027/.test(await page.textContent("#app"))) bad("2027 events not listed");
+  if (page._errs.length) bad(page._errs[0]);
+  await ctx.close();
+});
+
+// The "show all / show N more" control used to be position:sticky;bottom, which
+// pins it to the VIEWPORT — so on any table taller than the screen it floated
+// on top of the rows and hid real data. The a11y section passed throughout
+// (the control was named, sized and contrasted fine), so nothing caught it.
+// This asserts the thing that actually matters: no control may cover a cell.
+section("no control covers table data", async (browser, base) => {
+  for (const viewport of [PHONE, DESKTOP]) {
+    const { ctx, page } = await ctxPage(browser, base, { viewport });
+    for (const hash of ["#/records", "#/database", "#/"]) {
+      await page.goHash(hash);
+      await page.waitForTimeout(1200);
+      const covered = await page.evaluate(() => {
+        const hits = [];
+        document.querySelectorAll(".expandwrap .tab, .expandwrap button").forEach(btn => {
+          const r = btn.getBoundingClientRect();
+          if (r.width < 4 || r.height < 4) return;
+          for (const dx of [0.2, 0.5, 0.8]) {
+            const x = r.left + r.width * dx, y = r.top + r.height / 2;
+            if (x < 0 || y < 0 || x > innerWidth || y > innerHeight) continue;
+            const stack = document.elementsFromPoint(x, y);
+            const i = stack.indexOf(btn);
+            if (i < 0) continue;
+            const cell = stack.slice(i + 1).find(e => e.tagName === "TD" || e.tagName === "TH");
+            if (cell && (cell.innerText || "").trim())
+              hits.push(`"${btn.innerText.trim().slice(0, 24)}" covers "${cell.innerText.trim().slice(0, 24)}"`);
+          }
+        });
+        return [...new Set(hits)];
+      });
+      if (covered.length)
+        bad(`${hash} @${viewport.width}px: ${covered.join("; ")}`);
+    }
+    if (page._errs.length) bad(page._errs[0]);
+    await ctx.close();
+  }
+});
+
+// The Database exists to answer "what did this corps score". On a phone the
+// dense table's white-space:nowrap once let a long event name push CORPS and
+// SCORE into the off-screen scroll, so the view showed ten identical event
+// names and none of the answer. Assert the answer columns stay on screen.
+section("database keeps corps and score on screen (phone)", async (browser, base) => {
+  const { ctx, page } = await ctxPage(browser, base, { viewport: PHONE });
+  await page.goHash("#/database");
+  await page.waitForSelector("#dbtable tbody tr", { timeout: 15000 }).catch(() => {});
+  await page.waitForTimeout(800);
+  const m = await page.evaluate(() => {
+    const sc = document.querySelector("#dbtable .tscroll");
+    const row = document.querySelector("#dbtable tbody tr");
+    if (!sc || !row) return null;
+    const shown = [...row.children].filter(td => getComputedStyle(td).display !== "none");
+    return {
+      overflow: sc.scrollWidth - sc.clientWidth,
+      last: shown.length ? shown[shown.length - 1].innerText.replace(/\s+/g, " ").trim() : "",
+      cols: shown.length,
+    };
+  });
+  if (!m) { bad("database table did not render"); await ctx.close(); return; }
+  if (m.overflow > 2) bad(`table overflows its scroller by ${m.overflow}px — a column is cut off`);
+  if (!/^\d+\.\d/.test(m.last)) bad(`last visible column is "${m.last}", expected the score`);
+  if (m.cols < 4) bad(`only ${m.cols} columns visible on a phone`);
+  if (page._errs.length) bad(page._errs[0]);
+  await ctx.close();
+});
+
+// WGI is a second circuit with its own data namespace, divisions and classes.
+// The things that must hold: it reaches a real standings table, the circuit
+// strip gets you back to DCI, a division/class switch actually changes the
+// rows, and a pre-2024 year admits it is championships-only rather than
+// implying a whole season is listed.
+section("wgi: circuit, division and class all switch", async (browser, base) => {
+  const { ctx, page } = await ctxPage(browser, base, { viewport: PHONE });
+  await page.goHash("#/wgi");
+  await page.waitForTimeout(1500);
+
+  // the wordmark is the circuit picker: it must open, list every mode, and
+  // name the current one ("Cadence WGI Percussion")
+  await page.click("#brandBtn");
+  await page.waitForTimeout(400);
+  const modes = await page.$$eval(".modeitem", as => as.map(a => a.dataset.mode));
+  for (const want of ["dci", "wgi", "wgi:Color Guard", "wgi:Percussion", "wgi:Winds"])
+    if (!modes.includes(want)) bad(`circuit menu is missing "${want}": ${JSON.stringify(modes)}`);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+  if (!(await page.evaluate(() => document.getElementById("modeMenu").hidden)))
+    bad("circuit menu did not close on Escape");
+
+  const rows = await page.$$eval("#wgiBody tbody tr", trs => trs.length);
+  if (!rows) { bad("no WGI standings rows rendered"); await ctx.close(); return; }
+
+  const firstUnit = () => page.$eval("#wgiBody tbody tr td:nth-child(2)", td => td.innerText.trim());
+  const before = await firstUnit();
+
+  // switching class must change what is listed
+  const chips = await page.$$eval(".chiprow a", as => as.map(a => a.getAttribute("href")));
+  if (chips.length > 1) {
+    const other = chips.find(h => !/\bon\b/.test(h)) || chips[1];
+    await page.goHash(other.replace(/^#/, ""));
+    await page.waitForTimeout(1200);
+    const after = await firstUnit().catch(() => "");
+    if (after && after === before)
+      bad(`class switch did not change the standings (still "${before}")`);
+  }
+
+  // a finals-only (pre-2024) year must say so
+  await page.goHash("#/wgi?y=2019");
+  await page.waitForTimeout(1200);
+  const body = await page.textContent("#app");
+  if (!/World Championship/i.test(body))
+    bad("a pre-2024 WGI year does not disclose that it is championships-only");
+
+  // picking an activity names it in the wordmark and switches the data
+  await page.goHash("#/wgi?d=Percussion");
+  await page.waitForTimeout(1400);
+  const brand = (await page.textContent(".brand")).replace(/\s+/g, " ").trim();
+  if (!/WGI Percussion/.test(brand))
+    bad(`wordmark does not name the active circuit: "${brand}"`);
+  if (!/Percussion/.test(await page.textContent("h1.page")))
+    bad("heading does not name the active activity");
+
+  // A mode you can leave by tapping the next tab isn't a mode: every nav tab
+  // must stay inside WGI, and none of them may land on "Page not found".
+  for (const tab of ["Shows", "Units", "Stats", "Scoreboard"]) {
+    const el = await page.$(`#nav a:has-text("${tab}")`);
+    if (!el) { bad(`nav tab "${tab}" missing in WGI mode`); continue; }
+    await el.click();
+    await page.waitForTimeout(2200);
+    const state = await page.evaluate(() => ({
+      hash: location.hash,
+      brand: document.querySelector(".brand").innerText.replace(/\s+/g, " ").trim(),
+      notFound: /page not found/i.test(document.body.innerText),
+    }));
+    if (!state.hash.startsWith("#/wgi")) bad(`"${tab}" left WGI mode -> ${state.hash}`);
+    if (state.notFound) bad(`"${tab}" in WGI mode is a dead route (${state.hash})`);
+    if (!/WGI/.test(state.brand)) bad(`"${tab}" dropped the circuit from the wordmark`);
+  }
+
+  // and the menu gets back to DCI, where the wordmark and tabs revert
+  await page.goHash("#/");
+  await page.waitForTimeout(1200);
+  if (!/Scoreboard/.test(await page.textContent("h1.page")))
+    bad("did not return to the DCI scoreboard");
+  const home = (await page.textContent(".brand")).replace(/\s+/g, " ").trim();
+  if (/WGI/.test(home)) bad(`wordmark still says WGI on the DCI board: "${home}"`);
+  const dciHrefs = await page.$$eval("#nav a", as => as.map(a => a.getAttribute("href")));
+  if (dciHrefs.some(h => h.startsWith("#/wgi")))
+    bad(`DCI nav still points into WGI: ${JSON.stringify(dciHrefs)}`);
+
+  if (page._errs.length) bad(page._errs[0]);
+  await ctx.close();
+});
+
+// Judge analytics publish numbers people will quote, so the view has to be
+// honest about what is behind them: no agreement figure may appear without
+// enough rooms under it, filters must actually filter, and the page must say
+// what the numbers mean rather than leaving them to be guessed at.
+section("judges: sampled honestly and explained", async (browser, base) => {
+  const { ctx, page } = await ctxPage(browser, base, { viewport: PHONE });
+  await page.goHash("#/judges");
+  await page.waitForTimeout(1800);
+
+  const rows = await page.$$eval("tbody tr", trs => trs.length);
+  if (!rows) { bad("judges view rendered no rows"); await ctx.close(); return; }
+
+  // the floor the build applied, read from the data rather than hard-coded
+  const floor = await page.evaluate(async () => {
+    const idx = await fetch("data/judges/index.json").then(r => r.json());
+    const y = (idx.years || []).find(v => v.judges > 0);
+    const doc = await fetch(`data/judges/${y.year}.json`).then(r => r.json());
+    return {
+      min: doc.floors.agreement_rooms,
+      offenders: doc.judges.filter(j => j.agreement != null
+                                   && j.agreement_rooms < doc.floors.agreement_rooms).length,
+      shown: doc.judges.filter(j => j.agreement != null).length,
+      total: doc.judges.length,
+    };
+  });
+  if (floor.offenders)
+    bad(`${floor.offenders} seats publish an agreement figure below the ${floor.min}-room floor`);
+  if (!floor.shown) bad("no seat qualifies for an agreement figure at all");
+  if (floor.shown === floor.total)
+    bad("every seat shows agreement — the sample floor is not being applied");
+
+  // the page must explain the numbers, not just print them
+  const body = await page.textContent("#app");
+  for (const term of ["Agreement", "Spread", "vs caption"])
+    if (!body.includes(term)) bad(`the judges view never explains "${term}"`);
+
+  // a caption filter narrows the table
+  const chips = await page.$$eval(".chiprow a", as => as.map(a => a.getAttribute("href")));
+  const capChip = chips.find(h => /[?&]c=[^&]+/.test(h) && !/c=&/.test(h));
+  if (capChip) {
+    await page.goHash(capChip);          // goHash wants the leading '#'
+    await page.waitForTimeout(1200);
+    const narrowed = await page.$$eval("tbody tr", trs => trs.length);
+    if (narrowed >= rows) bad(`caption filter did not narrow the table (${rows} -> ${narrowed})`);
+    const caps = await page.$$eval("tbody tr", trs =>
+      [...new Set(trs.map(t => t.innerText.replace(/\s+/g, " ")))].length);
+    if (!caps) bad("caption filter emptied the table");
+  }
+
+  if (page._errs.length) bad(page._errs[0]);
+  await ctx.close();
+});
+
+// Captions is the thing most people open the app for, so it is a tab rather
+// than a sub-tab of a seven-item Stats pile. The grouping has to hold: the
+// caption-derived views sit together under Captions, the reference tools under
+// Stats, and no tab may lead somewhere that doesn't exist in the current mode.
+section("captions is a tab of its own", async (browser, base) => {
+  const { ctx, page } = await ctxPage(browser, base, { viewport: PHONE });
+  const visible = () => page.evaluate(() => [...document.querySelectorAll("#nav a")]
+    .filter(a => !a.hidden)
+    .map(a => ({ label: a.querySelector("span").textContent, href: a.getAttribute("href"),
+                 on: a.classList.contains("active") })));
+
+  await page.goHash("#/captions");
+  await page.waitForTimeout(1200);
+  const tabs = await visible();
+  if (!tabs.some(t => t.label === "Captions")) bad("no Captions tab on DCI");
+  if (!tabs.find(t => t.label === "Captions")?.on)
+    bad("the Captions tab is not active on a captions view");
+
+  // the three caption views sit under it, and keep it lit
+  for (const [hash, sub] of [["#/captions", "Sheets"], ["#/breakdown", "Breakdown"], ["#/judges", "Judges"]]) {
+    await page.goHash(hash);
+    await page.waitForTimeout(1300);
+    const subs = await page.$$eval(".subtabs a", as => as.map(a => a.innerText.trim()));
+    for (const want of ["Sheets", "Breakdown", "Judges"])
+      if (!subs.includes(want)) bad(`${hash}: caption sub-tabs missing "${want}"`);
+    if (subs.includes("Database")) bad(`${hash}: still showing the Stats sub-tabs`);
+    const nav = await visible();
+    if (!nav.find(t => t.label === "Captions")?.on) bad(`${hash} does not light the Captions tab`);
+  }
+
+  // Stats keeps the reference tools and nothing caption-derived
+  await page.goHash("#/compare");
+  await page.waitForTimeout(1300);
+  const statSubs = await page.$$eval(".subtabs a", as => as.map(a => a.innerText.trim()));
+  for (const want of ["Compare", "Champions", "Records", "Database"])
+    if (!statSubs.includes(want)) bad(`Stats sub-tabs missing "${want}"`);
+  for (const gone of ["Sheets", "Breakdown", "Judges"])
+    if (statSubs.includes(gone)) bad(`"${gone}" is still under Stats`);
+
+  // WGI's Captions tab is served by the verified recaps: it must be there,
+  // and like every WGI tab it must stay inside the circuit
+  await page.goHash("#/wgi?d=Percussion");
+  await page.waitForTimeout(1500);
+  const wgiTabs = await visible();
+  if (!wgiTabs.some(t => t.label === "Captions")) bad("WGI has caption data but no Captions tab");
+  for (const t of wgiTabs)
+    if (!/^#\/wgi/.test(t.href)) bad(`WGI nav tab "${t.label}" points outside the circuit (${t.href})`);
+
+  if (page._errs.length) bad(page._errs[0]);
+  await ctx.close();
+});
+
+// WGI caption sheets are rebuilt from recaps that had to reconcile three ways
+// in the scraper. QA re-checks the published result independently: every row
+// still adds up, every division is reachable through all three views, and
+// the judges page states its OWN division's sample, not the circuit's.
+section("wgi captions: every division, reconciled and honest", async (browser, base) => {
+  const { ctx, page } = await ctxPage(browser, base, { viewport: PHONE });
+  await page.goHash("#/wgi/captions");     // relative data URLs need a real page first
+  const facts = await page.evaluate(async () => {
+    const idx = await fetch("data/wgi/captions/index.json").then(r => r.json()).catch(() => null);
+    if (!idx || !idx.seasons || !idx.seasons.length) return null;
+    const y = idx.seasons[0].year;
+    const doc = await fetch(`data/wgi/captions/${y}.json`).then(r => r.json());
+    let rows = 0, broken = [];
+    for (const sh of doc.sheets) for (const r of sh.rows) {
+      rows++;
+      const sum = r[1].reduce((n, v) => n + (typeof v === "number" ? v : 0), 0);
+      if (Math.abs(sum - (r[3] || 0) - r[2]) > 0.011) broken.push(`${sh.e} / ${r[0]}: ${sum.toFixed(3)} - ${r[3]} != ${r[2]}`);
+    }
+    const jd = await fetch(`data/wgi/judges/${y}.json`).then(r => r.json()).catch(() => null);
+    return { y, rows, broken: broken.slice(0, 3), nBroken: broken.length,
+             divisions: idx.seasons[0].divisions, roomsBy: jd && jd.rooms_by, rooms: jd && jd.rooms };
+  });
+  if (!facts) { bad("no WGI caption data published"); await ctx.close(); return; }
+  if (facts.nBroken) bad(`${facts.nBroken}/${facts.rows} published WGI rows don't add up, e.g. ${facts.broken[0]}`);
+
+  for (const d of facts.divisions) {
+    const q = `?d=${encodeURIComponent(d)}`;
+    for (const [route, must] of [["wgi/captions", /Caption wins/], ["wgi/breakdown", /Where they stand/], ["wgi/judges", /How to read this/]]) {
+      await page.goHash(`#/${route}${q}`);
+      await page.waitForTimeout(1500);
+      const st = await page.evaluate(() => ({
+        text: document.getElementById("app").innerText,
+        brand: document.querySelector(".brand").innerText.replace(/\s+/g, " "),
+        capOn: [...document.querySelectorAll("#nav a")].find(a => a.dataset.route === "captions")?.classList.contains("active"),
+        subs: [...document.querySelectorAll(".subtabs a")].map(a => a.getAttribute("href")),
+      }));
+      if (!must.test(st.text)) bad(`${route} (${d}) did not render its content`);
+      if (!st.capOn) bad(`${route} (${d}) does not light the Captions tab`);
+      if (!st.brand.includes(d)) bad(`${route} (${d}) dropped the division from the wordmark`);
+      if (st.subs.some(h => !h.includes(`d=${encodeURIComponent(d)}`)))
+        bad(`${route} (${d}): a caption sub-tab drops the division`);
+    }
+    // the judges page must state this division's rooms, not the circuit total
+    if (facts.roomsBy && facts.roomsBy[d] != null) {
+      await page.goHash(`#/wgi/judges${q}`);
+      await page.waitForTimeout(1300);
+      const t = await page.evaluate(() => document.getElementById("app").innerText);
+      const m = t.match(/Built from ([\d,]+) judged rooms/);
+      const n = m && +m[1].replace(/,/g, "");
+      if (n !== facts.roomsBy[d]) bad(`${d} judges page claims ${n} rooms; its own sample is ${facts.roomsBy[d]}`);
+      if (!/mirror-image/.test(t)) bad(`${d} judges page omits the co-judge mirror-image caveat`);
+    }
+  }
+  if (page._errs.length) bad(page._errs[0]);
+  await ctx.close();
+});
+
+// The breakdown is a diagnostic: someone reads it to decide what to fix. So
+// it must not quietly omit a caption the sheet lacks (roughly 2-5% of rows,
+// including the 2026 Finals sheet), and the head-to-head must actually
+// account for the margin it claims.
+section("breakdown: complete captions and an honest margin", async (browser, base) => {
+  const { ctx, page } = await ctxPage(browser, base, { viewport: PHONE });
+  await page.goHash("#/breakdown");
+  await page.waitForTimeout(2000);
+  if (!/Where they stand/.test(await page.textContent("#app")))
+    { bad("breakdown did not render"); await ctx.close(); return; }
+
+  // every caption the app knows about appears, present or explicitly absent
+  const labels = await page.$$eval("tbody tr td:first-child",
+    tds => tds.map(t => t.innerText.trim()));
+  for (const want of ["GE 1", "GE 2", "General Effect", "Brass", "Music"])
+    if (!labels.includes(want)) bad(`standing table is missing the "${want}" line`);
+
+  // a sheet missing a caption must say so rather than drop the row
+  const missing = await page.evaluate(() => {
+    const rows = [...document.querySelectorAll("tbody tr")];
+    return rows.filter(r => /not on this sheet/i.test(r.innerText)).length;
+  });
+  const note = await page.$eval("#app", el => el.innerText);
+  if (missing && !/didn't carry/.test(note))
+    bad("a caption is blank but nothing explains why");
+
+  // head-to-head: the caption margins must sum to the stated total margin
+  await page.goHash("#/breakdown?y=2026&cl=World%20Class&c=Blue%20Devils&v=Bluecoats");
+  await page.waitForTimeout(2000);
+  const h2h = await page.evaluate(() => {
+    const card = [...document.querySelectorAll(".card")].find(c => /^Against /.test(c.querySelector("h2")?.innerText || ""));
+    if (!card) return null;
+    const stated = (card.querySelector(".evdone")?.innerText.match(/([+-]\d+\.\d+)/) || [])[1];
+    const rows = [...card.querySelectorAll("tbody tr")].map(r => {
+      const td = [...r.children];
+      return { label: td[0].innerText.trim(), delta: parseFloat(td[td.length - 1].innerText) };
+    });
+    return { stated: stated == null ? null : parseFloat(stated), rows };
+  });
+  if (!h2h) { bad("head-to-head card did not render for a known pairing"); await ctx.close(); return; }
+  if (h2h.stated == null) bad("head-to-head states no total margin");
+  const groups = h2h.rows.filter(r => ["General Effect", "Visual", "Music"].includes(r.label));
+  if (groups.length === 3 && h2h.stated != null) {
+    const sum = +groups.reduce((n, r) => n + r.delta, 0).toFixed(3);
+    // group totals are what the published total is built from; a penalty can
+    // shift it, so allow a small slack rather than demanding exactness
+    if (Math.abs(sum - h2h.stated) > 0.2)
+      bad(`head-to-head margins don't account for the total: groups ${sum} vs stated ${h2h.stated}`);
+  }
   if (page._errs.length) bad(page._errs[0]);
   await ctx.close();
 });

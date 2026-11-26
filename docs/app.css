@@ -113,9 +113,60 @@ a:hover { text-decoration: underline; }
   padding: 10px 18px; background: var(--navy);
   flex-wrap: wrap;
 }
-.brand { display: flex; align-items: center; gap: 9px; color: #fff; font-size: 18.5px; font-weight: 700; }
+.brandwrap { position: relative; display: inline-block; }
+.brand {
+  display: flex; align-items: center; gap: 9px; color: #fff;
+  font-size: 18.5px; font-weight: 700; font-family: inherit; letter-spacing: inherit;
+  background: none; border: 0; padding: 2px 4px 2px 0; margin: 0; cursor: pointer;
+  border-radius: 10px; min-height: 34px;
+}
 .brand b { color: var(--gold); }
-.brand:hover { text-decoration: none; }
+.brand:hover { text-decoration: none; background: rgba(255,255,255,0.08); }
+/* the active circuit/activity, read as part of the wordmark */
+.brandmode { color: var(--gold); font-weight: 700; margin-left: -4px; }
+.brandmode:empty { display: none; }
+.brandchev { flex: none; color: rgba(255,255,255,0.65); transition: transform 0.15s; margin-left: -3px; }
+.brandwrap.open .brandchev { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) { .brandchev { transition: none; } }
+
+.modemenu {
+  position: absolute; top: calc(100% + 8px); left: 0; z-index: 120;
+  width: max-content; min-width: min(calc(86vw / var(--fs, 1)), 320px);
+  max-width: min(calc(92vw / var(--fs, 1)), 380px);
+  max-height: min(70dvh, calc(70dvh / var(--fs, 1))); overflow-y: auto;
+  padding: 8px; background: var(--surface-1);
+  border: 1px solid var(--baseline); border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(11, 11, 11, 0.28);
+}
+.modemenu[hidden] { display: none; }
+.modegroup {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+  color: var(--muted); padding: 10px 10px 5px;
+}
+.modegroup:first-child { padding-top: 4px; }
+.modeitem {
+  display: flex; align-items: center; gap: 11px; width: 100%; text-align: left;
+  padding: 9px 10px; border-radius: 10px; color: var(--text-primary);
+  font: inherit; font-size: 15px; font-weight: 650; background: none; border: 0; cursor: pointer;
+}
+.modeitem:hover { background: var(--surface-2); text-decoration: none; }
+.modeitem.on { background: var(--accent-wash); box-shadow: inset 0 0 0 1px var(--gold); }
+.modeitem .mi-mark {
+  flex: none; width: 34px; height: 34px; border-radius: 9px;
+  display: grid; place-items: center; font-size: 10px; font-weight: 800;
+  letter-spacing: .3px; color: #fff; background: var(--navy);
+}
+.modeitem .mi-mark.wgi { background: #6d4aff; }
+.modeitem .mi-txt { min-width: 0; }
+.modeitem .mi-txt small {
+  display: block; font-size: 12px; font-weight: 500; color: var(--text-secondary);
+  white-space: normal; margin-top: 1px;
+}
+.modeitem .mi-tick { margin-left: auto; color: var(--accent); font-weight: 800; }
+/* the three WGI activities hang off the WGI row */
+.modesub { padding-left: 16px; margin-left: 24px; border-left: 2px solid var(--grid); }
+.modesub .modeitem { font-size: 14.5px; }
+.modesub .mi-mark { width: 28px; height: 28px; border-radius: 8px; background: var(--surface-2); color: var(--gold); }
 #nav { display: flex; gap: 4px; flex-wrap: wrap; }
 #nav a { color: rgba(255,255,255,0.82); padding: 8px 15px; border-radius: 10px; font-size: 15.5px; font-weight: 550; display: flex; align-items: center; gap: 6px; }
 #nav a svg { display: none; }
@@ -411,8 +462,26 @@ table.t { width: 100%; border-collapse: collapse; font-size: 14.5px; }
 .t tr:last-child td { border-bottom: 0; }
 .t tr.rowlink { cursor: pointer; }
 .t tr.hid { display: none; }
-.expandwrap { text-align: center; padding: 10px 0 2px; position: sticky; bottom: 10px; z-index: 5; }
-.expandwrap .tab { box-shadow: 0 4px 16px rgba(22,35,61,0.22); }
+/* Sits at the end of its table, never over it. This used to be
+   position:sticky;bottom:10px so the control stayed reachable inside a long
+   table — but sticky pins it to the VIEWPORT, so on any table taller than the
+   screen the pill floated on top of the rows and hid real data (Records'
+   Championship Titles, the Database rows, the Scoreboard's #1 score). A
+   control that covers the thing it describes is worse than one you scroll to. */
+/* A one-line, horizontally scrolling chip row. .yearrow wraps, which is right
+   for four-character years but turns six WGI class names ("Independent World",
+   "Scholastic Open", ...) into a three-line block that collides with the card
+   heading above it. These scroll instead, like the sub-tab strips. */
+.chiprow {
+  display: flex; gap: 6px; overflow-x: auto; white-space: nowrap;
+  padding: 2px 0 8px; margin-bottom: 2px;
+  scrollbar-width: none; -ms-overflow-style: none;
+}
+.chiprow::-webkit-scrollbar { display: none; }
+.chiprow .yearopt { flex: none; }
+
+.expandwrap { text-align: center; padding: 10px 0 2px; }
+.expandwrap .tab { box-shadow: 0 1px 4px rgba(22,35,61,0.12); }
 .t tr.rowlink:hover td { background: var(--surface-2); }
 .t .num { text-align: right; font-variant-numeric: tabular-nums; }
 .t .rank { color: var(--muted); width: 34px; font-variant-numeric: tabular-nums; }
@@ -836,18 +905,37 @@ a.tile:hover { text-decoration: none; }
     box-shadow: 0 -4px 16px rgba(22,35,61,0.25);
     padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
   }
+  /* five tabs share 390px, so the label gives up a point rather than wrapping
+     or clipping ("Scoreboard" is the long one) */
   #nav a {
     flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
-    padding: 7px 2px; font-size: 12px; font-weight: 650; color: rgba(255,255,255,0.75);
+    padding: 7px 1px; font-size: 11px; font-weight: 650; color: rgba(255,255,255,0.75);
     border-radius: 12px; min-width: 0; white-space: nowrap;
   }
-  #nav a svg { display: block; width: 26px; height: 26px; }
+  #nav a[hidden] { display: none; }
+  #nav a svg { display: block; width: 24px; height: 24px; }
   #nav a:hover { background: none; color: rgba(255,255,255,0.9); }
   #nav a.active { color: var(--on-accent, var(--navy)); background: var(--gold); }
   main { padding: 14px 12px 110px; }
   .foot { padding-bottom: calc(104px + env(safe-area-inset-bottom)); }
-  .expandwrap { bottom: calc(92px + env(safe-area-inset-bottom)); }
   h1.page { font-size: 21px; }
+  /* Database: .tscroll.dense sets white-space:nowrap on every cell, so a long
+     event name ("DCI All-Age World Championship Finals") forced the table wider
+     than the screen and pushed CORPS and SCORE — the two columns anyone opens
+     this view for — into the off-screen scroll. Let the event name be the thing
+     that gives way instead; it's the least informative column when ten rows
+     share the same show. */
+  /* "Cadence WGI Percussion" is too wide for a 390px header — while a circuit
+     is named, the wordmark yields to it and the logo carries the identity */
+  .brandwrap[data-mode]:not([data-mode="dci"]) .brandname { display: none; }
+  .brandwrap[data-mode]:not([data-mode="dci"]) .brandmode { margin-left: 0; white-space: nowrap; }
+  .tscroll.dense .ev-cell { overflow: hidden; text-overflow: ellipsis; max-width: calc(18vw / var(--fs, 1)); }
+  .tscroll.dense .t td, .tscroll.dense .t th { padding: 6px 3px; }
+  /* fixed layout: the visible columns split the width by the shares set in
+     DB_SETS.fitWidths, and anything longer ellipsizes instead of spilling */
+  .tscroll.dense table.dbfit { table-layout: fixed; width: 100%; }
+  .tscroll.dense table.dbfit th { width: var(--w, auto); }
+  .tscroll.dense table.dbfit td, .tscroll.dense table.dbfit th { overflow: hidden; text-overflow: ellipsis; max-width: none; }
   .evwhen { font-size: 11px; }
   .evmain b { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   /* card titles stay on one line */
