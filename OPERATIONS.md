@@ -89,19 +89,31 @@ Actions and the repo must be public and not a template. Then Actions → run
 `pages.yml`. (All three failure modes have happened.)
 
 **Push alerts not arriving:**
-1. `curl https://cadenceapp.up.railway.app/healthz` — expect `ok: true`.
-2. `/status` shows `subscribers`, `lastCheck`, `lastPushError`.
-3. Railway dashboard → is the service deployed and the volume attached? VAPID
-   keys must not rotate (pin them with `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`
-   env vars) or every subscriber silently detaches (the app self-heals by
-   resubscribing on next open, but alerts in between are lost).
-4. The relay only alerts for shows it hasn't alerted before (`notified`
-   ledger) — a re-run of the same show never re-pings by design.
+1. `curl https://qwjmrdkcoaiesaweaggp.supabase.co/functions/v1/relay/status`
+   expect `ok: true` and a `lastCheck` under a minute old. It also shows
+   `subscribers`, `hot` (show-day fast mode), `lastFast` and `lastPushError`.
+2. Stale `lastCheck`: Supabase dashboard (project **Cadence**) → Integrations →
+   Cron. Jobs `cadence-relay-check` (every minute) and `cadence-relay-fast`
+   (every 5 s, only while `relay_kv.mode.hot`) must be active.
+3. The relay pushes from two paths:
+   - **fast path**: on show days it reads CompetitionSuite (DCI) and WGI's
+     scores API directly and pushes the moment a class posts, before the site
+     rebuilds.
+   - **site path** (safety net): reads the published `rankings.json` files.
+   A show alerts once: `relay_notified` is the ledger, and the site path stays
+   quiet for anything the fast path already sent (`relay_kv.fast_recent`).
+4. VAPID keys live in `relay_kv` (key `vapid`) and must never change, or every
+   subscriber silently detaches. The app re-subscribes on next open, but
+   alerts in between are lost.
+5. WGI season ids are hard-coded in both `scraper/scrape_wgi.py` and
+   `supabase/functions/relay/index.ts` (`WGI_SEASONS`). Add the new season to
+   both each winter.
 
-**The relay is a separate deploy.** Editing `push-server/` in this repo does
-nothing until the owner redeploys it on Railway (root directory
-`push-server`). `index.js` prints its `VERSION` at `/status` — compare with
-the repo to see what's actually running.
+**The relay is a Supabase Edge Function.** Source:
+`supabase/functions/relay/index.ts`; schema and schedules:
+`supabase/migrations/`. Editing them in this repo does nothing until they are
+deployed to the Cadence Supabase project. The old Railway relay
+(`push-server/`) is retired.
 
 ## 5. Custom-domain migration checklist (when the owner buys one)
 
@@ -118,9 +130,9 @@ Pick a neutral name — **do not** put "DCI" in the domain. Then:
    `docs/index.html` — canonical link, `og:url`, `og:image`,
    `twitter:image`; check `docs/manifest.webmanifest` (`start_url`/`scope`
    are relative — they survive the move untouched).
-5. **Relay**: set `SITE_URL` env on Railway to the new origin (drives
-   redirect, notification deep links, and score polling) and update
-   `ALLOWED_ORIGINS` to include it.
+5. **Relay**: set the `SITE_URL` and `ALLOWED_ORIGINS` secrets on the
+   Supabase `relay` Edge Function to the new origin (they drive notification
+   deep links, site polling and CORS).
 6. **Service worker**: scope is relative — no change; bump the cache version
    with the metadata change so installed clients refresh.
 7. Validate: share-card link text, a push notification's deep link, social

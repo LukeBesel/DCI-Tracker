@@ -13,13 +13,13 @@
     BASE_LABEL: "lukebesel.github.io/DCI-Tracker",
     // Push/ask relay origin (no trailing slash). Empty string disables every
     // relay-backed feature (score alerts UI degrades with a clear message).
-    RELAY_URL: "https://cadenceapp.up.railway.app",
+    RELAY_URL: "https://qwjmrdkcoaiesaweaggp.supabase.co/functions/v1/relay",
     // The scores assistant. Mirrors the relay's own server-side gate — turning
     // this on without the relay's ASK_ENABLED + API key still yields a polite
     // "unavailable" from the server. Keep false until the owner enables both.
     ASK_ENABLED: false,
     // Release identifier shown on the About page; keep in step with the
     // service worker's cache version when shell files change.
-    RELEASE: "v55",
+    RELEASE: "v56",
   };
 })();

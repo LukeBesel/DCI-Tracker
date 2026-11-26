@@ -20,7 +20,7 @@ jobs:
     timeout-minutes: 10
     env:
       SITE: https://lukebesel.github.io/DCI-Tracker
-      RELAY: https://cadenceapp.up.railway.app
+      RELAY: https://qwjmrdkcoaiesaweaggp.supabase.co/functions/v1/relay
     steps:
       - name: Probe site, data freshness, and relay
         run: |
@@ -71,18 +71,25 @@ jobs:
           # 3. push relay (any HTTP response = process is up; /healthz may be
           #    404 on a relay build older than v16 — fall back to /status)
           relay_up = False
-          for path in ("/healthz", "/status"):
-              try:
-                  h = json.loads(get(RELAY + path, timeout=15))
-                  if h.get("ok"): relay_up = True
-                  break
-              except urllib.error.HTTPError:
-                  continue
-              except Exception:
-                  continue
+          try:
+              st = json.loads(get(RELAY + "/status", timeout=15))
+              relay_up = bool(st.get("ok"))
+              # the relay is driven by pg_cron once a minute: a stale lastCheck
+              # means the schedule (not the function) has stopped
+              lc = st.get("lastCheck")
+              if relay_up and lc:
+                  age = (datetime.datetime.now(datetime.timezone.utc)
+                         - datetime.datetime.fromisoformat(lc.replace("Z", "+00:00"))).total_seconds()
+                  if age > 600:
+                      probs.append(f"relay: last score check was {age/60:.0f} min ago — the Supabase pg_cron "
+                                   f"job 'cadence-relay-check' has stopped (see OPERATIONS.md §4).")
+              if st.get("lastPushError"):
+                  print("relay last push error:", st["lastPushError"])
+          except Exception:
+              pass
           if not relay_up:
-              probs.append(f"relay: {RELAY} is not answering /healthz or /status — score alerts are not being sent. "
-                           f"Check the Railway service (see OPERATIONS.md §4).")
+              probs.append(f"relay: {RELAY} is not answering /status — score alerts are not being sent. "
+                           f"Check the Supabase 'relay' Edge Function (see OPERATIONS.md §4).")
 
           with open("problems.txt", "w") as f:
               f.write("\n".join(probs))
