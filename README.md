@@ -57,8 +57,9 @@ docs/onthisday.json     static "This Day in DCI History" index (lives outside
                         docs/data on purpose so rebuilds don't delete it;
                         regenerate with scripts/build_onthisday.py)
 docs/lib/               small framework-free modules (config, testable seams)
-push-server/            optional Node web-push relay (deployed separately,
-                        e.g. Railway) — score alerts + the disabled assistant
+supabase/               backend (Supabase): schema migrations and the score-alert
+                        relay Edge Function. push-server/ is the retired
+                        Railway relay, kept for the disabled assistant
 tests/                  Python scraper tests, JS unit tests, browser QA suite
 ```
 
