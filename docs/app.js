@@ -1193,6 +1193,93 @@
       + `<div class="yearpanel" role="listbox" aria-label="Season" hidden></div>`
       + `</span>`;
   }
+  /* ===== Filter bar + picker sheet =====
+     One way to change what a view shows, used identically by DCI and WGI:
+     a row of compact buttons ("2026 ▾", "Percussion ▾", "Independent World ▾"),
+     each opening a sheet that slides up from the bottom on a phone (a
+     centered panel on desktop) with search and grouped, readable rows —
+     instead of native dropdowns that render as an endless OS list and chip
+     rows that run off the edge of the screen. */
+  const JUDGE_SORTS = [["agreement", "Agreement", "Who ordered the field like the room did"],
+    ["rel", "Runs high", "Who scores above comparable judges"],
+    ["spread", "Spread", "Who separates the field the most"], ["shows", "Shows", "Most shows judged"]];
+  function filterBar(items) {
+    // items: [{ id, label, value, hidden? }]
+    return `<div class="fbar">${items.filter(i => !i.hidden).map(i =>
+      `<button type="button" class="fbtn" data-f="${esc(i.id)}" aria-haspopup="dialog">
+         <span class="fbtn-k">${esc(i.label)}</span><span class="fbtn-v">${esc(i.value)}</span>${CHEVRON_SVG}</button>`).join("")}</div>`;
+  }
+  // handlers: { id: () => pickSheet({...}) }
+  function wireFilterBar(root, handlers) {
+    (root || document).querySelectorAll(".fbtn[data-f]").forEach(b => {
+      const fn = handlers[b.dataset.f];
+      if (fn) b.addEventListener("click", () => fn(b));
+    });
+  }
+  function pickSheet({ title, options, value, search, onPick }) {
+    // options: [{ value, label, sub?, group? }]
+    document.querySelectorAll(".sheet-scrim").forEach(n => n.remove());
+    const scrim = document.createElement("div");
+    scrim.className = "sheet-scrim";
+    const many = search != null ? search : options.length > 12;
+    scrim.innerHTML = `
+      <div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}">
+        <div class="sheet-grab" aria-hidden="true"></div>
+        <div class="sheet-head"><b>${esc(title)}</b>
+          <button type="button" class="sheet-x" aria-label="Close">✕</button></div>
+        ${many ? `<input type="search" class="ctrl sheet-q" placeholder="Search…" autocomplete="off" spellcheck="false">` : ""}
+        <div class="sheet-list" role="listbox"></div>
+      </div>`;
+    document.body.appendChild(scrim);
+    document.body.classList.add("sheet-open");
+    const list = scrim.querySelector(".sheet-list");
+    const q = scrim.querySelector(".sheet-q");
+    const prevFocus = document.activeElement;
+    function paint() {
+      const needle = (q && q.value.trim().toLowerCase()) || "";
+      let html = "", lastGroup = null, n = 0;
+      options.forEach(o => {
+        const hay = `${o.label} ${o.sub || ""} ${o.group || ""}`.toLowerCase();
+        if (needle && !hay.includes(needle)) return;
+        if (o.group != null && o.group !== lastGroup) { html += `<div class="sheet-group">${esc(o.group)}</div>`; lastGroup = o.group; }
+        const on = String(o.value) === String(value);
+        html += `<button type="button" role="option" aria-selected="${on}" class="sheet-opt${on ? " on" : ""}" data-v="${esc(String(o.value))}">
+          <span class="sheet-opt-l">${esc(o.label)}${o.sub ? `<small>${esc(o.sub)}</small>` : ""}</span>
+          ${on ? '<span class="sheet-check" aria-hidden="true">✓</span>' : ""}</button>`;
+        n++;
+      });
+      list.innerHTML = html || `<div class="sheet-empty">Nothing matches “${esc(q ? q.value : "")}”.</div>`;
+    }
+    function close() {
+      scrim.classList.add("closing");
+      document.body.classList.remove("sheet-open");
+      document.removeEventListener("keydown", onKey);
+      setTimeout(() => scrim.remove(), 160);
+      if (prevFocus && prevFocus.focus) prevFocus.focus({ preventScroll: true });
+    }
+    function onKey(e) { if (e.key === "Escape") close(); }
+    paint();
+    requestAnimationFrame(() => {
+      scrim.classList.add("in");
+      const cur = list.querySelector(".sheet-opt.on");
+      if (cur) list.scrollTop = Math.max(0, cur.offsetTop - list.clientHeight / 3);
+      (q && matchMedia("(hover: hover)").matches ? q : (cur || list.querySelector(".sheet-opt") || scrim.querySelector(".sheet-x"))).focus({ preventScroll: true });
+    });
+    if (q) q.addEventListener("input", paint);
+    scrim.addEventListener("click", e => { if (e.target === scrim) close(); });
+    scrim.querySelector(".sheet-x").addEventListener("click", close);
+    list.addEventListener("click", e => {
+      const b = e.target.closest(".sheet-opt");
+      if (!b) return;
+      close();
+      if (b.dataset.v !== String(value)) onPick(b.dataset.v);
+    });
+    document.addEventListener("keydown", onKey);
+  }
+  // shows as sheet options, newest first, grouped by month
+  const showOptions = shows => shows.map(s => ({ value: s.k, label: s.e,
+    sub: fmtDate(s.d), group: s.d ? new Date(s.d + "T12:00:00").toLocaleDateString(undefined, { month: "long", year: "numeric" }) : "" }));
+
   function yearHeaderHtml(year) {
     return `<h1 class="page">${yearPickerHtml(year)} Scoreboard</h1>`;
   }
@@ -1387,7 +1474,7 @@
     app.innerHTML = h`
       ${header}
       ${isCurrent ? '<div id="followMount"></div>' : ""}
-      <div class="filters"><div id="clsSel"></div></div>
+      <div id="clsBar"></div>
       <div class="rk-grid">
         <div class="card rk-trend">
           <h2 id="trendTitle">Season Progression <span class="sub" id="trendSub">score by date · top 12</span></h2>
@@ -1409,29 +1496,22 @@
       renderOffseasonHome(document.getElementById("offSznMount"), rk);
     }
 
-    const previousSelection = new Set(selected);
-    multiSelect(document.getElementById("clsSel"), {
-      label: "Class",
-      options: classes.map(c => ({ value: c, label: c, hint: `${rk.standings[c].rows.length} corps`,
-        exclusive: !COMBINABLE_SCORE_CLASSES.has(c) })),
-      selected: selectedSet,
-      summary: () => selectedSet.has("World Class") && selectedSet.has("Open Class")
-        ? "World + Open Class" : null,
-      onChange: values => {
-        const added = values.find(c => !previousSelection.has(c));
-        if (added && !COMBINABLE_SCORE_CLASSES.has(added)) {
-          selectedSet.clear();
-          selectedSet.add(added);
-        } else if (added) {
-          [...selectedSet].filter(c => !COMBINABLE_SCORE_CLASSES.has(c)).forEach(c => selectedSet.delete(c));
-        }
-        if (!selectedSet.size) previousSelection.forEach(c => selectedSet.add(c));
-        const picked = sortClasses([...selectedSet]);
-        if (isCurrent) localStorage.setItem("dt-classes", JSON.stringify(picked));
-        else archiveClassPick.set(year, picked);   // this visit only
-        viewRankings(qs, stale);   // re-render, staying on the season being viewed
-      },
-    });
+    // one class at a time, plus World + Open together (the combinable pair),
+    // picked from the same sheet WGI's class picker uses
+    const combo = classes.filter(c => COMBINABLE_SCORE_CLASSES.has(c));
+    const clsOptions = classes.map(c => ({ value: c, label: c, sub: `${rk.standings[c].rows.length} corps` }));
+    if (combo.length > 1) clsOptions.splice(combo.length, 0,
+      { value: combo.join("|"), label: combo.join(" + ").replace(/ Class \+ /, " + "), sub: "Ranked together" });
+    const curVal = sortClasses([...selectedSet]).join("|");
+    const curLabel = (clsOptions.find(o => o.value === curVal) || { label: curVal.replace("|", " + ") }).label;
+    const clsBar = document.getElementById("clsBar");
+    clsBar.innerHTML = filterBar([{ id: "cls", label: "Class", value: curLabel }]);
+    wireFilterBar(clsBar, { cls: () => pickSheet({ title: "Class", options: clsOptions, value: curVal, onPick: v => {
+      const picked = sortClasses(v.split("|"));
+      if (isCurrent) localStorage.setItem("dt-classes", JSON.stringify(picked));
+      else archiveClassPick.set(year, picked);   // this visit only
+      viewRankings(qs, stale);
+    } }) });
 
     selected = sortClasses([...selectedSet]);
     const block = combinedStandings(rk.standings, selected);
@@ -1637,7 +1717,7 @@
   // The footer credits whoever's scores are actually on screen — crediting
   // DCI.org under a page of WGI results would be plainly wrong.
   const CREDIT = {
-    "": `Scores from <a href="https://www.dci.org/scores" rel="noopener">DCI.org</a> · refreshed several times an hour · minute-by-minute on show nights`,
+    "": `Scores from <a href="https://www.dci.org/scores" rel="noopener">DCI.org</a> · alerts within seconds of scores posting on show days`,
     wgi: `Scores from <a href="https://www.wgi.org/scores/" rel="noopener">WGI</a> · WGI competes January–May`,
   };
 
@@ -1738,10 +1818,9 @@
     const rows = [...best.values()].sort((a, b) => b.score - a.score);
 
     body.innerHTML = `
+      ${filterBar([{ id: "cls", label: "Class", value: cls }])}
       <div class="card">
-        ${classesInDiv.length > 1 ? `<div class="chiprow" id="wgiCls">${classesInDiv.map(c =>
-          `<a class="yearopt ${c === cls ? "on" : ""}" href="${link(null, c)}">${esc(c)}</a>`).join("")}</div>`
-        : `<h2>${esc(cls)}</h2>`}
+        <h2>${esc(cls)}</h2>
         <div class="evdone">${finalsOnly
           ? `${esc(division)} · World Championship finals`
           : `${esc(division)} · each unit's best score of ${year}`}</div>
@@ -1756,8 +1835,32 @@
           </tr>`).join("")}
         </tbody></table></div>
       </div>
+      ${finalsOnly || rows.length < 2 ? "" : `<div class="card">
+        <h2>Season Progression <span class="sub">score by date · top ${Math.min(8, rows.length)}</span></h2>
+        <div class="chartwrap" id="wgiTrend"></div></div>`}
       ${wgiEventsCard(season, division, year, finalsOnly)}`;
     collapseRows(body.querySelector("tbody"), 10, "units");
+    // same chart as the DCI scoreboard: each of the top units' scores through the season
+    const trendEl = document.getElementById("wgiTrend");
+    if (trendEl) {
+      const doy = iso => { const [y, m, d] = iso.split("-").map(Number); return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(y, 0, 1)) / 864e5); };
+      const top = rows.slice(0, 8).map(r => r.corps);
+      const pts = new Map(top.map(u => [u, []]));
+      season.forEach(ev => (ev.classes || []).forEach(g => {
+        if (g.division !== division || g.class !== cls || !ev.date) return;
+        (g.results || []).forEach(r => { if (pts.has(r.corps)) pts.get(r.corps).push({ x: doy(ev.date), y: r.score }); });
+      }));
+      const series = top.map((u, i) => ({ name: u, color: CCViz.PALETTE[i % CCViz.PALETTE.length],
+        points: pts.get(u).sort((a, b) => a.x - b.x) })).filter(sr => sr.points.length);
+      const xFmt = x => { const dt = new Date(Date.UTC(2001, 0, 1 + Math.round(x))); return `${MONTHS[dt.getUTCMonth()]} ${dt.getUTCDate()}`; };
+      const squeeze = compressTrendGaps(series);
+      if (series.length) lineChart(trendEl, { linearX: true, series: squeeze ? squeeze.series : series, height: 300,
+        xFmt: squeeze ? squeeze.xFmt : xFmt, yFmt: v => v.toFixed(1) });
+      else trendEl.closest(".card").remove();
+    }
+    wireFilterBar(body, { cls: () => pickSheet({ title: `${division} class`, value: cls,
+      options: classesInDiv.map(c => ({ value: c, label: c })),
+      onPick: c => { location.hash = link(null, c); } }) });
   }
 
   function divisionLabelCount(season, division) {
@@ -2007,11 +2110,10 @@
 
     app.innerHTML = `${nav}
       <h1 class="page">${yearPickerHtml(year)} WGI ${esc(division)} Sheets</h1>
-      <div class="filters" style="margin-bottom:10px">
-        <select class="ctrl" id="wsShow">${shows.map(s => `<option value="${esc(s.k)}"${s.k === showKey ? " selected" : ""}>${esc(fmtDate(s.d))} · ${esc(s.e)}</option>`).join("")}</select>
-      </div>
-      ${classes.length > 1 ? `<div class="chiprow">${classes.map(c =>
-        `<a class="yearopt ${c === cls ? "on" : ""}" href="${link({ c })}">${esc(c)}</a>`).join("")}</div>` : ""}
+      ${filterBar([
+        { id: "show", label: "Show", value: (shows.find(s => s.k === showKey) || {}).e || "" },
+        { id: "cls", label: "Class", value: cls, hidden: classes.length < 2 },
+      ])}
       <div class="card">
         <h2>${esc(cls)} <span class="sub">${sh.rows.length} ${sh.rows.length === 1 ? "unit" : "units"}</span></h2>
         <div class="evdone"><b>Caption wins:</b> ${winnerLine || "—"}${leaderSwept && sh.rows.length > 1 ? " — a clean sweep" : ""}.
@@ -2028,8 +2130,12 @@
             <td class="num score">${typeof r[2] === "number" ? r[2].toFixed(3) : "—"}</td></tr>`).join("")}</tbody></table></div>
       </div>`;
     wireYearPicker(years, year, y => { location.hash = `#/wgi/captions?d=${encodeURIComponent(division)}&y=${y}`; });
-    const sel = document.getElementById("wsShow");
-    if (sel) sel.onchange = () => { location.hash = link({ e: sel.value, c: "" }); };
+    wireFilterBar(app, {
+      show: () => pickSheet({ title: `${year} ${division} shows`, value: showKey, options: showOptions(shows),
+        search: true, onPick: v => { location.hash = link({ e: v, c: "" }); } }),
+      cls: () => pickSheet({ title: "Class", value: cls, options: classes.map(c => ({ value: c, label: c })),
+        onPick: c => { location.hash = link({ c }); } }),
+    });
   }
 
   async function viewWgiBreakdown(query, stale) {
@@ -2081,16 +2187,18 @@
   function wgiEventsCard(season, division, year, finalsOnly) {
     const evs = season.filter(ev => (ev.classes || []).some(c => c.division === division));
     if (!evs.length || finalsOnly) return "";
-    const list = [...evs].reverse().map(ev => {
+    // the scoreboard shows the latest few; the whole season lives on the Shows tab
+    const list = [...evs].reverse().slice(0, 6).map(ev => {
       const groups = (ev.classes || []).filter(c => c.division === division);
       const units = groups.reduce((n, g) => n + (g.results || []).length, 0);
       return `<tr><td style="color:var(--muted);white-space:nowrap">${esc(ev.date_display || ev.date || "")}</td>
         <td>${ev.url ? `<a href="${encodeURI(ev.url)}" target="_blank" rel="noopener">${esc(ev.name)}</a>` : esc(ev.name)}</td>
         <td class="num m-hide">${units}</td></tr>`;
     }).join("");
-    return `<div class="card"><h2>${year} Shows <span class="sub">${esc(division)}</span></h2>
+    return `<div class="card"><h2>Latest Shows <span class="sub">${esc(division)}</span></h2>
       <div class="tscroll"><table class="t"><thead><tr><th>Date</th><th>Show</th><th class="num m-hide">Units</th></tr></thead>
-      <tbody>${list}</tbody></table></div></div>`;
+      <tbody>${list}</tbody></table></div>
+      ${evs.length > 6 ? `<a class="cardmore" href="#/wgi/events?y=${year}&d=${encodeURIComponent(division)}">All ${evs.length} ${year} shows →</a>` : ""}</div>`;
   }
 
   /* ============ CORPS HUB (directory + compare) ============ */
@@ -4236,12 +4344,10 @@
       <div class="card">
         <div class="evdone">Built from ${(cfg.rooms ? cfg.rooms(doc) : doc.rooms).toLocaleString()} judged rooms in ${year}. A seat appears once it has
           judged ${doc.floors.shows}+ shows and ${doc.floors.scores}+ ${cfg.noun === "corps" ? "corps" : "units"}.</div>
-        ${captions.length ? `<div class="chiprow">
-          <a class="yearopt ${cap ? "" : "on"}" href="${link("", null)}">All captions</a>
-          ${captions.map(c => `<a class="yearopt ${c === cap ? "on" : ""}" href="${link(c, null)}">${esc(cfg.capLabel(c))}</a>`).join("")}
-        </div>` : ""}
-        <div class="chiprow">${[["agreement", "Agreement"], ["rel", "Runs high"], ["spread", "Spread"], ["shows", "Shows"]]
-          .map(([k, l]) => `<a class="yearopt ${k === sort ? "on" : ""}" href="${link(null, k)}">${l}</a>`).join("")}</div>
+        ${filterBar([
+          { id: "jcap", label: "Caption", value: cap ? cfg.capLabel(cap) : "All captions", hidden: !captions.length },
+          { id: "jsort", label: "Sort", value: JUDGE_SORTS.find(([k]) => k === sort)[1] },
+        ])}
         ${rows.length ? `<div class="tscroll"><table class="t"><thead><tr>
           <th>Judge</th><th class="m-hide">Caption</th>
           <th class="num" title="Shows judged">Shows</th>
@@ -4276,6 +4382,12 @@
           come from ${esc(String(cfg.rooms ? cfg.rooms(doc) : doc.rooms))} rooms of published recaps and nothing else.</p>
       </div>`;
     wireYearPicker(years, year, y => { location.hash = link(null, null, y); });
+    wireFilterBar(app, {
+      jcap: () => pickSheet({ title: "Caption", value: cap, onPick: c => { location.hash = link(c, null); },
+        options: [{ value: "", label: "All captions" }, ...captions.map(c => ({ value: c, label: cfg.capLabel(c) }))] }),
+      jsort: () => pickSheet({ title: "Sort judges by", value: sort, onPick: v => { location.hash = link(null, v); },
+        options: JUDGE_SORTS.map(([value, label, sub]) => ({ value, label, sub })) }),
+    });
   }
 
   /* ============ BREAKDOWN ============
@@ -4704,13 +4816,18 @@
 
   /* ============ SUGGESTIONS ============ */
   const SUGGEST_REPO = "LukeBesel/DCI-Tracker";
+  // What score alerts can be about: DCI's classes and WGI's three divisions.
+  // Values go to the relay as-is ("wgi:Percussion" matches every Percussion class).
+  const ALERT_TYPES = [
+    { group: "Drum corps · DCI", items: [["World Class", "World Class"], ["Open Class", "Open Class"], ["All-Age", "All-Age"]] },
+    { group: "Indoor · WGI", items: [["wgi:Percussion", "Percussion", "Drumlines"], ["wgi:Color Guard", "Color Guard"], ["wgi:Winds", "Winds"]] },
+  ];
+  const ALL_ALERT_VALUES = ALERT_TYPES.flatMap(g => g.items.map(i => i[0]));
+
   async function viewSettings(_m, stale) {
     setNav("");
     const themeMode = (window.CadTheme && window.CadTheme.mode()) || (localStorage.getItem("cad-theme") || "auto");
     const curCorps = currentCorpsTheme();
-
-    // corps to offer: everyone in the current season, every curated theme, and
-    // whatever's currently applied — a relevant, searchable pool
     let all = [];
     try {
       const rk = await data("rankings.json");
@@ -4721,31 +4838,23 @@
     Object.keys(CORPS_THEME).forEach(n => all.push(n));
     if (curCorps) all.push(curCorps);
     all = [...new Set(all)].sort((a, b) => a.localeCompare(b));
-    await ensureLogos(); // so the picker can show each corps' real logo
+    await ensureLogos();
     if (stale()) return;
-    const featured = THEME_FEATURED.filter(n => all.includes(n) || CORPS_THEME[n]);
+    const featured = THEME_FEATURED.filter(n => all.includes(n) || CORPS_THEME[n]).slice(0, 8);
     const fontSize = (() => { try { return localStorage.getItem("cad-fontsize") || "1"; } catch (e) { return "1"; } })();
-    const custInit = currentCustom() || ["#0a3f6b", "#f0b429"]; // Cadence navy + gold to start
-
-    const segBtn = (val, label) => `<button class="segbtn${themeMode === val ? " on" : ""}" data-theme-set="${val}">${label}</button>`;
-    const fsBtn = (val, label) => `<button class="segbtn${fontSize === val ? " on" : ""}" data-fs-set="${val}">${label}</button>`;
-    const twoTone = n => { const v = corpsThemeVars(n); return `--c1:${v.bar};--c2:${v.accent}`; };
-    const chip = n => `<button class="corpschip${curCorps === n ? " on" : ""}" data-corps-set="${esc(n)}">${corpsLogo(n, 18)}${esc(n)}</button>`;
-    // logo (or color-swatch fallback) on the left; when a real logo shows, the
-    // color swatch still appears on the right as the theme preview
-    const corpsRow = n => `<button class="corpsrow${curCorps === n ? " on" : ""}" data-corps-set="${esc(n)}" data-name="${esc(n.toLowerCase())}">`
-      + corpsLogo(n, 24) + `<span class="corpsrow-name">${esc(n)}</span>`
-      + (corpsHasLogo(n) ? `<span class="corpsrow-sw" style="${twoTone(n)}"></span>` : "") + `</button>`;
-    const scope = (window.CadPush && CadPush.scope()) || "all";
-    const predsOn = (() => { try { return (localStorage.getItem("cad-notify-preds") || "on") === "on"; } catch (e) { return true; } })();
-    const selClasses = (window.CadPush && CadPush.classes) ? CadPush.classes() : null; // null = all
-    const CLASS_OPTS = ["World Class", "Open Class", "All-Age"];
-    const clsOn = c => !selClasses || selClasses.includes(c);
-
+    const custInit = currentCustom() || ["#0a3f6b", "#f0b429"];
     const acct = window.CadAccount && CadAccount.enabled() ? CadAccount : null;
     const me = acct && acct.user();
     const plusOn = !!(acct && acct.plus());
     const colorsLocked = plusEnforced() && !plusOn;
+    const scope = (window.CadPush && CadPush.scope()) || "all";
+    const picked = (window.CadPush && CadPush.classes) ? CadPush.classes() : null;   // null = everything
+    const alertOn = v => !picked || picked.includes(v);
+    const seg = (attr, cur, opts) => `<div class="seg">${opts.map(([v, l]) =>
+      `<button class="segbtn${cur === v ? " on" : ""}" ${attr}="${v}">${l}</button>`).join("")}</div>`;
+    const row = (title, sub, control) => `<div class="setrow"><div><b>${title}</b>${sub ? `<div class="setsub">${sub}</div>` : ""}</div>${control}</div>`;
+    const favs = FAVS.list();
+
     app.innerHTML = h`
       <h1 class="page">Settings</h1>
 
@@ -4753,239 +4862,146 @@
       <a class="card setacct" href="#/account">
         <span class="acct-av ${me && me.avatar ? "" : "acct-av--txt"}">${me && me.avatar ? `<img src="${esc(me.avatar)}" alt="" referrerpolicy="no-referrer">` : (me ? esc((me.name || me.email || "?").slice(0, 1).toUpperCase()) : "👤")}</span>
         <span class="setacct-txt"><b>${me ? esc(me.name || me.email) : "Sign in or create an account"}</b>
-          <span class="setsub">${me ? "Synced across your devices" : "Free · keeps favorites, colors and alerts in sync"}</span></span>
+          <span class="setsub">${me ? "Synced across your devices" : "Free · keeps your corps, colors and alerts in sync"}</span></span>
         ${plusOn ? PLUS_MARK : ""}<span class="setacct-go" aria-hidden="true">›</span>
       </a>
       ${plusOn ? "" : `<a class="card setplus" href="#/plus"><span class="pluscard-logo">Cadence<span>+</span></span>
-        <span class="setsub">Every caption, every judge, head-to-head, projections and your colors · ${esc((window.CadConfig || {}).PLUS_PRICE || "$10/year")}</span>
+        <span class="setsub">Every caption, every judge, head-to-head and projections · ${esc((window.CadConfig || {}).PLUS_PRICE || "$10/year")}</span>
         <span class="setacct-go" aria-hidden="true">›</span></a>`}` : ""}
 
-      ${(window.CadInstall && !window.CadInstall.standalone()) ? `
-      <div class="card setcard" id="installCard">
-        <h2>${icoSvg(ICO_PHONE, 16)} Add to Home Screen</h2>
-        <p class="setnote">Install Cadence like a real app — full screen, works offline, and it's how you get score alerts on iPhone.</p>
-        <button class="tab" id="installOpen" type="button" style="font-weight:800;padding:11px 20px;font-size:14.5px">Show me how →</button>
-      </div>` : ""}
-
-      <div class="card setcard">
-        <h2>Favorites</h2>
-        <p class="setnote" id="favSummary">${FAVS.list().length
-          ? `Following ${FAVS.list().map(n => `<b>${esc(n)}</b>`).join(", ")} — starred everywhere, first in score alerts.`
-          : "Star corps to pin them on the Scoreboard and lead your score alerts."}</p>
-        <button class="tab" id="favPick" type="button">Choose favorites</button>
-      </div>
-
-      <div class="dsk2">
+      <section class="setsec">
+        <h2 class="setsec-h">Score alerts</h2>
         <div class="card setcard">
-          <h2>Appearance</h2>
-          <p class="setnote">Pick a light or dark look — or follow your device.</p>
-          <div class="seg" id="themeSeg">${segBtn("auto", "Auto")}${segBtn("light", "Light")}${segBtn("dark", "Dark")}</div>
+          ${row("Score alerts", `<span id="pushStatus">Checking…</span>`, `<button class="toggle" id="pushToggle" aria-pressed="false" aria-label="Score alerts"></button>`)}
+          <div class="alertgrid" id="alertTypes">
+            ${ALERT_TYPES.map(g => `<div class="alertgrp"><div class="alertgrp-h">${esc(g.group)}</div>
+              ${g.items.map(([v, l, sub]) => `<button type="button" class="alertchip${alertOn(v) ? " on" : ""}" data-alert="${esc(v)}" aria-pressed="${alertOn(v)}">
+                <span>${esc(l)}${sub ? `<small>${esc(sub)}</small>` : ""}</span><span class="alertchip-ck" aria-hidden="true"></span></button>`).join("")}</div>`).join("")}
+          </div>
+          ${row("Only my corps & units", favs.length ? `Alerts only when ${esc(favs.slice(0, 2).join(", "))}${favs.length > 2 ? ` +${favs.length - 2}` : ""} compete` : "Star some first under My corps",
+            `<button class="toggle${scope === "favs" ? " on" : ""}" id="scopeToggle" aria-pressed="${scope === "favs"}" aria-label="Only my corps and units"></button>`)}
         </div>
-        <div class="card setcard">
-          <h2>Text Size</h2>
-          <p class="setnote">Make everything a little easier to read.</p>
-          <div class="seg" id="fsSeg">${fsBtn("1", "Default")}${fsBtn("1.1", "Large")}${fsBtn("1.2", "Larger")}</div>
-        </div>
-      </div>
+      </section>
 
-      <div class="card setcard">
-        <h2>Team Colors</h2>
-        <p class="setnote">Paint Cadence in your corps' colors — or keep the classic Cadence look.</p>
-        <button class="setreset${curCorps ? " armed" : " on"}" data-corps-set="">
-          <span class="corpschip-sw" style="background:#f0b429"></span>
-          <span class="setreset-label">Cadence</span>
-          <span class="setreset-hint">${curCorps ? "Reset to default" : "Default look"}</span>
-          <svg class="setreset-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><path d="M3 3v5h5"/></svg>
-        </button>
-        <div class="chipwrap">
-          ${featured.map(chip).join("")}
+      <section class="setsec">
+        <h2 class="setsec-h">My corps &amp; units</h2>
+        <div class="card setcard">
+          <p class="setnote" id="favSummary">${favs.length
+            ? `Following ${favs.map(n => `<b>${esc(n)}</b>`).join(", ")}: pinned on the Scoreboard and first in your alerts.`
+            : "Star the corps and units you follow to pin them on the Scoreboard and lead your alerts."}</p>
+          <button class="tab" id="favPick" type="button">${favs.length ? "Edit" : "Choose"} favorites</button>
         </div>
-        <div class="corpsearch">
-          <input type="search" id="corpsSearch" class="ctrl" placeholder="Search all corps…" autocomplete="off" autocapitalize="off" spellcheck="false">
-          <div class="corpslist" id="corpsList">${all.map(corpsRow).join("")}</div>
-          <div class="corpslist-empty" id="corpsEmpty" hidden>No corps match “<span id="corpsEmptyQ"></span>”.</div>
-        </div>
-        <div class="custombuild${colorsLocked ? " locked" : ""}">
-          <div class="custombuild-h">Or build your own ${PLUS_MARK}</div>
-          ${colorsLocked ? `<p class="setnote"><a href="#/plus">Cadence+</a> unlocks custom colors.</p>` : ""}
-          <div class="customrow">
-            <label class="custompick"><input type="color" id="custBar" value="${custInit[0]}"><span>Primary</span></label>
-            <label class="custompick"><input type="color" id="custAcc" value="${custInit[1]}"><span>Accent</span></label>
-            <span class="corpsrow-sw custpreview" id="custPreview" style="--c1:${custInit[0]};--c2:${custInit[1]}"></span>
-            <button class="tab pr-lock" id="custApply" type="button">Use these</button>
+      </section>
+
+      <section class="setsec">
+        <h2 class="setsec-h">Look</h2>
+        <div class="card setcard">
+          ${row("Theme", "", seg("data-theme-set", themeMode, [["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]]))}
+          ${row("Text size", "", seg("data-fs-set", fontSize, [["1", "A"], ["1.1", "A+"], ["1.2", "A++"]]))}
+          <div class="setrow setrow-col"><div><b>Team colors</b><div class="setsub">Paint Cadence in your corps' colors</div></div>
+            <div class="chipwrap">
+              <button class="corpschip${curCorps ? "" : " on"}" data-corps-set=""><span class="corpschip-sw" style="background:#f0b429"></span>Cadence</button>
+              ${featured.map(n => `<button class="corpschip${curCorps === n ? " on" : ""}" data-corps-set="${esc(n)}">${corpsLogo(n, 18)}${esc(n)}</button>`).join("")}
+              <button class="corpschip corpschip-more" id="corpsMore" type="button">More corps…</button>
+            </div>
+            <details class="custombuild${colorsLocked ? " locked" : ""}"><summary>Build your own ${PLUS_MARK}</summary>
+              ${colorsLocked ? `<p class="setnote"><a href="#/plus">Cadence+</a> unlocks custom colors.</p>` : ""}
+              <div class="customrow">
+                <label class="custompick"><input type="color" id="custBar" value="${custInit[0]}"><span>Primary</span></label>
+                <label class="custompick"><input type="color" id="custAcc" value="${custInit[1]}"><span>Accent</span></label>
+                <span class="corpsrow-sw custpreview" id="custPreview" style="--c1:${custInit[0]};--c2:${custInit[1]}"></span>
+                <button class="tab" id="custApply" type="button">Use these</button>
+              </div></details>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div class="card setcard">
-        <h2>Notifications</h2>
-        <p class="setnote">Get a ping the moment new scores drop.</p>
-        <div class="setrow">
-          <div><b>Score alerts</b><div class="setsub" id="pushStatus">Checking…</div></div>
-          <button class="toggle" id="pushToggle" aria-pressed="false" aria-label="Score alerts"></button>
+      ${(window.CadInstall && !window.CadInstall.standalone()) ? `
+      <section class="setsec">
+        <h2 class="setsec-h">App</h2>
+        <div class="card setcard">
+          ${row("Add to Home Screen", "Full screen, works offline, and needed for alerts on iPhone", `<button class="tab" id="installOpen" type="button">How</button>`)}
         </div>
-        <div class="setrow">
-          <div><b>Only my favorites</b><div class="setsub">Alert just for your ★ corps</div></div>
-          <button class="toggle${scope === "favs" ? " on" : ""}" id="scopeToggle" aria-pressed="${scope === "favs"}" aria-label="Favorites only"></button>
-        </div>
-        <div class="setrow setrow-classes">
-          <div><b>Which classes</b><div class="setsub">Only alert me for the classes I follow</div></div>
-        </div>
-        <div class="classchips" id="classChips">
-          ${CLASS_OPTS.map(c => `<button class="classchip${clsOn(c) ? " on" : ""}" data-cls="${esc(c)}" aria-pressed="${clsOn(c)}">${esc(c)}</button>`).join("")}
-        </div>
-        <div class="setrow">
-          <div><b>Prediction results</b><div class="setsub">Nudge me to check my Call the Finish score after a show posts</div></div>
-          <button class="toggle${predsOn ? " on" : ""}" id="predsToggle" aria-pressed="${predsOn}" aria-label="Prediction reminders"></button>
-        </div>
-      </div>
+      </section>` : ""}
 
-      <p class="setfoot">${me ? "Preferences sync to your account." : "Preferences are saved on this device — sign in to sync them."} Created by Lucas Besel.</p>`;
+      <p class="setfoot">${me ? "Settings sync to your account." : "Settings are saved on this device. Sign in to sync them."}
+        <a href="#/about">About &amp; privacy</a></p>`;
     if (stale()) return;
 
-    // appearance
     app.querySelectorAll("[data-theme-set]").forEach(b => b.addEventListener("click", () => {
       if (window.CadTheme) window.CadTheme.set(b.dataset.themeSet);
       app.querySelectorAll("[data-theme-set]").forEach(x => x.classList.toggle("on", x === b));
     }));
-
-    // text size — scale the whole app (like browser zoom, layout-safe)
     app.querySelectorAll("[data-fs-set]").forEach(b => b.addEventListener("click", () => {
       applyFontSize(b.dataset.fsSet);
       app.querySelectorAll("[data-fs-set]").forEach(x => x.classList.toggle("on", x === b));
     }));
-
-    // team colors — live preview, no full re-render (keeps scroll position)
-    function pickCorps(name) {
-      applyCorpsTheme(name);
-      app.querySelectorAll("[data-corps-set]").forEach(x => x.classList.toggle("on", (x.dataset.corpsSet || "") === (name || "")));
-      const reset = app.querySelector(".setreset");
-      if (reset) {
-        reset.classList.toggle("armed", !!name);
-        const hint = reset.querySelector(".setreset-hint");
-        if (hint) hint.textContent = name ? "Reset to default" : "Default look";
-      }
-    }
-    // attach to each control (all live in this render's fresh innerHTML, so
-    // they're replaced — not leaked — on the next visit)
-    app.querySelectorAll("[data-corps-set]").forEach(btn =>
-      btn.addEventListener("click", () => pickCorps(btn.dataset.corpsSet || "")));
-    // search the corps list
-    const search = document.getElementById("corpsSearch");
-    const list = document.getElementById("corpsList");
-    const empty = document.getElementById("corpsEmpty");
-    if (search && list) search.addEventListener("input", () => {
-      const q = search.value.trim().toLowerCase();
-      let shown = 0;
-      list.querySelectorAll(".corpsrow").forEach(row => {
-        const hit = !q || (row.dataset.name || "").includes(q);
-        row.hidden = !hit;
-        if (hit) shown++;
-      });
-      if (empty) {
-        empty.hidden = shown > 0;
-        const qs = document.getElementById("corpsEmptyQ");
-        if (qs) qs.textContent = search.value.trim();
-      }
-    });
-    // custom primary + accent — just for fun
-    const custBar = document.getElementById("custBar");
-    const custAcc = document.getElementById("custAcc");
+    const markCorps = name => app.querySelectorAll("[data-corps-set]").forEach(x =>
+      x.classList.toggle("on", (x.dataset.corpsSet || "") === (name || "")));
+    app.querySelectorAll("[data-corps-set]").forEach(btn => btn.addEventListener("click", () => {
+      applyCorpsTheme(btn.dataset.corpsSet || ""); markCorps(btn.dataset.corpsSet || "");
+    }));
+    document.getElementById("corpsMore").addEventListener("click", () => pickSheet({
+      title: "Team colors", value: curCorps || "", search: true,
+      options: [{ value: "", label: "Cadence", sub: "The default look" }, ...all.map(n => ({ value: n, label: n }))],
+      onPick: n => { applyCorpsTheme(n); markCorps(n); route(); },
+    }));
+    const custBar = document.getElementById("custBar"), custAcc = document.getElementById("custAcc");
     const custPrev = document.getElementById("custPreview");
-    const custApply = document.getElementById("custApply");
-    const paintCustPreview = () => {
-      if (custPrev && custBar && custAcc) { custPrev.style.setProperty("--c1", custBar.value); custPrev.style.setProperty("--c2", custAcc.value); }
-    };
-    if (custBar) custBar.addEventListener("input", paintCustPreview);
-    if (custAcc) custAcc.addEventListener("input", paintCustPreview);
-    if (custApply) custApply.addEventListener("click", () => {
+    const paint = () => { custPrev.style.setProperty("--c1", custBar.value); custPrev.style.setProperty("--c2", custAcc.value); };
+    custBar.addEventListener("input", paint); custAcc.addEventListener("input", paint);
+    document.getElementById("custApply").addEventListener("click", () => {
       if (colorsLocked) { location.hash = "#/plus"; return; }
-      applyCustomTheme(custBar.value, custAcc.value);
-      app.querySelectorAll("[data-corps-set]").forEach(x => x.classList.remove("on"));
-      const reset = app.querySelector(".setreset");
-      if (reset) {
-        reset.classList.add("armed"); reset.classList.remove("on");
-        const hint = reset.querySelector(".setreset-hint");
-        if (hint) hint.textContent = "Reset to default";
-      }
+      applyCustomTheme(custBar.value, custAcc.value); markCorps("__custom");
     });
-
-    // add to home screen
     const installOpen = document.getElementById("installOpen");
     if (installOpen) installOpen.addEventListener("click", () => { if (window.CadInstall) window.CadInstall.open(); });
-
-    // favorites picker — same sheet as first-run onboarding; re-render the
-    // page on close so the summary (and alert personalization notes) refresh
-    const favPick = document.getElementById("favPick");
-    if (favPick) favPick.addEventListener("click", () => CadOnboard.open(true, () => {
+    document.getElementById("favPick").addEventListener("click", () => CadOnboard.open(true, () => {
       if ((location.hash || "") === "#/settings") route();
     }));
 
-    // notifications
+    // alerts
     const pushToggle = document.getElementById("pushToggle");
     const pushStatus = document.getElementById("pushStatus");
-    // is the alert relay answering? Any HTTP response (even 404 from an older
-    // build without /healthz) proves the server is up — only a network-level
-    // failure counts as down. Never blocks the page; 2.5 s cap.
-    async function relayUp() {
-      const base = (window.CadConfig || {}).RELAY_URL;
-      if (!base) return false;
-      try {
-        const ctl = new AbortController();
-        const t = setTimeout(() => ctl.abort(), 2500);
-        const r = await fetch(base + "/healthz", { signal: ctl.signal });
-        clearTimeout(t);
-        return r.status > 0;
-      } catch (e) { return false; }
-    }
     async function paintPush() {
       if (!window.CadPush) { pushStatus.textContent = "Not available"; pushToggle.disabled = true; return; }
       const s = await CadPush.status();
+      if (!pushToggle.isConnected) return;     // left Settings while the check ran
       if (s === "unsupported") { pushStatus.textContent = "Not supported in this browser"; pushToggle.disabled = true; pushToggle.classList.remove("on"); return; }
-      if (s === "ios-install") { pushStatus.textContent = "On iPhone, install the app first (Share → Add to Home Screen), then reopen Cadence"; pushToggle.disabled = true; pushToggle.classList.remove("on"); return; }
+      if (s === "ios-install") { pushStatus.textContent = "On iPhone, add Cadence to your Home Screen first, then reopen it"; pushToggle.disabled = true; pushToggle.classList.remove("on"); return; }
       if (s !== "on" && "Notification" in window && Notification.permission === "denied") {
-        pushStatus.textContent = "Blocked — allow notifications for this site in your browser settings, then reopen Cadence";
-        pushToggle.disabled = true; pushToggle.classList.remove("on");
-        return;
+        pushStatus.textContent = "Blocked: allow notifications for this site in your browser settings";
+        pushToggle.disabled = true; pushToggle.classList.remove("on"); return;
       }
       pushToggle.disabled = false;
       pushToggle.classList.toggle("on", s === "on");
       pushToggle.setAttribute("aria-pressed", s === "on");
-      pushStatus.textContent = s === "on" ? "On — you'll get a ping when scores drop" : "Off";
-      // relay trouble is worth a heads-up only when alerts are meant to be on
-      if (s === "on") relayUp().then(up => {
-        if (!up && pushStatus.isConnected && pushToggle.classList.contains("on"))
-          pushStatus.textContent = "On — but the alert server isn't responding right now, so alerts may be delayed";
-      });
+      pushStatus.textContent = s === "on" ? "On · you'll hear the moment scores post" : "Off";
+      const grid = app.querySelector(".alertgrid");
+      if (grid) grid.classList.toggle("dim", s !== "on");
     }
-    if (pushToggle) pushToggle.addEventListener("click", async () => {
+    pushToggle.addEventListener("click", async () => {
       if (!window.CadPush || pushToggle.disabled) return;
       const s = await CadPush.status();
-      pushToggle.disabled = true;
-      pushStatus.textContent = "…";
+      pushToggle.disabled = true; pushStatus.textContent = "…";
       if (s === "on") await CadPush.disable();
       else { const r = await CadPush.enable(); if (r && !r.ok && r.reason) alert(r.reason); }
       await paintPush();
     });
+    const chips = [...app.querySelectorAll("[data-alert]")];
+    chips.forEach(ch => ch.addEventListener("click", () => {
+      ch.classList.toggle("on");
+      ch.setAttribute("aria-pressed", ch.classList.contains("on"));
+      const on = chips.filter(c => c.classList.contains("on")).map(c => c.dataset.alert);
+      if (!on.length) { ch.classList.add("on"); ch.setAttribute("aria-pressed", "true"); return; }  // at least one
+      if (window.CadPush && CadPush.setClasses) CadPush.setClasses(on.length === ALL_ALERT_VALUES.length ? null : on);
+    }));
     const scopeToggle = document.getElementById("scopeToggle");
-    if (scopeToggle) scopeToggle.addEventListener("click", () => {
+    scopeToggle.addEventListener("click", () => {
       const next = scopeToggle.classList.toggle("on") ? "favs" : "all";
       scopeToggle.setAttribute("aria-pressed", next === "favs");
       if (window.CadPush) CadPush.setScope(next);
     });
-    const predsToggle = document.getElementById("predsToggle");
-    if (predsToggle) predsToggle.addEventListener("click", () => {
-      const on = predsToggle.classList.toggle("on");
-      predsToggle.setAttribute("aria-pressed", on);
-      try { localStorage.setItem("cad-notify-preds", on ? "on" : "off"); } catch (e) {}
-    });
-    const clsChips = [...app.querySelectorAll("#classChips .classchip")];
-    clsChips.forEach(ch => ch.addEventListener("click", () => {
-      ch.classList.toggle("on");
-      ch.setAttribute("aria-pressed", ch.classList.contains("on"));
-      const picked = clsChips.filter(c => c.classList.contains("on")).map(c => c.dataset.cls);
-      if (window.CadPush && CadPush.setClasses) CadPush.setClasses(picked);
-    }));
     paintPush();
   }
 

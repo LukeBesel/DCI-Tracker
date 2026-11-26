@@ -68,6 +68,21 @@ async function ctxPage(browser, base, { viewport = PHONE, seeds = SEEDS, theme, 
 const sections = [];
 const section = (name, fn) => sections.push([name, fn]);
 
+// Open a filter-bar button and pick from its sheet the first option whose
+// label matches `want` (a predicate over the label). Returns the label picked,
+// or null when no option qualifies (the sheet is then closed again).
+async function sheetPick(page, fid, want) {
+  await page.click(`.fbtn[data-f="${fid}"]`);
+  await page.waitForSelector(".sheet-opt", { timeout: 4000 });
+  await page.waitForTimeout(250);
+  const opts = await page.$$eval(".sheet-opt", els => els.map(e => ({
+    label: e.querySelector(".sheet-opt-l").firstChild.textContent.trim(), on: e.classList.contains("on") })));
+  const i = opts.findIndex(o => !o.on && want(o.label));
+  if (i < 0) { await page.click(".sheet-x"); await page.waitForTimeout(250); return null; }
+  await (await page.$$(".sheet-opt"))[i].click();
+  return opts[i].label;
+}
+
 section("routes render clean (phone + desktop)", async (browser, base) => {
   for (const viewport of [PHONE, DESKTOP]) {
     const { ctx, page } = await ctxPage(browser, base, { viewport });
@@ -217,18 +232,14 @@ section("season picker: browse the archive from the Scoreboard heading", async (
   const savedBefore = await page.evaluate(() => localStorage.getItem("dt-classes"));
   const titleBefore = await page.textContent("#standTitle");
   const rowsBefore = (await page.$$("#standings tbody tr")).length;
-  await page.click("#clsSel .msel-btn");
-  await page.waitForTimeout(400);
-  const clsLabels = await page.$$eval("#clsSel .msel-opt", els => els.map(e => e.textContent.replace(/\s+/g, " ").trim()));
-  const otherIdx = clsLabels.findIndex(l => !/^World Class/.test(l));
-  if (otherIdx < 0) bad(`${older}: only one class to choose from, cannot verify the filter`);
+  const pickedCls = await sheetPick(page, "cls", l => !/^World Class/.test(l));
+  if (!pickedCls) bad(`${older}: only one class to choose from, cannot verify the filter`);
   else {
-    await (await page.$$("#clsSel .msel-opt"))[otherIdx].click();
     await page.waitForTimeout(1700);
     const titleAfter = await page.textContent("#standTitle");
     const rowsAfter = (await page.$$("#standings tbody tr")).length;
     if (titleAfter === titleBefore && rowsAfter === rowsBefore)
-      bad(`${older}: picking "${clsLabels[otherIdx]}" changed nothing — the class filter is inert on archived seasons`);
+      bad(`${older}: picking "${pickedCls}" changed nothing — the class filter is inert on archived seasons`);
     if (await page.evaluate(() => localStorage.getItem("dt-classes")) !== savedBefore)
       bad("an archived season's class choice overwrote the saved current-season preference");
   }
@@ -744,10 +755,7 @@ section("wgi: circuit, division and class all switch", async (browser, base) => 
   const before = await firstUnit();
 
   // switching class must change what is listed
-  const chips = await page.$$eval(".chiprow a", as => as.map(a => a.getAttribute("href")));
-  if (chips.length > 1) {
-    const other = chips.find(h => !/\bon\b/.test(h)) || chips[1];
-    await page.goHash(other.replace(/^#/, ""));
+  if (await page.$('.fbtn[data-f="cls"]') && await sheetPick(page, "cls", () => true)) {
     await page.waitForTimeout(1200);
     const after = await firstUnit().catch(() => "");
     if (after && after === before)
@@ -839,10 +847,7 @@ section("judges: sampled honestly and explained", async (browser, base) => {
     if (!body.includes(term)) bad(`the judges view never explains "${term}"`);
 
   // a caption filter narrows the table
-  const chips = await page.$$eval(".chiprow a", as => as.map(a => a.getAttribute("href")));
-  const capChip = chips.find(h => /[?&]c=[^&]+/.test(h) && !/c=&/.test(h));
-  if (capChip) {
-    await page.goHash(capChip);          // goHash wants the leading '#'
+  if (await sheetPick(page, "jcap", l => l !== "All captions")) {
     await page.waitForTimeout(1200);
     const narrowed = await page.$$eval("tbody tr", trs => trs.length);
     if (narrowed >= rows) bad(`caption filter did not narrow the table (${rows} -> ${narrowed})`);

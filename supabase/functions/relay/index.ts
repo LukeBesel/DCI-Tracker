@@ -396,7 +396,10 @@ async function broadcast(shows: Map<string, Row[]>, status: any): Promise<number
     for (const [, rows] of shows) {
       const r0 = rows[0];
       if (!circuits.has(r0.circuit)) continue;
-      const fr = cls ? rows.filter((r) => cls.has(r.cls)) : rows;
+      // a pick is a DCI class ("World Class") or a whole WGI division
+      // ("wgi:Percussion" = every Percussion class)
+      const fr = cls ? rows.filter((r) => cls.has(r.cls) ||
+        (r.circuit === "wgi" && cls.has("wgi:" + r.cls.split(" · ")[0]))) : rows;
       if (!fr.length) continue;
       const mine = favs.map((f) => fr.find((r) => norm(r.corps) === norm(f))).filter(Boolean) as Row[];
       if (s.favs_only && !mine.length) continue;
