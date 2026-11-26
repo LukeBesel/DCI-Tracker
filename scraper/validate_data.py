@@ -171,6 +171,14 @@ def main() -> int:
             if ev.get("kind") not in (None, "camp", "auditions", "special"):
                 fail(f"upcoming.json '{ev.get('name')}': unknown kind {ev.get('kind')!r}")
 
+    # ---- downstream builds: never publish a site with them deleted --------
+    wmeta = load(DATA / "wgi" / "meta.json", 50)
+    if isinstance(wmeta, dict) and not isinstance(wmeta.get("seasons"), list):
+        fail("wgi/meta.json: no seasons list")
+    jidx = load(DATA / "judges" / "index.json", 20)
+    if isinstance(jidx, dict) and not jidx.get("years"):
+        fail("judges/index.json: no years — the judge build did not run")
+
     # ---- static assets the app depends on ----------------------------------
     for p in ("onthisday.json",):
         load(DOCS / p, 100)

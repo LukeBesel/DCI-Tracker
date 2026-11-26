@@ -1363,6 +1363,26 @@ def main():
                    "url": "https://www.dci.org/scores"},
     })
     log("build complete")
+    build_downstream()
+
+
+def build_downstream() -> None:
+    """Rebuild everything else that lives under docs/data.
+
+    main() wipes docs/data, so any caller that ran build_data alone used to
+    publish a site with the WGI and judge data deleted (it happened: a
+    show-night publish removed 68 files). Running the downstream builds here
+    makes build_data a complete build from every entry point. Each is guarded
+    so a WGI or judges failure is logged but never blocks publishing DCI
+    scores; validate_data then refuses to publish if their output is missing.
+    """
+    import build_judges
+    import build_wgi
+    for name, fn in (("wgi", build_wgi.main), ("judges", build_judges.main)):
+        try:
+            fn()
+        except Exception as e:  # noqa: BLE001 - logged and caught by validation
+            log(f"downstream build '{name}' failed: {e!r}")
 
 
 if __name__ == "__main__":
